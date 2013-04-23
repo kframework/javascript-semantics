@@ -120,7 +120,7 @@ function traverse(node, key) {
 				  traverse(node, 'body');
 				  result.str += ")";
 
-				} else if (child === 'BrakeStatement') {
+				} else if (child === 'BreakStatement') {
 				   
 				} else if (child === 'CallExpression') {
 				   
