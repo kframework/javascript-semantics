@@ -1,0 +1,24 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "name"
+                    },
+                    "init": {
+                        "type": "Literal",
+                        "value": "cansu"
+                    }
+                }
+            ],
+            "kind": "var"
+        }
+    ]
+}
+
+//NaN ??
