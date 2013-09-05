@@ -1,4 +1,4 @@
-*Currently only syntax
+> Currently only syntax
 
-kompile js.k
-krun programs/<file>
+`kompile js.k` <br>
+`krun programs/<file>`
