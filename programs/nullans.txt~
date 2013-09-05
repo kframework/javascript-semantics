@@ -1,0 +1,20 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "Identifier",
+                    "name": "cars"
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": null
+                }
+            }
+        }
+    ]
+}

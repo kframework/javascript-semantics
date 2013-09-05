@@ -1,0 +1,116 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "Identifier",
+                    "name": "person"
+                },
+                "right": {
+                    "type": "NewExpression",
+                    "callee": {
+                        "type": "Identifier",
+                        "name": "Object"
+                    },
+                    "arguments": []
+                }
+            }
+        },
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                        "type": "Identifier",
+                        "name": "person"
+                    },
+                    "property": {
+                        "type": "Identifier",
+                        "name": "firstname"
+                    }
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": "John"
+                }
+            }
+        },
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                        "type": "Identifier",
+                        "name": "person"
+                    },
+                    "property": {
+                        "type": "Identifier",
+                        "name": "lastname"
+                    }
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": "Doe"
+                }
+            }
+        },
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                        "type": "Identifier",
+                        "name": "person"
+                    },
+                    "property": {
+                        "type": "Identifier",
+                        "name": "age"
+                    }
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": 50
+                }
+            }
+        },
+        {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                        "type": "Identifier",
+                        "name": "person"
+                    },
+                    "property": {
+                        "type": "Identifier",
+                        "name": "eyecolor"
+                    }
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": "blue"
+                }
+            }
+        }
+    ]
+}

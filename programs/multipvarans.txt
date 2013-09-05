@@ -1,0 +1,27 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "cat"
+                    },
+                    "init": null
+                },
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "dog"
+                    },
+                    "init": null
+                }
+            ],
+            "kind": "var"
+        }
+    ]
+}

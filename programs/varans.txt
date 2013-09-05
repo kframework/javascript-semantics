@@ -1,0 +1,19 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "person"
+                    },
+                    "init": null
+                }
+            ],
+            "kind": "var"
+        }
+    ]
+}
