@@ -1,14 +1,16 @@
 function declaredTwice() {
 }
 
-function main() {
+
+function main(a, b) {
     undeclared();
 }
 
-function unused() {
+function unused(c) {
 }
 
 function declaredTwice() {
 }
-
+/*
 main();
+*/
