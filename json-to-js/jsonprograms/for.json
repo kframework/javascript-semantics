@@ -1,0 +1,83 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "x"
+                    },
+                    "init": null
+                },
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "i"
+                    },
+                    "init": null
+                }
+            ],
+            "kind": "var"
+        },
+        {
+            "type": "ForStatement",
+            "init": {
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "Identifier",
+                    "name": "i"
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": 0
+                }
+            },
+            "test": {
+                "type": "BinaryExpression",
+                "operator": "<",
+                "left": {
+                    "type": "Identifier",
+                    "name": "i"
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": 5
+                }
+            },
+            "update": {
+                "type": "UpdateExpression",
+                "operator": "++",
+                "argument": {
+                    "type": "Identifier",
+                    "name": "i"
+                },
+                "prefix": false
+            },
+            "body": {
+                "type": "BlockStatement",
+                "body": [
+                    {
+                        "type": "ExpressionStatement",
+                        "expression": {
+                            "type": "AssignmentExpression",
+                            "operator": "*=",
+                            "left": {
+                                "type": "Identifier",
+                                "name": "x"
+                            },
+                            "right": {
+                                "type": "Identifier",
+                                "name": "i"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

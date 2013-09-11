@@ -1,0 +1,235 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "x"
+                    },
+                    "init": null
+                },
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "d"
+                    },
+                    "init": {
+                        "type": "Literal",
+                        "value": 6
+                    }
+                }
+            ],
+            "kind": "var"
+        },
+        {
+            "type": "SwitchStatement",
+            "discriminant": {
+                "type": "Identifier",
+                "name": "d"
+            },
+            "cases": [
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 0
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Sunday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 1
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Monday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 2
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Tuesday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 3
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Wednesday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 4
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Thursday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 5
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Friday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                },
+                {
+                    "type": "SwitchCase",
+                    "test": {
+                        "type": "Literal",
+                        "value": 6
+                    },
+                    "consequent": [
+                        {
+                            "type": "ExpressionStatement",
+                            "expression": {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "Today it's Saturday"
+                                }
+                            }
+                        },
+                        {
+                            "type": "BreakStatement",
+                            "label": null
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

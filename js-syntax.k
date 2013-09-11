@@ -1,5 +1,9 @@
 //JavaScript syntax module
+
+require "json-to-js/js-on-common.k"
+
 module JS-SYNTAX
+  imports JS-ON-COMMON
 
 //Program - Ecma262-14---------------
   syntax Program ::= SourceElements  //using List causes the listing of .SourceElements
@@ -32,7 +36,7 @@ module JS-SYNTAX
 
 //check if works!!
   syntax VarDecl ::= Id
-		  |  Id "=" Expression  //!!!!
+		  |  Id "=" Expression  [strict(2)]  //!!!!
 
   syntax VarDecls ::= VarDecl
 		   |  VarDecls "," VarDecl  //List can't be empty
@@ -106,11 +110,9 @@ module JS-SYNTAX
 //FUNCTIONAPPLICATION!
 
   syntax Literal ::= "this"
-		  |  "null"
-		  |  "true"
-		  |  "false"
-		  |  Int  //check
-		  |  Float  //--precision is off!
+		  |  Null		  
+		  |  Bool
+		  |  JNumber
 		  |  String  //check
 //		  |  RegExp  //check
 
@@ -122,44 +124,6 @@ module JS-SYNTAX
   syntax Unary ::= "++" | "--"
 
   syntax Asgn ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | ">>>=" | "&=" | "ˆ=" | "|="
-
-
-//ARRAYNOTATION---------------------
-//Array Initializer - Ecma262-11.1.4
-//--introduces amb with Exp,Exp --find a better way!
-  syntax ArrayLiteral ::= "[" "]"
-		       |  "[" Elision "]"
-		       |  "[" ElementList "]"
-		       |  "[" ElementList "," Elision "]"
-		       |  "[" ElementList "," "]"
-
-  syntax ElementList ::= Elision Expression
-		      |  Expression
-		      |  ElementList "," Elision Expression
-		      |  ElementList "," Expression
-
-  syntax Elision ::= ","
-		  |  Elision ","
-//ARRAYNOTATION---------------------
-
-//OBJECTNOTATION--------------------
-//Object Initializer - Ecma262-11.1.5
-//check if works!
-  syntax ObjectLiteral ::= "{" "}"
-			|  "{" PropertyNameAndValueList "}"
-			|  "{" PropertyNameAndValueList "," "}"
-
-  syntax PropertyNameAndValueList ::= PropertyAssignment
-				   |  PropertyNameAndValueList "," PropertyAssignment
-
-  syntax PropertyAssignment ::= PropertyName ":" Expression  //Field
-			     |  "get" PropertyName "(" ")" "{" FuncBody "}"  //GetProp
-			     |  "set" PropertyName "(" Id ")" "{" FuncBody "}"  //SetProp
-
-  syntax PropertyName ::= Id
-		       |  String
-		       |  Int | Float
-//OBJECTNOTATION--------------------
 
 //CASEBLOCK-------------------------
 //The switch Statement - Ecma262-12.11

@@ -1,21 +1,29 @@
 //JSON syntax 
+
+require "js-on-common.k"
+
 module JSON
+  imports JS-ON-COMMON
+/*  
+//common parts
   syntax OBJECT ::= "{" "}"
-  		 | "{" MEMBERS "}"
+  		 |  "{" MEMBERS "}"
   syntax MEMBERS ::= PAIR
-	 	  | PAIR "," MEMBERS
-  syntax PAIR ::= String ":" VALUE
+	 	  |  PAIR "," MEMBERS
   syntax ARRAY ::= "[" "]"
-  		| "[" ELEMENTS "]"
+  		|  "[" ELEMENTS "]"
   syntax ELEMENTS ::= VALUE
-		   | VALUE "," ELEMENTS
-  syntax VALUE ::= String
-		| NUMBER
-		| OBJECT
-		| ARRAY
-		| "true" | "false"
-		| "null"
-		
+		   |  VALUE "," ELEMENTS
+*/
+
+  syntax PAIR ::= String ":" VALUE
+  syntax VALUE ::= JValue
+		|  String
+		|  Bool
+		|  Null
+
+/*
+//from the actual syntax: json.org
   syntax DIGIT ::= Token{"[0-9]"}
   syntax DIGIT19 ::= Token{"[1-9]"}
 
@@ -25,11 +33,5 @@ module JSON
   syntax EXP ::= ESCI DIGITS
   syntax DIGITS ::= DIGIT | DIGIT DIGITS
   syntax ESCI ::= "e0" | "e+" | "e-" | "E0" | "E+" | "E-"  // E/e conflicts with dist/include/io/uris.k --> E0/e0
-		
-//  syntax NUMBER ::= JInt
-//		   | JFloat
-//
-//  syntax JInt ::= Token{"-?[1-9][0-9]*"}
-//  syntax JFloat ::= Token{"-?[1-9][0-9]*.[0-9]*"}
-
+*/
 endmodule

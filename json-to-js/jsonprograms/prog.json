@@ -1,0 +1,13 @@
+{
+    "type": "Program",
+    "body": [
+        {
+"type": "Identifier",
+                    "name": "cars"
+	},
+	{
+"type": "Identifier",
+                    "name": "trucks"
+	}
+    ]
+}
