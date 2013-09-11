@@ -6,5 +6,5 @@ Install [node.js](http://nodejs.org/)
 
 > Currently only (JSON) syntax
 
-`kompile json.k`
+`kompile json.k` <br>
 `krun jsonprograms/<file>`
