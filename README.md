@@ -8,3 +8,7 @@ Currently, this does NOT support:
 - Automatic semicolon insertions
 - 'get' and 'set' attributes (will be supported soon!)
 - Miscellaneous corner cases
+
+This semantics is based on ECMAScript 5.1 specification:
+Fifth Edition of ECMA-262
+http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf
