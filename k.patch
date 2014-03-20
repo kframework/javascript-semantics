@@ -1,3 +1,45 @@
+diff --git a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
+index 764f281..0999c5f 100644
+--- a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
++++ b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
+@@ -28,7 +28,7 @@ public class CommandParse extends Command {
+ 	public void run() {
+ 		try {
+ 			RunProcess rp = new RunProcess();
+-			Term kast = rp.runParser(K.parser, stringToParse, true, sort, context);
++			Term kast = rp.runParser(K.getProgramParser(), stringToParse, true, sort, context);
+ 			MaudeFilter mf = new MaudeFilter(context);
+ 			kast.accept(mf);
+ 			succeed(mf.getResult().toString());
+diff --git a/src/javasources/KTool/src/org/kframework/utils/StringUtil.java b/src/javasources/KTool/src/org/kframework/utils/StringUtil.java
+index f2090d7..e6712bb 100644
+--- a/src/javasources/KTool/src/org/kframework/utils/StringUtil.java
++++ b/src/javasources/KTool/src/org/kframework/utils/StringUtil.java
+@@ -111,15 +111,24 @@ public class StringUtil {
+                 } else if (str.charAt(i + 1) == 't') {
+                     sb.append('\t');
+                     i++;
++                } else if (str.charAt(i + 1) == 'f') {
++                    sb.append(' ');
++                    i++;
+                 } else if (str.charAt(i + 1) == 'x') {
+                     String arg = str.substring(i + 2, i + 4);
+                     sb.append((char)Integer.parseInt(arg, 16));
+                     i += 3;
+                 } else if (str.charAt(i + 1) == 'u') {
+                     String arg = str.substring(i + 2, i + 6);
++                    if (arg.equals("00A0") || arg.equals("00a0")) {
++                    sb.append(' ');
++                    } else if (arg.equals("2028") || arg.equals("2029")) {
++                    sb.append('\n');
++                    } else {
+                     int codePoint = Integer.parseInt(arg, 16);
+                     StringUtil.throwIfSurrogatePair(codePoint);
+                     sb.append((char)codePoint);
++                    }
+                     i += 5;
+                 } else if (str.charAt(i + 1) == 'U') {
+                     String arg = str.substring(i + 2, i + 10);
 diff --git a/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf b/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf
 index 963e291..ddeae0d 100644
 --- a/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf
