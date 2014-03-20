@@ -45,7 +45,7 @@ rule ^VariableDeclaration(X:Name               ) =>      %vdecl(^Name(X)) [macro
 rule ^VariableDeclaration(X:Name = E:Expression) => %seq(%vdecl(^Name(X)), %exp(%bop(%assign, %var(^Name(X)), ^Expression(E)))) [macro]
 
 // empty statement
-rule ^Statement(;) => %emptyStmt [macro]
+//rule ^Statement(;) => %emptyStmt [macro]
 
 // expression statement
 rule ^Statement(Es:ExpressionS ;) => %exp(^Expressions2Comma(Es)) [macro]
@@ -55,27 +55,27 @@ rule ^Statement(if ( Es:ExpressionS ) S1:Statement                  ) => %if(^Ex
 rule ^Statement(if ( Es:ExpressionS ) S1:Statement else S2:Statement) => %if(^Expressions2Comma(Es), ^Statement(S1), ^Statement(S2)) [macro]
 
 // do-while
-rule ^Statement(do S:Statement while ( Es:ExpressionS ) ;) => %do(^Statement(S), ^Expressions2Comma(Es)) [macro]
+rule ^Statement(do S:Statement while ( Es:ExpressionS ) ;) => %label("", %do(^Statement(S), ^Expressions2Comma(Es))) [macro]
 
 // while
-rule ^Statement(while ( Es:ExpressionS ) S:Statement) => %while(^Expressions2Comma(Es), ^Statement(S)) [macro]
+rule ^Statement(while ( Es:ExpressionS ) S:Statement) => %label("", %while(^Expressions2Comma(Es), ^Statement(S))) [macro]
 
 // for
-rule ^Statement(for (              Es0:Expressions ; Es1:Expressions ; Es2:Expressions ) S:Statement) => %for(%exp(^Expressions2Comma(Es0)), ^Expressions2Comma(Es1), ^Expressions2Comma(Es2), ^Statement(S)) [macro]
-rule ^Statement(for ( var VDs:VariableDeclarationS ; Es1:Expressions ; Es2:Expressions ) S:Statement) => %for(^Statement(var VDs ;),         ^Expressions2Comma(Es1), ^Expressions2Comma(Es2), ^Statement(S)) [macro]
+rule ^Statement(for (              Es0:Expressions ; Es1:Expressions ; Es2:Expressions ) S:Statement) => %label("", %for(%exp(^Expressions2Comma(Es0)), ^Expressions2Comma(Es1), ^Expressions2Comma(Es2), ^Statement(S))) [macro]
+rule ^Statement(for ( var VDs:VariableDeclarationS ; Es1:Expressions ; Es2:Expressions ) S:Statement) => %label("", %for(^Statement(var VDs ;),         ^Expressions2Comma(Es1), ^Expressions2Comma(Es2), ^Statement(S))) [macro]
 
 // for-in
-rule ^Statement(for (          E:LeftExpression in Es:ExpressionS ) S:Statement) => %forin(%emptyStmt,                  ^Expression(E), ^Expressions2Comma(Es), ^Statement(S)) [macro]
-rule ^Statement(for ( var N:Name                in Es:ExpressionS ) S:Statement) => %forin(^VariableDeclaration(N    ), %var(^Name(N)), ^Expressions2Comma(Es), ^Statement(S)) [macro]
-rule ^Statement(for ( var N:Name = E:Expression in Es:ExpressionS ) S:Statement) => %forin(^VariableDeclaration(N = E), %var(^Name(N)), ^Expressions2Comma(Es), ^Statement(S)) [macro]
+rule ^Statement(for (          E:LeftExpression in Es:ExpressionS ) S:Statement) => %label("", %forin(%emptyStmt,                  ^Expression(E), ^Expressions2Comma(Es), ^Statement(S))) [macro]
+rule ^Statement(for ( var N:Name                in Es:ExpressionS ) S:Statement) => %label("", %forin(^VariableDeclaration(N    ), %var(^Name(N)), ^Expressions2Comma(Es), ^Statement(S))) [macro]
+rule ^Statement(for ( var N:Name = E:Expression in Es:ExpressionS ) S:Statement) => %label("", %forin(^VariableDeclaration(N = E), %var(^Name(N)), ^Expressions2Comma(Es), ^Statement(S))) [macro]
 
 // continue
-rule ^Statement(continue        ;) => %continue("")
-rule ^Statement(continue L:Name ;) => %continue(^Name(L))
+rule ^Statement(continue        ;) => %continue("")       [macro]
+rule ^Statement(continue L:Name ;) => %continue(^Name(L)) [macro]
 
 // break
-rule ^Statement(break        ;) => %break("")
-rule ^Statement(break L:Name ;) => %break(^Name(L))
+rule ^Statement(break        ;) => %break("")       [macro]
+rule ^Statement(break L:Name ;) => %break(^Name(L)) [macro]
 
 // return
 rule ^Statement(return                ;) => %return(%emptyExp) [macro]
@@ -88,7 +88,18 @@ rule ^Statement(with ( Es:ExpressionS ) S:Statement) => %with(^Expressions2Comma
 rule ^Statement(L:Name : S:Statement) => %label(^Name(L), ^Statement(S)) [macro]
 
 // switch
-// TODO:
+rule ^Statement(switch ( Es:ExpressionS ) { CCs1:CaseClauses                                   }) => %label("", %switch(^Expressions2Comma(Es), ^CaseClauses(CCs1), %emptyStmt,         %emptyStmt        )) [macro]
+rule ^Statement(switch ( Es:ExpressionS ) { CCs1:CaseClauses DC:DefaultClause CCs2:CaseClauses }) => %label("", %switch(^Expressions2Comma(Es), ^CaseClauses(CCs1), ^DefaultClause(DC), ^CaseClauses(CCs2))) [macro]
+//
+syntax Stmt ::= "^CaseClauses" "(" CaseClauses ")"
+rule ^CaseClauses(CC:CaseClause CCs:CaseClauses) => %seq(^CaseClause(CC), ^CaseClauses(CCs)) [macro]
+rule ^CaseClauses(                 .CaseClauses) =>                       %emptyStmt         [macro]
+//
+syntax Stmt ::= "^CaseClause" "(" CaseClause ")"
+rule ^CaseClause(case Es:ExpressionS : Ss:Statements) => %case(^Expressions2Comma(Es), ^Statements(Ss)) [macro]
+//
+syntax Stmt ::= "^DefaultClause" "(" DefaultClause ")"
+rule ^DefaultClause(default : Ss:Statements) => %default(^Statements(Ss)) [macro]
 
 // throw
 rule ^Statement(throw Es:ExpressionS ;) => %throw(^Expressions2Comma(Es)) [macro]
@@ -223,17 +234,17 @@ rule ^Expression(E1:Expression ||         E2:Expression) => %bop(%or,          ^
 rule ^Expression(E1:Expression ? E2:Expression : E3:Expression) => %cond(^Expression(E1), ^Expression(E2), ^Expression(E3)) [macro]
 //
 rule ^Expression(E1:LeftExpression =    E2:Expression) => %bop(%assign,            ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression *=   E2:Expression) => %bop(%timesassign,       ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression /=   E2:Expression) => %bop(%divassign,         ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression %=   E2:Expression) => %bop(%modassign,         ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression +=   E2:Expression) => %bop(%plusassign,        ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression -=   E2:Expression) => %bop(%minusassign,       ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression <<=  E2:Expression) => %bop(%lshiftassign,      ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression >>=  E2:Expression) => %bop(%rshiftassign,      ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression >>>= E2:Expression) => %bop(%rshiftshiftassign, ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression &=   E2:Expression) => %bop(%ampassign,         ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression ^=   E2:Expression) => %bop(%caretassign,       ^Expression(E1), ^Expression(E2)) [macro]
-rule ^Expression(E1:LeftExpression |=   E2:Expression) => %bop(%barassign,         ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression *=   E2:Expression) => %bopassign(%times,       ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression /=   E2:Expression) => %bopassign(%div,         ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression %=   E2:Expression) => %bopassign(%mod,         ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression +=   E2:Expression) => %bopassign(%plus,        ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression -=   E2:Expression) => %bopassign(%minus,       ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression <<=  E2:Expression) => %bopassign(%lshift,      ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression >>=  E2:Expression) => %bopassign(%rshift,      ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression >>>= E2:Expression) => %bopassign(%rshiftshift, ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression &=   E2:Expression) => %bopassign(%amp,         ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression ^=   E2:Expression) => %bopassign(%caret,       ^Expression(E1), ^Expression(E2)) [macro]
+rule ^Expression(E1:LeftExpression |=   E2:Expression) => %bopassign(%bar,         ^Expression(E1), ^Expression(E2)) [macro]
 
 // identifier
 syntax Var ::= "^Name" "(" Name ")"

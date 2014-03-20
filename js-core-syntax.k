@@ -21,6 +21,9 @@ syntax Stmt ::= "%fdecl" "(" Var "," Exps "," Stmt ")"
               | "%with" "(" Exp "," Stmt ")"
               | "%emptyStmt"
               | "%print" "(" Exp ")"
+              | "%switch" "(" Exp "," Stmt "," Stmt "," Stmt ")" // switch ( _ ) { _ _ _ }
+              | "%case" "(" Exp "," Stmt ")" // case _ : _
+              | "%default" "(" Stmt ")" // default : _
 
 syntax Exp ::= "%con" "(" Const ")"
              | "%var" "(" Var ")"
@@ -36,6 +39,7 @@ syntax Exp ::= "%con" "(" Const ")"
              | "%pre" "(" Op "," Exp ")"
              | "%post" "(" Exp "," Op ")"
              | "%bop" "(" Op "," Exp "," Exp ")"
+             | "%bopassign" "(" Op "," Exp "," Exp ")"
              | "%cond" "(" Exp "," Exp "," Exp ")"
              | "%emptyExp"
              | "%fun" "(" Var "," Exps "," Stmt ")"
@@ -56,7 +60,7 @@ syntax Var ::= String
 syntax Op ::= "%inc" | "%dec"
             | OpNormal
             | OpShortcut
-            | OpAssign
+            | "%assign"
 
 syntax OpNormal ::= "%plus" | "%minus" | "%tilde" | "%bang"
                   | "%delete" | "%void" | "%typeof"
@@ -68,11 +72,5 @@ syntax OpNormal ::= "%plus" | "%minus" | "%tilde" | "%bang"
                   | "%amp" | "%caret" | "%bar"
 
 syntax OpShortcut ::= "%and" | "%or"
-
-syntax OpAssign ::= "%assign"
-                  | "%timesassign" | "%divassign" | "%modassign"
-                  | "%plusassign" | "%minusassign"
-                  | "%lshiftassign" | "%rshiftassign" | "%rshiftshiftassign"
-                  | "%ampassign" | "%caretassign" | "%barassign"
 
 endmodule

@@ -19,7 +19,7 @@ syntax FunctionBody ::= SourceElements
 syntax Statements ::= List{Statement, ""}
 syntax Statement ::= Block
                    | "var" VariableDeclarationS ";"
-                   | ";"
+                 //| ";"
                    | ExpressionS ";"
                    | "if" "(" ExpressionS ")" Statement
                    | "if" "(" ExpressionS ")" Statement "else" Statement    [prefer]
