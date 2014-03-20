@@ -1,0 +1,170 @@
+diff --git a/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala b/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
+index 1464304..9f1830f 100644
+--- a/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
++++ b/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
+@@ -127,6 +127,11 @@ object JSAstToConcrete extends Walker {
+     decreaseIndent
+   }
+ 
++  class StringBuilderHelper(s: StringBuilder) {
++    def toStringP() = new StringBuilder("(").append(s.toString).append(")").toString
++  }
++  implicit def stringBuilderWrapper(s: StringBuilder) = new StringBuilderHelper(s)
++
+   /* The rule of separators(indentation, semicolon and newline) in unparsing pattern matchings.
+    * This rule is applied recursively
+    * Principle: All case already has indentation at the front and newline at the end.
+@@ -167,7 +172,7 @@ object JSAstToConcrete extends Walker {
+       s.append(walk(lhs)).append(" ")
+       s.append(walk(op)).append(" ")
+       s.append(walk(right))
+-      s.toString
++      s.toString /*P*/
+     case SBlock(info, stmts, _) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -192,7 +197,7 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append(walk(obj)).append("[").append(walk(index)).append("]")
+-      s.toString
++      s.toString /*P*/
+     case SBreak(info, target) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -225,7 +230,7 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append(walk(cond)).append(" ? ").append(walk(trueBranch)).append(" : ").append(walk(falseBranch))
+-      s.toString
++      s.toString /*P*/
+     case SContinue(info, target) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -253,11 +258,11 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append(walk(obj)).append(".").append(walk(member))
+-      s.toString
++      s.toString /*P*/
+     case SEmptyStmt(info) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+-      s.append(";")
++      s.append("undefined;")
+       s.toString
+     case SExprList(info, exprs) =>
+       join(exprs, ", ", new StringBuilder(walk(info))).toString
+@@ -272,7 +277,7 @@ object JSAstToConcrete extends Walker {
+       s.append(walk(prop)).append(" : ").append(walk(expr))
+       s.toString
+     case SDoubleLiteral(info, text, num) =>
+-      walk(info)+text
++      walk(info)+ /*text*/ num.toString().replace('E','e');
+     case SFor(info, init, cond, action, body) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -329,7 +334,7 @@ object JSAstToConcrete extends Walker {
+       s.append(walk(fun)).append("(")
+       s.append(join(args, ", ", new StringBuilder("")))
+       s.append(")")
+-      s.toString
++      s.toString /*P*/
+     case SFunDecl(info, SFunctional(fds, vds, body, name, params), _) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -349,7 +354,7 @@ object JSAstToConcrete extends Walker {
+       s.append(") \n").append(getIndent).append("{\n")
+       prFtn(s, fds, vds, toList(body.getBody))
+       s.append("\n").append(getIndent).append("})")
+-      s.toString
++      s.toString /*P*/
+     case SGetProp(info, prop, SFunctional(fds, vds, body, _, _)) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+@@ -385,11 +390,13 @@ object JSAstToConcrete extends Walker {
+       s.append(walk(left)).append(" ")
+       s.append(walk(op)).append(" ")
+       s.append(walk(right))
+-      s.toString
++      s.toStringP
+     case SIntLiteral(info, intVal, radix) =>
+       val str = radix match {
++        /*
+         case 8 => "0" + intVal.toString(8)
+         case 16 => "0x" + intVal.toString(16)
++        */
+         case _ => intVal.toString
+       }
+       walk(info)+str
+@@ -404,7 +411,7 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append("new ").append(walk(lhs))
+-      s.toString
++      s.toString /*P*/
+     case SNull(info) =>
+       walk(info)+"null"
+     case SObjectExpr(info, members) =>
+@@ -424,7 +431,7 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append(walk(op)).append(" ").append(walk(right))
+-      s.toString
++      s.toString /*P*/
+     case SProgram(info, STopLevel(fds, vds, program)) =>
+       val s: StringBuilder = new StringBuilder
+       prFtn(s, fds, vds, NU.toStmts(program))
+@@ -509,7 +516,7 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append(walk(lhs)).append(" ").append(walk(op))
+-      s.toString
++      s.toString /*P*/
+     case SVarDecl(info, name, expr, _) =>
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+diff --git a/src/kr/ac/kaist/jsaf/parser/Declaration.rats b/src/kr/ac/kaist/jsaf/parser/Declaration.rats
+index 78985f6..5787cbb 100644
+--- a/src/kr/ac/kaist/jsaf/parser/Declaration.rats
++++ b/src/kr/ac/kaist/jsaf/parser/Declaration.rats
+@@ -23,14 +23,11 @@ import Spacing;
+  * Program ::= w SourceElements? w EndOfFile
+  */
+ public Program File =
+-     initParser a1:UseStrictDirectives? w a2:TopLevelSourceElements? closeParser
++     initParser a2:TopLevelSourceElements? closeParser
+      { Span span = createSpan(yyStart,yyCount);
+        if (a2 == null) a2 = Collections.<SourceElement>emptyList();
+        HashMap<String, Span> map = new HashMap<String, Span>();
+-       if (a1 == null)
+            yyValue = NodeFactory.makeProgram(span, a2, false);
+-       else
+-           yyValue = NodeFactory.makeProgram(span, a2, true);
+      };
+ void initParser = w { initParser(); };
+ void closeParser = w EndOfFile
+@@ -287,19 +284,14 @@ public List<Id> Params =
+  * FunctionBody ::= { w SourceElement* w }
+  */
+ public kr.ac.kaist.jsaf.useful.Pair<List<SourceElement>, Boolean> FunctionBody =
+-     opencurly w a1:UseStrictDirectives? w closecurly
+-     { if (a1 == null)
++     opencurly w closecurly
++     { 
+          yyValue = new kr.ac.kaist.jsaf.useful.Pair<List<SourceElement>, Boolean>(Collections.<SourceElement>emptyList(),
+                                                                                   Boolean.valueOf(false));
+-       else
+-         yyValue = new kr.ac.kaist.jsaf.useful.Pair<List<SourceElement>, Boolean>(Collections.<SourceElement>emptyList(),
+-                                                                                  Boolean.valueOf(true));
+      }
+-   / opencurly w a1:UseStrictDirectives? w a2:SourceElements w closecurly
+-     { if (a1 == null)
++   / opencurly w a2:SourceElements w closecurly
++     { 
+           yyValue = new kr.ac.kaist.jsaf.useful.Pair<List<SourceElement>, Boolean>(a2, Boolean.valueOf(false));
+-       else
+-          yyValue = new kr.ac.kaist.jsaf.useful.Pair<List<SourceElement>, Boolean>(a2, Boolean.valueOf(true));
+      };
+ 
+ /*
