@@ -1,0 +1,39 @@
+diff --git a/src/com/google/javascript/jscomp/CodeConsumer.java b/src/com/google/javascript/jscomp/CodeConsumer.java
+index 12eb481..99c9c12 100644
+--- a/src/com/google/javascript/jscomp/CodeConsumer.java
++++ b/src/com/google/javascript/jscomp/CodeConsumer.java
+@@ -278,7 +278,7 @@ abstract class CodeConsumer {
+         }
+       }
+     } else {
+-      addConstant(String.valueOf(x).replace(".0E", "E"));
++      addConstant(String.valueOf(x)/*.replace(".0E", "E")*/);
+     }
+   }
+ 
+diff --git a/src/com/google/javascript/jscomp/parsing/IRFactory.java b/src/com/google/javascript/jscomp/parsing/IRFactory.java
+index fe11caa..0d69dc4 100644
+--- a/src/com/google/javascript/jscomp/parsing/IRFactory.java
++++ b/src/com/google/javascript/jscomp/parsing/IRFactory.java
+@@ -117,7 +117,7 @@ class IRFactory {
+   private final TransformDispatcher transformDispatcher;
+ 
+   private static final ImmutableSet<String> ALLOWED_DIRECTIVES =
+-      ImmutableSet.of("use strict");
++      ImmutableSet.of( /* "use strict" */ );
+ 
+   private static final ImmutableSet<String> ES5_RESERVED_KEYWORDS =
+       ImmutableSet.of(
+diff --git a/src/com/google/javascript/jscomp/parsing/NewIRFactory.java b/src/com/google/javascript/jscomp/parsing/NewIRFactory.java
+index b5a1020..cb7bc4f 100644
+--- a/src/com/google/javascript/jscomp/parsing/NewIRFactory.java
++++ b/src/com/google/javascript/jscomp/parsing/NewIRFactory.java
+@@ -161,7 +161,7 @@ class NewIRFactory {
+   private final TransformDispatcher transformDispatcher;
+ 
+   private static final ImmutableSet<String> ALLOWED_DIRECTIVES =
+-      ImmutableSet.of("use strict");
++      ImmutableSet.of( /* "use strict" */ );
+ 
+   private static final ImmutableSet<String> ES5_RESERVED_KEYWORDS =
+       ImmutableSet.of(
