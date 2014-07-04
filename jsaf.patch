@@ -1,5 +1,5 @@
 diff --git a/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala b/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
-index 1464304..9f1830f 100644
+index 1464304..d0f5892 100644
 --- a/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
 +++ b/src/kr/ac/kaist/jsaf/nodes_util/JSAstToConcrete.scala
 @@ -127,6 +127,11 @@ object JSAstToConcrete extends Walker {
@@ -14,7 +14,27 @@ index 1464304..9f1830f 100644
    /* The rule of separators(indentation, semicolon and newline) in unparsing pattern matchings.
     * This rule is applied recursively
     * Principle: All case already has indentation at the front and newline at the end.
-@@ -167,7 +172,7 @@ object JSAstToConcrete extends Walker {
+@@ -151,7 +156,18 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       s.append("[")
+-      elements.foreach(e => s.append(walk(e)).append(", "))
++      elements match {
++        case Nil => ()
++        case head :: tail =>
++          head match {
++            case Some(e) => s.append(walk(e))
++            case None => s.append("undefined")
++          }
++          tail.foreach(_ match {
++            case Some(e) => s.append(", ").append(walk(e))
++            case None => s.append(", ").append("undefined")
++          })
++      }
+       s.append("]")
+       s.toString
+     case SArrayNumberExpr(info, elements) =>
+@@ -167,7 +183,7 @@ object JSAstToConcrete extends Walker {
        s.append(walk(lhs)).append(" ")
        s.append(walk(op)).append(" ")
        s.append(walk(right))
@@ -23,7 +43,7 @@ index 1464304..9f1830f 100644
      case SBlock(info, stmts, _) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -192,7 +197,7 @@ object JSAstToConcrete extends Walker {
+@@ -192,7 +208,7 @@ object JSAstToConcrete extends Walker {
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
        s.append(walk(obj)).append("[").append(walk(index)).append("]")
@@ -32,7 +52,7 @@ index 1464304..9f1830f 100644
      case SBreak(info, target) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -225,7 +230,7 @@ object JSAstToConcrete extends Walker {
+@@ -225,7 +241,7 @@ object JSAstToConcrete extends Walker {
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
        s.append(walk(cond)).append(" ? ").append(walk(trueBranch)).append(" : ").append(walk(falseBranch))
@@ -41,11 +61,19 @@ index 1464304..9f1830f 100644
      case SContinue(info, target) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -253,11 +258,11 @@ object JSAstToConcrete extends Walker {
+@@ -252,12 +268,18 @@ object JSAstToConcrete extends Walker {
+     case SDot(info, obj, member) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-       s.append(walk(obj)).append(".").append(walk(member))
+-      s.append(walk(obj)).append(".").append(walk(member))
 -      s.toString
++      obj match {
++        case SDoubleLiteral(_,_,_) =>
++          s.append("(").append(walk(obj)).append(")")
++        case _ =>
++          s.append(walk(obj))
++      }
++      s.append(".").append(walk(member))
 +      s.toString /*P*/
      case SEmptyStmt(info) =>
        val s: StringBuilder = new StringBuilder
@@ -55,7 +83,7 @@ index 1464304..9f1830f 100644
        s.toString
      case SExprList(info, exprs) =>
        join(exprs, ", ", new StringBuilder(walk(info))).toString
-@@ -272,7 +277,7 @@ object JSAstToConcrete extends Walker {
+@@ -272,7 +294,7 @@ object JSAstToConcrete extends Walker {
        s.append(walk(prop)).append(" : ").append(walk(expr))
        s.toString
      case SDoubleLiteral(info, text, num) =>
@@ -64,7 +92,7 @@ index 1464304..9f1830f 100644
      case SFor(info, init, cond, action, body) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -329,7 +334,7 @@ object JSAstToConcrete extends Walker {
+@@ -329,7 +351,7 @@ object JSAstToConcrete extends Walker {
        s.append(walk(fun)).append("(")
        s.append(join(args, ", ", new StringBuilder("")))
        s.append(")")
@@ -73,7 +101,7 @@ index 1464304..9f1830f 100644
      case SFunDecl(info, SFunctional(fds, vds, body, name, params), _) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -349,7 +354,7 @@ object JSAstToConcrete extends Walker {
+@@ -349,7 +371,7 @@ object JSAstToConcrete extends Walker {
        s.append(") \n").append(getIndent).append("{\n")
        prFtn(s, fds, vds, toList(body.getBody))
        s.append("\n").append(getIndent).append("})")
@@ -82,7 +110,28 @@ index 1464304..9f1830f 100644
      case SGetProp(info, prop, SFunctional(fds, vds, body, _, _)) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
-@@ -385,11 +390,13 @@ object JSAstToConcrete extends Walker {
+@@ -367,16 +389,18 @@ object JSAstToConcrete extends Walker {
+       val s: StringBuilder = new StringBuilder
+       s.append(walk(info))
+       var oneline: Boolean = isOneline(trueBranch)
+-      s.append("if(").append(walk(cond)).append(")\n")
++      s.append("if(").append(walk(cond)).append(") {\n")
+       if(oneline) increaseIndent
+       s.append(getIndent).append(walk(trueBranch))
+       if(oneline) decreaseIndent
++      s.append("}")
+       if(falseBranch.isSome){
+         oneline = isOneline(falseBranch)
+-        s.append("\n").append(getIndent).append("else\n")
++        s.append("\n").append(getIndent).append("else {\n")
+         if(oneline) increaseIndent
+         s.append(getIndent).append(walk(falseBranch))
+         if(oneline) decreaseIndent
++        s.append("}")
+       }
+       s.toString
+     case SInfixOpApp(info, left, op, right) =>
+@@ -385,11 +409,13 @@ object JSAstToConcrete extends Walker {
        s.append(walk(left)).append(" ")
        s.append(walk(op)).append(" ")
        s.append(walk(right))
@@ -97,7 +146,7 @@ index 1464304..9f1830f 100644
          case _ => intVal.toString
        }
        walk(info)+str
-@@ -404,7 +411,7 @@ object JSAstToConcrete extends Walker {
+@@ -404,7 +430,7 @@ object JSAstToConcrete extends Walker {
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
        s.append("new ").append(walk(lhs))
@@ -106,7 +155,7 @@ index 1464304..9f1830f 100644
      case SNull(info) =>
        walk(info)+"null"
      case SObjectExpr(info, members) =>
-@@ -424,7 +431,7 @@ object JSAstToConcrete extends Walker {
+@@ -424,7 +450,7 @@ object JSAstToConcrete extends Walker {
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
        s.append(walk(op)).append(" ").append(walk(right))
@@ -115,7 +164,7 @@ index 1464304..9f1830f 100644
      case SProgram(info, STopLevel(fds, vds, program)) =>
        val s: StringBuilder = new StringBuilder
        prFtn(s, fds, vds, NU.toStmts(program))
-@@ -509,7 +516,7 @@ object JSAstToConcrete extends Walker {
+@@ -509,7 +535,7 @@ object JSAstToConcrete extends Walker {
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
        s.append(walk(lhs)).append(" ").append(walk(op))
@@ -124,6 +173,49 @@ index 1464304..9f1830f 100644
      case SVarDecl(info, name, expr, _) =>
        val s: StringBuilder = new StringBuilder
        s.append(walk(info))
+diff --git a/src/kr/ac/kaist/jsaf/nodes_util/NodeFactory.scala b/src/kr/ac/kaist/jsaf/nodes_util/NodeFactory.scala
+index 4c8f0c5..3517f3c 100644
+--- a/src/kr/ac/kaist/jsaf/nodes_util/NodeFactory.scala
++++ b/src/kr/ac/kaist/jsaf/nodes_util/NodeFactory.scala
+@@ -356,7 +356,7 @@ object NodeFactory {
+     if (elmts.size > 1000)
+       new ArrayNumberExpr(makeSpanInfoComment(span), elmts)
+     else
+-      makeArrayExpr(span, toJavaList(toList(elmts).map(e => some(makeDoubleLiteral(span, e.toString, e).asInstanceOf[Expr]))))
++      makeArrayExpr(span, toJavaList(toList(elmts).map(e => some(makeNumericLiteral(span, e.toString, e).asInstanceOf[Expr]))))
+   }
+ 
+   def makeArrayExpr(span: Span, elmts: JList[JOption[Expr]]) =
+@@ -426,6 +426,11 @@ object NodeFactory {
+     JDouble.valueOf(beforeDot)
+   }
+ 
++  def makeNumericLiteral(span: Span, str: String, doubleVal: Double) =
++    if (str.endsWith(".0"))
++      new IntLiteral(makeSpanInfoComment(span), new BigInteger(str.substring(0, str.length-2), 10), 10)
++    else new DoubleLiteral(makeSpanInfoComment(span), str, doubleVal)
++
+   def makeIntLiteral(span: Span, intVal: BigInteger, radix: Int = 10) =
+     new IntLiteral(makeSpanInfoComment(span), intVal, radix)
+ 
+diff --git a/src/kr/ac/kaist/jsaf/nodes_util/Unprinter.java b/src/kr/ac/kaist/jsaf/nodes_util/Unprinter.java
+index 96d6e79..5f050eb 100644
+--- a/src/kr/ac/kaist/jsaf/nodes_util/Unprinter.java
++++ b/src/kr/ac/kaist/jsaf/nodes_util/Unprinter.java
+@@ -257,7 +257,12 @@ public class Unprinter extends NodeReflection {
+                 } else if (f.getType() == BigInteger.class) {
+                     f.set(node, readBigInteger(l.name()));
+                 } else if (f.getType() == Double.class) {
+-                    f.set(node, readDouble(l.name()+"."+lexAfter(".")));
++                    String n = l.name();
++                    if (n.equals("Infinity")) {
++                        f.set(node, readDouble(n));
++                    } else {
++                        f.set(node, readDouble(n+"."+lexAfter(".")));
++                    }
+                 } else if (Option.class.isAssignableFrom(f.getType())) {
+                     f.set(node, readOption());
+                 } else if (ASTSpanInfo.class.isAssignableFrom(f.getType())) {
 diff --git a/src/kr/ac/kaist/jsaf/parser/Declaration.rats b/src/kr/ac/kaist/jsaf/parser/Declaration.rats
 index 78985f6..5787cbb 100644
 --- a/src/kr/ac/kaist/jsaf/parser/Declaration.rats
@@ -168,3 +260,17 @@ index 78985f6..5787cbb 100644
       };
  
  /*
+diff --git a/src/kr/ac/kaist/jsaf/parser/Statement.rats b/src/kr/ac/kaist/jsaf/parser/Statement.rats
+index f09a653..1dabfdf 100644
+--- a/src/kr/ac/kaist/jsaf/parser/Statement.rats
++++ b/src/kr/ac/kaist/jsaf/parser/Statement.rats
+@@ -72,7 +72,8 @@ public Stmt Statement =
+        yyValue = NodeFactory.makeEmptyStmt(span);
+      }
+ // !(opencurly) a1:Expression EOS // !(opencurly / function) a1:Expression EOS
+-   / a1:Expression EOS // !(opencurly / function) a1:Expression EOS
++// a1:Expression EOS // !(opencurly / function) a1:Expression EOS
++   / !(function) a1:Expression EOS
+      { Span span = createSpan(yyStart,yyCount);
+        yyValue = NodeFactory.makeExprStmt(span, a1);
+      }

@@ -112,9 +112,6 @@ rule ^Statement(try { Ss1:Statements }                                     final
 // debugger
 // TODO:
 
-// print
-rule ^Statement(print ( E:Expression ) ;) => %print(^Expression(E)) [macro]
-
 // comma expressions
 syntax Exp ::= "^Expressions2Comma" "(" ExpressionS ")"
              | "^Expressions2Comma" "(" Expressions ")"
@@ -154,7 +151,7 @@ rule ^ArrayElements(                     .ArrayElements) =>                     
 //
 syntax Exp ::= "^ArrayElement" "(" ExpressionOpt ")"
 rule ^ArrayElement(E:Expression) => ^Expression(E) [macro]
-rule ^ArrayElement('epsilonExpression(.KList)) => %emptyExp [macro]
+//rule ^ArrayElement('epsilonExpression(.KList)) => %emptyExp [macro]
 
 // object
 rule ^Expression({ PAs:PropertyAssignments }) => %obj(^PropertyAssignments(PAs)) [macro]
@@ -165,8 +162,8 @@ rule ^PropertyAssignments(                          .PropertyAssignments) =>    
 //
 syntax Exp ::= "^PropertyAssignment" "(" PropertyAssignment ")"
 rule ^PropertyAssignment(P:PropertyName : E:Expression) => %prop(^PropertyName(P), ^Expression(E)) [macro]
-rule ^PropertyAssignment(Get:Name P:PropertyName (        ) { Ss:Statements }) => %get(^PropertyName(P),           ^Statements(Ss)) when StringOfName(Get) ==K "get" [macro]
-rule ^PropertyAssignment(Set:Name P:PropertyName ( X:Name ) { Ss:Statements }) => %set(^PropertyName(P), ^Name(X), ^Statements(Ss)) when StringOfName(Set) ==K "set" [macro]
+rule ^PropertyAssignment(G:Name P:PropertyName (        ) { Ss:Statements }) => %get(^PropertyName(P),           ^Statements(Ss)) when StringOfName(G) ==K "get" [macro]
+rule ^PropertyAssignment(S:Name P:PropertyName ( X:Name ) { Ss:Statements }) => %set(^PropertyName(P), ^Name(X), ^Statements(Ss)) when StringOfName(S) ==K "set" [macro]
 //
 syntax String ::= "^PropertyName" "(" PropertyName ")"
 rule ^PropertyName(N:Name)   => StringOfName(N) [macro]

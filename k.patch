@@ -1,16 +1,176 @@
-diff --git a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
-index 764f281..0999c5f 100644
---- a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
-+++ b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParse.java
-@@ -28,7 +28,7 @@ public class CommandParse extends Command {
- 	public void run() {
- 		try {
- 			RunProcess rp = new RunProcess();
--			Term kast = rp.runParser(K.parser, stringToParse, true, sort, context);
+diff --git a/include/builtins/string.k b/include/builtins/string.k
+index 7ea0100..9bd8f40 100644
+--- a/include/builtins/string.k
++++ b/include/builtins/string.k
+@@ -97,7 +97,7 @@ module STRING-HOOKS
+   rule replace(Source:K, _, _, 0) => Source
+   rule replaceAll(Source:K, ToReplace:K, Replacement:K) => replace(Source, ToReplace, Replacement, countAllOccurences(Source, ToReplace))
+ 
+-  rule ltrim(S:String) => replaceFirst(S, " ", "") when findString(S, " ", 0) ==Int 0
++  rule ltrim(S:String) => ltrim(replaceFirst(S, " ", "")) when findString(S, " ", 0) ==Int 0
+   rule ltrim(S:String) => S when findString(S, " ", 0) =/=Int 0
+   rule ltrim("") => ""
+ 
+diff --git a/include/io/uris.k b/include/io/uris.k
+index 4f54b6d..211f20d 100644
+--- a/include/io/uris.k
++++ b/include/io/uris.k
+@@ -23,7 +23,8 @@ module URIS
+                  | "#lstat" "(" String ")" [function, hook(#IO:#lstat)]
+                  | "#opendir" "(" String ")" [function, hook(#IO:#opendir)]
+ 
+-  syntax KItem ::= "#parse" "(" String "," String ")" [function, klabel(#parse), hook(#K-PARSER:#parse)]
++  syntax KItem ::= "#parse"         "(" String "," String ")" [function, klabel(#parse),         hook(#K-PARSER:#parse)]
++  syntax KItem ::= "#parseExternal" "(" String "," String ")" [function, klabel(#parseExternal), hook(#K-PARSER:#parseExternal)]
+   rule #open(S:String) => #open(S:String, "rw")
+   rule #open(S:String, Mode:String) => #string2Int((#tcpRequest("open\x01" +String S +String "\x01" +String Mode +String "\x01"))::K) when Mode ==String "r" orBool Mode ==String "w" orBool Mode ==String "rw"
+ 
+@@ -124,7 +125,8 @@ module URIS
+ // ------------------------------
+ // Dynamic parsing
+ 
+-  rule #parse(StringToParse:String, Sort:String) => 'String2K(#tcpRequest("parse\x01" +String Sort +String "\x01" +String StringToParse +String "\x01"))::K
++  rule #parse        (StringToParse:String, Sort:String) => 'String2K(#tcpRequest("parse\x01"         +String Sort +String "\x01" +String StringToParse +String "\x01"))::K
++  rule #parseExternal(StringToParse:String, Sort:String) => 'String2K(#tcpRequest("parseExternal\x01" +String Sort +String "\x01" +String StringToParse +String "\x01"))::K
+ 
+   syntax K ::= String2K(String) [function, hook(#K-PARSER:string2k)]
+   syntax Bag ::= String2Bag(String) [function, hook(#K-PARSER:string2bag)]
+@@ -133,4 +135,7 @@ module URIS
+ 
+   rule 'String2K(#noparse) => #noparse [simplification]
+ 
++  syntax String ::= "#external" "(" String ")" [function, klabel(#external), hook(#K-PARSER:#external)]
++  rule #external(Cmd:String) => #tcpRequest("external\x01" +String Cmd +String "\x01")
++
+ endmodule
+diff --git a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandExternal.java b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandExternal.java
+new file mode 100644
+index 0000000..2092a2f
+--- /dev/null
++++ b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandExternal.java
+@@ -0,0 +1,60 @@
++package org.kframework.krun.ioserver.commands;
++
++import org.kframework.backend.maude.MaudeFilter;
++import org.kframework.kil.Term;
++import org.kframework.kil.loader.Context;
++import org.kframework.kil.visitors.exceptions.TransformerException;
++import org.kframework.krun.K;
++import org.kframework.krun.RunProcess;
++import org.kframework.krun.api.io.FileSystem;
++import org.kframework.utils.errorsystem.KException;
++import org.kframework.utils.errorsystem.KException.ExceptionType;
++import org.kframework.utils.errorsystem.KException.KExceptionGroup;
++
++import java.net.Socket;
++import java.util.logging.Logger;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++public class CommandExternal extends Command {
++
++	private String cmd;
++	protected Context context;
++
++	public CommandExternal(String[] args, Socket socket, Logger logger, Context context, FileSystem fs) {
++		super(args, socket, logger, fs);
++		this.context = context;
++
++		cmd = args[1];
++	}
++
++	public void run() {
++		try {
++			RunProcess rp = new RunProcess();
++
++            List<String> tokens = new ArrayList<>();
++            tokens.add("node");
++            tokens.add("-p");
++            tokens.add("-e");
++            tokens.add(cmd);
++            //for (String c : tokens) { System.out.println(c); }
++            Map<String, String> environment = new HashMap<>();
++            rp.execute(environment, tokens.toArray(new String[tokens.size()]));
++
++            if (rp.getExitCode() != 0) {
++                throw new TransformerException(new KException(ExceptionType.ERROR, KExceptionGroup.CRITICAL, "External returned a non-zero exit code: " + rp.getExitCode() + "\nStdout:\n" + rp.getStdout() + "\nStderr:\n" + rp.getErr()));
++            }
++
++            String result = rp.getStdout() != null ? rp.getStdout() : "";
++
++			succeed(result.trim());
++
++		} catch (TransformerException e) {
++			//fail("noparse");
++            fail("failed: " + e.getMessage());
++		}
++	}
++}
+diff --git a/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParseExternal.java b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParseExternal.java
+new file mode 100644
+index 0000000..b9f9745
+--- /dev/null
++++ b/src/javasources/KTool/src/org/kframework/krun/ioserver/commands/CommandParseExternal.java
+@@ -0,0 +1,39 @@
++package org.kframework.krun.ioserver.commands;
++
++import org.kframework.backend.maude.MaudeFilter;
++import org.kframework.kil.Term;
++import org.kframework.kil.loader.Context;
++import org.kframework.kil.visitors.exceptions.TransformerException;
++import org.kframework.krun.K;
++import org.kframework.krun.RunProcess;
++import org.kframework.krun.api.io.FileSystem;
++
++import java.net.Socket;
++import java.util.logging.Logger;
++
++public class CommandParseExternal extends Command {
++
++	private String stringToParse;
++	private String sort;
++	protected Context context;
++
++	public CommandParseExternal(String[] args, Socket socket, Logger logger, Context context, FileSystem fs) {
++		super(args, socket, logger, fs);
++		this.context = context;
++
++		sort = args[1];
++		stringToParse = args[2];
++	}
++
++	public void run() {
++		try {
++			RunProcess rp = new RunProcess();
 +			Term kast = rp.runParser(K.getProgramParser(), stringToParse, true, sort, context);
- 			MaudeFilter mf = new MaudeFilter(context);
- 			kast.accept(mf);
- 			succeed(mf.getResult().toString());
++			MaudeFilter mf = new MaudeFilter(context);
++			kast.accept(mf);
++			succeed(mf.getResult().toString());
++		} catch (TransformerException e) {
++			fail("noparse");
++		}
++	}
++}
+diff --git a/src/javasources/KTool/src/org/kframework/krun/ioserver/main/IOServer.java b/src/javasources/KTool/src/org/kframework/krun/ioserver/main/IOServer.java
+index e920d19..a904e8b 100644
+--- a/src/javasources/KTool/src/org/kframework/krun/ioserver/main/IOServer.java
++++ b/src/javasources/KTool/src/org/kframework/krun/ioserver/main/IOServer.java
+@@ -191,6 +191,12 @@ public class IOServer {
+ 		if (command.equals("parse")) {
+ 			return new CommandParse(args, socket, logger, context, fs);
+ 		}
++		if (command.equals("parseExternal")) {
++			return new CommandParseExternal(args, socket, logger, context, fs);
++		}
++		if (command.equals("external")) {
++			return new CommandExternal(args, socket, logger, context, fs);
++		}
+ 
+ 		return new CommandUnknown(args, socket, logger, fs); //, (long) 0);
+ 	}
 diff --git a/src/javasources/KTool/src/org/kframework/utils/StringUtil.java b/src/javasources/KTool/src/org/kframework/utils/StringUtil.java
 index f2090d7..e6712bb 100644
 --- a/src/javasources/KTool/src/org/kframework/utils/StringUtil.java
@@ -41,23 +201,16 @@ index f2090d7..e6712bb 100644
                  } else if (str.charAt(i + 1) == 'U') {
                      String arg = str.substring(i + 2, i + 10);
 diff --git a/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf b/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf
-index 963e291..ddeae0d 100644
+index 963e291..edb427b 100644
 --- a/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf
 +++ b/src/javasources/parsers/Concrete/syntax/KBuiltinsBasic.sdf
-@@ -20,6 +20,16 @@ lexical syntax
+@@ -20,6 +20,9 @@ lexical syntax
  	"\"" StringCharDz* "\"" -> DzDzSTRING
  	~[\"\n\r\\]			-> StringCharDz
  	[\\]~[\n\r]			-> StringCharDz
 +	"'" StringChar1Dz* "'" -> DzDzSTRING
 +	~[\'\n\r\\]			-> StringChar1Dz
 +	[\\]~[\n\r]			-> StringChar1Dz
-+	"/" RegExpCharDz* "/" RegExpFlags -> DzDzSTRING
-+	~[\/\[\n\r\\]			-> RegExpCharDz
-+	[\\]~[\n\r]			-> RegExpCharDz
-+    "[" RegExpClassCharDz* "]" -> RegExpCharDz
-+	~[\]\n\r\\]			-> RegExpClassCharDz
-+	[\\]~[\n\r]			-> RegExpClassCharDz
-+    [a-zA-Z]*           -> RegExpFlags
  
  	%% KLabel definition + restrictions lower
  	"'" KLabelCharDz+			-> KLabelDz

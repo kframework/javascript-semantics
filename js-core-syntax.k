@@ -20,7 +20,6 @@ syntax Stmt ::= "%fdecl" "(" Var "," Exps "," Stmt ")"
               | "%try" "(" Stmt ","                  Stmt ")" // try _               finally _ // NOTE: this is hard to be represented in the above general form
               | "%with" "(" Exp "," Stmt ")"
               | "%emptyStmt"
-              | "%print" "(" Exp ")"
               | "%switch" "(" Exp "," Stmt "," Stmt "," Stmt ")" // switch ( _ ) { _ _ _ }
               | "%case" "(" Exp "," Stmt ")" // case _ : _
               | "%default" "(" Stmt ")" // default : _

@@ -1,45 +1,323 @@
 "BEGIN PRELUDE";
 
-/*
-var __globalObject = Function("return this;")();
-function fnGlobalObject() {
-     return __globalObject;
-}
-*/
-function fnGlobalObject() {
-     return window;
+var strict_mode = false; 
+function testRun(id, path, description, codeString, result, error) {
+  if (result!=="pass") {
+      throw new Error("Test '" + path + "'failed: " + error);
+  }
 }
 
-/*
-function $ERROR(msg) {
-    print("ERROR: " + msg + "\n");
+function testFinished() {
+    //no-op
 }
-*/
-
-function $PRINT(msg) {
-    print("PRINT: " + msg + "\n");
-}
-
-function runTestCase(testcase) {
-    if (testcase() !== true) {
-        $ERROR("Test case returned non-true value!");
+function compareArray(aExpected, aActual) {
+    if (aActual.length != aExpected.length) {
+        return false;
     }
+
+    aExpected.sort();
+    aActual.sort();
+
+    var s;
+    for (var i = 0; i < aExpected.length; i++) {
+        if (aActual[i] !== aExpected[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
-var Test262Error = function () {}
+//-----------------------------------------------------------------------------
+function arrayContains(arr, expected) {
+    var found;
+    for (var i = 0; i < expected.length; i++) {
+        found = false;
+        for (var j = 0; j < arr.length; j++) {
+            if (expected[i] === arr[j]) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+var supportsArrayIndexGettersOnArrays = undefined;
+function fnSupportsArrayIndexGettersOnArrays() {
+    if (typeof supportsArrayIndexGettersOnArrays !== "undefined") {
+        return supportsArrayIndexGettersOnArrays;
+    }
+
+    supportsArrayIndexGettersOnArrays = false;
+
+    if (fnExists(Object.defineProperty)) {
+        var arr = [];
+        Object.defineProperty(arr, "0", {
+            get: function() {
+                supportsArrayIndexGettersOnArrays = true;
+                return 0;
+            }
+        });
+        var res = arr[0];
+    }
+
+    return supportsArrayIndexGettersOnArrays;
+}
+
+//-----------------------------------------------------------------------------
+var supportsArrayIndexGettersOnObjects = undefined;
+function fnSupportsArrayIndexGettersOnObjects() {
+    if (typeof supportsArrayIndexGettersOnObjects !== "undefined")
+        return supportsArrayIndexGettersOnObjects;
+
+    supportsArrayIndexGettersOnObjects = false;
+
+    if (fnExists(Object.defineProperty)) {
+        var obj = {};
+        Object.defineProperty(obj, "0", {
+            get: function() {
+                supportsArrayIndexGettersOnObjects = true;
+                return 0;
+            }
+        });
+        var res = obj[0];
+    }
+
+    return supportsArrayIndexGettersOnObjects;
+}
 
 /*
-var NotEarlyErrorString = "NotEarlyError";
-var EarlyErrorRePat = "^((?!" + NotEarlyErrorString + ").)*$";
-var NotEarlyError = new Error(NotEarlyErrorString);
+//-----------------------------------------------------------------------------
+function ConvertToFileUrl(pathStr) {
+    return "file:" + pathStr.replace(/\\/g, "/");
+}
 */
-var NotEarlyError = "NotEarlyError";
 
+//-----------------------------------------------------------------------------
 function fnExists(/*arguments*/) {
     for (var i = 0; i < arguments.length; i++) {
         if (typeof (arguments[i]) !== "function") return false;
     }
     return true;
+}
+
+//-----------------------------------------------------------------------------
+var __globalObject = Function("return this;")();
+function fnGlobalObject() {
+     return __globalObject;
+}
+
+//-----------------------------------------------------------------------------
+function fnSupportsStrict() {
+    "use strict";
+    try {
+        eval('with ({}) {}');
+        return false;
+    } catch (e) {
+        return true;
+    }
+}
+
+//-----------------------------------------------------------------------------
+//Verify all attributes specified data property of given object:
+//value, writable, enumerable, configurable
+//If all attribute values are expected, return true, otherwise, return false
+function dataPropertyAttributesAreCorrect(obj,
+                                          name,
+                                          value,
+                                          writable,
+                                          enumerable,
+                                          configurable) {
+    var attributesCorrect = true;
+
+    if (obj[name] !== value) {
+        if (typeof obj[name] === "number" &&
+            isNaN(obj[name]) &&
+            typeof value === "number" &&
+            isNaN(value)) {
+            // keep empty
+        } else {
+            attributesCorrect = false;
+        }
+    }
+
+    try {
+        if (obj[name] === "oldValue") {
+            obj[name] = "newValue";
+        } else {
+            obj[name] = "OldValue";
+        }
+    } catch (we) {
+    }
+
+    var overwrited = false;
+    if (obj[name] !== value) {
+        if (typeof obj[name] === "number" &&
+            isNaN(obj[name]) &&
+            typeof value === "number" &&
+            isNaN(value)) {
+            // keep empty
+        } else {
+            overwrited = true;
+        }
+    }
+    if (overwrited !== writable) {
+        attributesCorrect = false;
+    }
+
+    var enumerated = false;
+    for (var prop in obj) {
+        if (obj.hasOwnProperty(prop) && prop === name) {
+            enumerated = true;
+        }
+    }
+
+    if (enumerated !== enumerable) {
+        attributesCorrect = false;
+    }
+
+
+    var deleted = false;
+
+    try {
+        delete obj[name];
+    } catch (de) {
+    }
+    if (!obj.hasOwnProperty(name)) {
+        deleted = true;
+    }
+    if (deleted !== configurable) {
+        attributesCorrect = false;
+    }
+
+    return attributesCorrect;
+}
+
+//-----------------------------------------------------------------------------
+//Verify all attributes specified accessor property of given object:
+//get, set, enumerable, configurable
+//If all attribute values are expected, return true, otherwise, return false
+function accessorPropertyAttributesAreCorrect(obj,
+                                              name,
+                                              get,
+                                              set,
+                                              setVerifyHelpProp,
+                                              enumerable,
+                                              configurable) {
+    var attributesCorrect = true;
+
+    if (get !== undefined) {
+        if (obj[name] !== get()) {
+            if (typeof obj[name] === "number" &&
+                isNaN(obj[name]) &&
+                typeof get() === "number" &&
+                isNaN(get())) {
+                // keep empty
+            } else {
+                attributesCorrect = false;
+            }
+        }
+    } else {
+        if (obj[name] !== undefined) {
+            attributesCorrect = false;
+        }
+    }
+
+    try {
+        var desc = Object.getOwnPropertyDescriptor(obj, name);
+        if (typeof desc.set === "undefined") {
+            if (typeof set !== "undefined") {
+                attributesCorrect = false;
+            }
+        } else {
+            obj[name] = "toBeSetValue";
+            if (obj[setVerifyHelpProp] !== "toBeSetValue") {
+                attributesCorrect = false;
+            }
+        }
+    } catch (se) {
+        throw se;
+    }
+
+
+    var enumerated = false;
+    for (var prop in obj) {
+        if (obj.hasOwnProperty(prop) && prop === name) {
+            enumerated = true;
+        }
+    }
+
+    if (enumerated !== enumerable) {
+        attributesCorrect = false;
+    }
+
+
+    var deleted = false;
+    try {
+        delete obj[name];
+    } catch (de) {
+        throw de;
+    }
+    if (!obj.hasOwnProperty(name)) {
+        deleted = true;
+    }
+    if (deleted !== configurable) {
+        attributesCorrect = false;
+    }
+
+    return attributesCorrect;
+}
+
+//-----------------------------------------------------------------------------
+var NotEarlyErrorString = "NotEarlyError";
+var EarlyErrorRePat = "^((?!" + NotEarlyErrorString + ").)*$";
+var NotEarlyError = new Error(NotEarlyErrorString);
+
+//-----------------------------------------------------------------------------
+// Copyright 2009 the Sputnik authors.  All rights reserved.
+// This code is governed by the BSD license found in the LICENSE file.
+
+function Test262Error(message) {
+    if (message) this.message = message;
+}
+
+Test262Error.prototype.toString = function () {
+    return "Test262 Error: " + this.message;
+};
+
+function testFailed(message) {
+    throw new Test262Error(message);
+}
+
+
+function testPrint(message) {
+
+}
+
+
+//adaptors for Test262 framework
+function $PRINT(message) {
+
+}
+
+function $INCLUDE(message) { }
+function $ERROR(message) {
+    testFailed(message);
+}
+
+function $FAIL(message) {
+    testFailed(message);
+}
+
+//--Test case registration-----------------------------------------------------
+function runTestCase(testcase) {
+    if (testcase() !== true) {
+        $ERROR("Test case returned non-true value!");
+    }
 }
 
 "END PRELUDE";

@@ -43,7 +43,6 @@ syntax Statement ::= Block
                    | "try" Block Finally
                    | "try" Block Catch Finally
                    | "debugger" ";"
-                   | "print" "(" Expression ")" ";"
 
 syntax Block ::= "{" Statements "}"
 
@@ -65,21 +64,35 @@ syntax ExpressionS ::= NeList{Expression, ","}
 syntax Expressions ::=   List{Expression, ","}
 
 syntax Literal ::= "this"
-                 | "null"
+                 | Null
                  | Bool
                  | Int
                  | Float
                  | String
 
+syntax Null ::= "null"
+
 syntax Name ::= Token{[\_\$A-Za-z][\_\$A-Za-z0-9]*}   [notInRules]
 
+// 11.1.5 Object Initialiser
+// 
+// PropertyName ::= IdentifierName
+//                | StringLiteral
+//                | NumericLiteral
+// 
+// Note that PropertyName is IdentifierName not Identifier, where Identifier is IdentifierName but not ReservedWord.
+// Thus, both Null and Bool also can be PropertyName.
+
 syntax PropertyName ::= Name
+                      | Null
+                      | Bool
                       | String
                       | Int
                       | Float
 
 syntax ArrayElements ::= List{ExpressionOpt, ","}
-syntax ExpressionOpt ::= Expression | "" [onlyLabel, klabel('epsilonExpression)]
+syntax ExpressionOpt ::= Expression /* | "" [avoid, onlyLabel, klabel('epsilonExpression)] */
+                                    /* FIXME: Currently K parser crashes the empty array literal: [ ] */
 
 syntax PropertyAssignments ::= List{PropertyAssignment, ","}
 syntax PropertyAssignment ::= PropertyName ":" Expression
@@ -170,10 +183,10 @@ syntax Expression ::= LeftExpression
 
 
 // Utils
-syntax String ::= StringOfName(Name) [function]
+syntax String ::= StringOfName(Name) [function, notInPrograms]
 rule StringOfName(N:Name) => #tokenToString(N)
 //
-syntax Name ::= NameOfString(String) [function]
+syntax Name ::= NameOfString(String) [function, notInPrograms]
 rule NameOfString(S:String) => #parseToken("Name", S)
 
 endmodule
