@@ -9,15 +9,15 @@ syntax StrDecimalLiteral ::= StrUnsignedDecimalLiteral
 
 syntax StrUnsignedDecimalLiteral ::= InfinityLiteral
                                    | DecimalDigits "." DecimalDigits ExponentPart
-                                   | DecimalDigits "." DecimalDigits
-                                   | DecimalDigits "."               ExponentPart
+                                   | DecimalDigits "." DecimalDigits                [klabel('dotDecimalLiteral)]
+                                   | DecimalDigits "."               ExponentPart   [klabel('dotDecimalLiteral)]
                                    | DecimalDigits "."
                                    | "." DecimalDigits ExponentPart
                                    | "." DecimalDigits
                                    | DecimalDigits ExponentPart
                                    | DecimalDigits
 
-syntax InfinityLiteral ::= Token{ "Infinity" } [notInRules, notInGround]
+syntax InfinityLiteral ::= Token{ "Infinity" } [notInRules, notInGround, noAutoReject]
 
 syntax DecimalDigits ::= DecimalDigit
                        | DecimalDigits DecimalDigit

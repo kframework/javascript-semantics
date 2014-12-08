@@ -4,4 +4,4 @@
 RegExp.prototype.exec = function (string) {
     return null;
 };
-NoConstructor(RegExp.prototype.exec);
+@NoConstructor(RegExp.prototype.exec);

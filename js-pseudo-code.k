@@ -15,7 +15,13 @@ syntax PseudoCode  ::= "Let" Id "=" K ";" [seqstrict(2)]
 syntax Exp ::= Id
 
 rule PC:PseudoCode PCs:PseudoCodes => PC ~> PCs
-rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => PCs[V / X]
+//rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => PCs[V / X]
+
+rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => #visit(PCs, '@Replace`(_`,_`), V, '_==K_, X)
+//
+syntax KItem ::= "@Replace" "(" K "," K ")" [function]
+rule @Replace(_, K) => K
+
 rule Do  K; => K
 rule DoI K; => K ~> @Ignore
 rule If V1:KResult = V2:KResult then { PCs } else { _   } => PCs when V1 ==K  V2
@@ -26,11 +32,11 @@ rule Return V:KResult; => V
 rule Return; => .K
 rule Nop; => .K
 
-syntax K ::= "BEGIN" PseudoCodes "END"
+syntax KItem ::= "BEGIN" PseudoCodes "END"
 syntax PseudoCode ::= "Exit" ";"
 
 rule <k> BEGIN PCs:PseudoCodes END ~> K => PCs ~> Exit; </k>
-     <pseudoStack> (. => @pseudo(K)) _ </pseudoStack>
+     <pseudoStack> (.List => ListItem(@pseudo(K))) _:List </pseudoStack>
 
-rule <k> V:KResult ~> Exit; ~> _ => V ~> K </k> <pseudoStack> (@pseudo(K) => .) _ </pseudoStack>
-rule <k>              Exit; ~> _ =>      K </k> <pseudoStack> (@pseudo(K) => .) _ </pseudoStack>
+rule <k> V:KResult ~> Exit; ~> _ => V ~> K </k> <pseudoStack> (ListItem(@pseudo(K)) => .List) _:List </pseudoStack>
+rule <k>              Exit; ~> _ =>      K </k> <pseudoStack> (ListItem(@pseudo(K)) => .List) _:List </pseudoStack>

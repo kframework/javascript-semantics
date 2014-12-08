@@ -1,1 +1,1 @@
-var console = { log : function (v) { Print(ToString(v)); } };
+var console = { log : function (v) { @Print(@ToString(v)); } };

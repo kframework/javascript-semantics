@@ -3,12 +3,12 @@
 // 15.4.3.2 Array.isArray ( arg )
 
 Array.isArray = function (arg) {
-    if (!IsObject(arg)) {
+    if (!@IsObject(arg)) {
         return false;
     }
-    return GetInternalProperty(arg, "Class") === "Array";
+    return @GetInternalProperty(arg, "Class") === "Array";
 };
-NoConstructor(Array.isArray);
+@NoConstructor(Array.isArray);
 
 // 15.4.4 Properties of the Array Prototype Object
 
@@ -16,34 +16,34 @@ NoConstructor(Array.isArray);
 
 Array.prototype.toString = function () {
     // Step 1
-    var array = ToObject(this);
+    var array = @ToObject(this);
 
     // Step 2
     var func = array.join;
 
     // Step 3
-    if (!IsCallable(func)) {
+    if (!@IsCallable(func)) {
         func = Object.prototype.toString;
     }
 
     // Step 4
     return func.call(array);
 };
-NoConstructor(Array.prototype.toString);
+@NoConstructor(Array.prototype.toString);
 
 // 15.4.4.3 Array.prototype.toLocaleString ( )
 
 Array.prototype.toLocaleString = function () {
     throw "NotImplemented: Array.prototype.toLocaleString";
 };
-NoConstructor(Array.prototype.toLocaleString);
+@NoConstructor(Array.prototype.toLocaleString);
 
 // 15.4.4.4 Array.prototype.concat ( [ item1 [ , item2 [ , ... ] ] ] )
 // The length property of the concat method is 1.
 
 Array.prototype.concat = function ( _ ) {
     // Step 1
-    var o = ToObject(this);
+    var o = @ToObject(this);
     // Step 2
     var a = new Array();
 
@@ -68,21 +68,21 @@ Array.prototype.concat = function ( _ ) {
     // Step 6
     return a;
 };
-NoConstructor(Array.prototype.concat);
+@NoConstructor(Array.prototype.concat);
 
 // 15.4.4.5 Array.prototype.join (separator)
 
 Array.prototype.join = function (separator) {
     // Step 1
-    var o = ToObject(this);
+    var o = @ToObject(this);
     // Step 2-3
-    var len = ToUint32(o.length);
+    var len = @ToUint32(o.length);
 
     // Step 4-5
     if (separator === undefined)
         separator = ",";
     else
-        separator = ToString(separator);
+        separator = @ToString(separator);
 
     // Step 6
     if (len === 0)
@@ -95,29 +95,29 @@ Array.prototype.join = function (separator) {
         r += separator + get(o,i);
     }
     function get (o,i) {
-        return (o[i] === undefined || o[i] === null) ? "" : ToString(o[i]);
+        return (o[i] === undefined || o[i] === null) ? "" : @ToString(o[i]);
     }
 
     // Step 11
     return r;
 };
-NoConstructor(Array.prototype.join);
+@NoConstructor(Array.prototype.join);
 
 // 15.4.4.6 Array.prototype.pop ( )
 
 Array.prototype.pop = function () {
     throw "NotImplemented: Array.prototype.pop";
 };
-NoConstructor(Array.prototype.pop);
+@NoConstructor(Array.prototype.pop);
 
 // 15.4.4.7 Array.prototype.push ( [ item1 [ , item2 [ , ... ] ] ] )
 // The length property of the push method is 1.
 
 Array.prototype.push = function ( _ ) {
     // Step 1
-    var o = ToObject(this);
+    var o = @ToObject(this);
     // Step 2-3
-    var len = ToUint32(o.length);
+    var len = @ToUint32(o.length);
 
     // Step 4-5
     for (var i = 0; i < arguments.length; ++i) {
@@ -125,39 +125,39 @@ Array.prototype.push = function ( _ ) {
     }
 
     // Step 6
-    // NOTE: Array's DefineOwnProperty method automatically increases the length property.
+    // NOTE: Array's @DefineOwnProperty method automatically increases the length property.
 
     // Step 7
     return o.length;
 };
-NoConstructor(Array.prototype.push);
+@NoConstructor(Array.prototype.push);
 
 // 15.4.4.8 Array.prototype.reverse ( )
 
 Array.prototype.reverse = function () {
     throw "NotImplemented: Array.prototype.reverse";
 };
-NoConstructor(Array.prototype.reverse);
+@NoConstructor(Array.prototype.reverse);
 
 // 15.4.4.9 Array.prototype.shift ( )
 
 Array.prototype.shift = function () {
     throw "NotImplemented: Array.prototype.shift";
 };
-NoConstructor(Array.prototype.shift);
+@NoConstructor(Array.prototype.shift);
 
 // 15.4.4.10 Array.prototype.slice (start, end)
 
 Array.prototype.slice = function (start, end) {
     throw "NotImplemented: Array.prototype.slice";
 };
-NoConstructor(Array.prototype.slice);
+@NoConstructor(Array.prototype.slice);
 
 // 15.4.4.11 Array.prototype.sort (comparefn)
 // NOTE: This was came from the Tachyon library
 
 Array.prototype.sort = function (comparefn) {
-    var o = ToObject(this);
+    var o = @ToObject(this);
     var len = o.length;
 
     if (comparefn === undefined)
@@ -264,7 +264,7 @@ Array.prototype.sort = function (comparefn) {
 
     return o;
 };
-NoConstructor(Array.prototype.sort);
+@NoConstructor(Array.prototype.sort);
 
 // 15.4.4.12 Array.prototype.splice (start, deleteCount [ , item1 [ , item2 [ , ... ] ] ] )
 // The length property of the splice method is 2.
@@ -272,7 +272,7 @@ NoConstructor(Array.prototype.sort);
 Array.prototype.splice = function (start, deleteCount) {
     throw "NotImplemented: Array.prototype.splice";
 };
-NoConstructor(Array.prototype.splice);
+@NoConstructor(Array.prototype.splice);
 
 // 15.4.4.13 Array.prototype.unshift ( [ item1 [ , item2 [ , ... ] ] ] )
 // The length property of the unshift method is 1.
@@ -280,7 +280,7 @@ NoConstructor(Array.prototype.splice);
 Array.prototype.unshift = function ( _ ) {
     throw "NotImplemented: Array.prototype.unshift";
 };
-NoConstructor(Array.prototype.unshift);
+@NoConstructor(Array.prototype.unshift);
 
 // 15.4.4.14 Array.prototype.indexOf ( searchElement [ , fromIndex ] )
 // The length property of the indexOf method is 1.
@@ -288,7 +288,7 @@ NoConstructor(Array.prototype.unshift);
 Array.prototype.indexOf = function (searchElement) {
     throw "NotImplemented: Array.prototype.indexOf";
 };
-NoConstructor(Array.prototype.indexOf);
+@NoConstructor(Array.prototype.indexOf);
 
 // 15.4.4.15 Array.prototype.lastIndexOf ( searchElement [ , fromIndex ] )
 // The length property of the lastIndexOf method is 1.
@@ -296,7 +296,7 @@ NoConstructor(Array.prototype.indexOf);
 Array.prototype.lastIndexOf = function (searchElement) {
     throw "NotImplemented: Array.prototype.lastIndexOf";
 };
-NoConstructor(Array.prototype.lastIndexOf);
+@NoConstructor(Array.prototype.lastIndexOf);
 
 // 15.4.4.16 Array.prototype.every ( callbackfn [ , thisArg ] )
 // The length property of the every method is 1.
@@ -304,7 +304,7 @@ NoConstructor(Array.prototype.lastIndexOf);
 Array.prototype.every = function (callbackfn) {
     throw "NotImplemented: Array.prototype.every";
 };
-NoConstructor(Array.prototype.every);
+@NoConstructor(Array.prototype.every);
 
 // 15.4.4.17 Array.prototype.some ( callbackfn [ , thisArg ] )
 // The length property of the some method is 1.
@@ -312,7 +312,7 @@ NoConstructor(Array.prototype.every);
 Array.prototype.some = function (callbackfn) {
     throw "NotImplemented: Array.prototype.some";
 };
-NoConstructor(Array.prototype.some);
+@NoConstructor(Array.prototype.some);
 
 // 15.4.4.18 Array.prototype.forEach ( callbackfn [ , thisArg ] )
 // The length property of the forEach method is 1.
@@ -320,7 +320,7 @@ NoConstructor(Array.prototype.some);
 Array.prototype.forEach = function (callbackfn) {
     throw "NotImplemented: Array.prototype.forEach";
 };
-NoConstructor(Array.prototype.forEach);
+@NoConstructor(Array.prototype.forEach);
 
 // 15.4.4.19 Array.prototype.map ( callbackfn [ , thisArg ] )
 // The length property of the map method is 1.
@@ -328,7 +328,7 @@ NoConstructor(Array.prototype.forEach);
 Array.prototype.map = function (callbackfn) {
     throw "NotImplemented: Array.prototype.map";
 };
-NoConstructor(Array.prototype.map);
+@NoConstructor(Array.prototype.map);
 
 // 15.4.4.20 Array.prototype.filter ( callbackfn [ , thisArg ] )
 // The length property of the filter method is 1.
@@ -336,7 +336,7 @@ NoConstructor(Array.prototype.map);
 Array.prototype.filter = function (callbackfn) {
     throw "NotImplemented: Array.prototype.filter";
 };
-NoConstructor(Array.prototype.filter);
+@NoConstructor(Array.prototype.filter);
 
 // 15.4.4.21 Array.prototype.reduce ( callbackfn [ , initialValue ] )
 // The length property of the reduce method is 1.
@@ -344,7 +344,7 @@ NoConstructor(Array.prototype.filter);
 Array.prototype.reduce = function (callbackfn) {
     throw "NotImplemented: Array.prototype.reduce";
 };
-NoConstructor(Array.prototype.reduce);
+@NoConstructor(Array.prototype.reduce);
 
 // 15.4.4.22 Array.prototype.reduceRight ( callbackfn [ , initialValue ] )
 // The length property of the reduceRight method is 1.
@@ -352,4 +352,46 @@ NoConstructor(Array.prototype.reduce);
 Array.prototype.reduceRight = function (callbackfn) {
     throw "NotImplemented: Array.prototype.reduceRight";
 };
-NoConstructor(Array.prototype.reduceRight);
+@NoConstructor(Array.prototype.reduceRight);
+
+/* _________________________________________________________________________
+ *
+ *             Tachyon : A Self-Hosted JavaScript Virtual Machine
+ *
+ *
+ *  This file is part of the Tachyon JavaScript project. Tachyon is
+ *  distributed at:
+ *  http://github.com/Tachyon-Team/Tachyon
+ *
+ *
+ *  Copyright (c) 2011, Universite de Montreal
+ *  All rights reserved.
+ *
+ *  This software is licensed under the following license (Modified BSD
+ *  License):
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are
+ *  met:
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of the Universite de Montreal nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ *  IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ *  PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL UNIVERSITE DE
+ *  MONTREAL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * _________________________________________________________________________
+ */

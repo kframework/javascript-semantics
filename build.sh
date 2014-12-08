@@ -1,34 +1,11 @@
 #!/bin/bash
 
-# k
-git clone https://github.com/kframework/k.git
-cd k
-git reset --hard 6b6f75eb0bdca81800444672b89fd4369fe2b9af
-patch -p1 <../k.patch 
-ant
-cd ..
-
-# jsaf
-git clone git://plrg.kaist.ac.kr/jsaf.git
-cd jsaf
-git reset --hard 6926a7e9e19c466408650d2f27a0d805fd722609
-patch -p1 <../jsaf.patch
-wget http://cs.nyu.edu/rgrimm/xtc/xtc.jar
-mv xtc.jar bin/
-export JS_HOME=`pwd`
-ant clean compile
-cd ..
-
-# test262
-git clone https://github.com/tc39/test262.git
-
-# kompile semantics
+error() { echo "error: $@"; exit 1; }
 
 echo "Bootstrapping build..."
-[ "$1" == "clean" ] && rm -rf .k js-kompiled
-rm -f js-config.k
-touch js-config.k
-./kbuild.sh
+rm -f js-config.k && \
+touch js-config.k && \
+./kbuild.sh || error "failed bootstrapping build"
 
 echo "Self-hosted standard built-in objects..."
 { cat stdlib/00.debug.js
@@ -44,14 +21,14 @@ echo "Self-hosted standard built-in objects..."
   cat stdlib/10.regexp.js
   cat stdlib/11.error.js
 # cat stdlib/12.json.js
-} >stdlib.js
+} >stdlib.js || error "failed to create stdlib.js"
 
 echo "Hard-wiring standard built-in objects..."
-{ echo "<objs> ( _ =>"
-  ./k/bin/krun --parser ./parser.sh --pattern "<objs> O:Bag </objs>" stdlib.js | grep -v '^Search results:\|^Solution\|^O:Bag' | sed 's/#symInt(\([0-9]*\))/\1/g'
-  echo ") </objs>"
-} >js-config.k
+{ echo "<objs> ( _ =>" && \
+  ./k/bin/krun stdlib.js | awk '/<objs>/ {p=1; next} /<\/objs>/ {p=0} p' | sed 's/@o/@oo/g' && \
+  echo ") </objs>" && \
+  echo "syntax Oid ::= \"@oo\" \"(\" Int \")\""
+} >js-config.k || error "failed to create js-config.k"
 
 echo "Final build..."
-[ "$1" == "clean" ] && rm -rf .k js-kompiled
-./kbuild.sh
+./kbuild.sh || error "failed final build"

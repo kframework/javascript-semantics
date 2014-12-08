@@ -12,7 +12,7 @@ Boolean.prototype.toString = function () {
         return "false";
     }
 };
-NoConstructor(Boolean.prototype.toString);
+@NoConstructor(Boolean.prototype.toString);
 
 // 15.6.4.3 Boolean.prototype.valueOf ( )
 
@@ -22,8 +22,8 @@ Boolean.prototype.valueOf = function () {
     if (typeof this === 'boolean') {
         b = this;
     // Step 3
-    } else if (IsObject(this) && GetInternalProperty(this, "Class") === "Boolean") {
-        b = GetInternalProperty(this, "PrimitiveValue");
+    } else if (@IsObject(this) && @GetInternalProperty(this, "Class") === "Boolean") {
+        b = @GetInternalProperty(this, "PrimitiveValue");
     // Step 4
     } else {
         throw TypeError("Invalid arguments: Boolean.prototype.valueOf");
@@ -31,4 +31,4 @@ Boolean.prototype.valueOf = function () {
     // Step 5
     return b;
 };
-NoConstructor(Boolean.prototype.valueOf);
+@NoConstructor(Boolean.prototype.valueOf);

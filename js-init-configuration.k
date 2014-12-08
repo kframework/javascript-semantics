@@ -29,7 +29,7 @@ syntax Oid  ::= "@GlobalOid"
 
 // NOTE: All of '@(...)'s are place-holders. They will be eventually replaced with actual standard built-in methods written in self-hosting javascript programs.
 
-syntax K /* .K */ ::= "@InitConfig"
+syntax KItem /* .K */ ::= "@InitConfig"
 // TODO: More initializations
 rule <k> @InitConfig => . ... </k>
      // 15 Standard Built-in ECMAScript Objects

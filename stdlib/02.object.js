@@ -3,40 +3,40 @@
 // 15.2.3.2 Object.getPrototypeOf ( O )
 
 Object.getPrototypeOf = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.getPrototypeOf");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.getPrototypeOf");
 
-    return GetInternalProperty(O, "Prototype");
+    return @GetInternalProperty(O, "Prototype");
 };
-NoConstructor(Object.getPrototypeOf);
+@NoConstructor(Object.getPrototypeOf);
 
 // 15.2.3.3 Object.getOwnPropertyDescriptor ( O, P )
 
 Object.getOwnPropertyDescriptor = function (O, P) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.getOwnPropertyDescriptor");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.getOwnPropertyDescriptor");
 
-    return FromPropertyDescriptor(GetOwnProperty(O, ToString(P)));
+    return @FromPropertyDescriptor(@GetOwnProperty(O, @ToString(P)));
 };
-NoConstructor(Object.getOwnPropertyDescriptor);
+@NoConstructor(Object.getOwnPropertyDescriptor);
 
 // 15.2.3.4 Object.getOwnPropertyNames ( O )
 
 Object.getOwnPropertyNames = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.getOwnPropertyNames");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.getOwnPropertyNames");
 
-    return ObjectGetOwnPropertyNames(O);
+    return @ObjectGetOwnPropertyNames(O);
 };
-NoConstructor(Object.getOwnPropertyNames);
+@NoConstructor(Object.getOwnPropertyNames);
 
 // 15.2.3.5 Object.create ( O [, Properties] )
 
 Object.create = function (O, Properties) {
-    if (!(IsObject(O) || O === null)) throw TypeError("Invalid arguments: Object.create");
+    if (!(@IsObject(O) || O === null)) throw TypeError("Invalid arguments: Object.create");
 
     // Step 2
     var obj = new Object();
 
     // Step 3
-    SetInternalProperty(obj, "Prototype", O);
+    @SetInternalProperty(obj, "Prototype", O);
 
     // Step 4
     if (Properties !== undefined) {
@@ -45,22 +45,22 @@ Object.create = function (O, Properties) {
 
     return obj;
 };
-NoConstructor(Object.create);
+@NoConstructor(Object.create);
 
 // 15.2.3.6 Object.defineProperty ( O, P, Attributes )
 
 Object.defineProperty = function (O, P, Attributes) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.defineProperty");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.defineProperty");
 
-    DefineOwnProperty(O, ToString(P), ToPropertyDescriptor(Attributes), true);
+    @DefineOwnProperty(O, @ToString(P), @ToPropertyDescriptor(Attributes), true);
     return O;
 };
-NoConstructor(Object.defineProperty);
+@NoConstructor(Object.defineProperty);
 
 // 15.2.3.7 Object.defineProperties ( O, Properties )
 
 Object.defineProperties = function (O, Properties) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.defineProperties");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.defineProperties");
 
     // Step 2-6
     for (var name in Properties) {
@@ -70,12 +70,12 @@ Object.defineProperties = function (O, Properties) {
     }
     return O;
 };
-NoConstructor(Object.defineProperties);
+@NoConstructor(Object.defineProperties);
 
 // 15.2.3.8 Object.seal ( O )
 
 Object.seal = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.seal");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.seal");
 
     // Step 2
     var names = Object.getOwnPropertyNames(O);
@@ -86,16 +86,16 @@ Object.seal = function (O) {
     }
 
     // Step 3
-    SetInternalProperty(O, "Extensible", false);
+    @SetInternalProperty(O, "Extensible", false);
 
     return O;
 };
-NoConstructor(Object.seal);
+@NoConstructor(Object.seal);
 
 // 15.2.3.9 Object.freeze ( O )
 
 Object.freeze = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.freeze");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.freeze");
 
     // Step 2
     var names = Object.getOwnPropertyNames(O);
@@ -109,26 +109,26 @@ Object.freeze = function (O) {
     }
 
     // Step 3
-    SetInternalProperty(O, "Extensible", false);
+    @SetInternalProperty(O, "Extensible", false);
 
     return O;
 };
-NoConstructor(Object.freeze);
+@NoConstructor(Object.freeze);
 
 // 15.2.3.10 Object.preventExtensions ( O )
 
 Object.preventExtensions = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.preventExtensions");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.preventExtensions");
 
-    SetInternalProperty(O, "Extensible", false);
+    @SetInternalProperty(O, "Extensible", false);
     return O;
 };
-NoConstructor(Object.preventExtensions);
+@NoConstructor(Object.preventExtensions);
 
 // 15.2.3.11 Object.isSealed ( O )
 
 Object.isSealed = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.isSealed");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.isSealed");
 
     // Step 2
     var names = Object.getOwnPropertyNames(O);
@@ -140,19 +140,19 @@ Object.isSealed = function (O) {
     }
 
     // Step 4
-    if (GetInternalProperty(O, "Extensible")) {
+    if (@GetInternalProperty(O, "Extensible")) {
         return false;
     }
 
     // Step 3
     return true;
 };
-NoConstructor(Object.isSealed);
+@NoConstructor(Object.isSealed);
 
 // 15.2.3.12 Object.isFrozen ( O )
 
 Object.isFrozen = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.isFrozen");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.isFrozen");
 
     // Step 2
     var names = Object.getOwnPropertyNames(O);
@@ -169,28 +169,28 @@ Object.isFrozen = function (O) {
     }
 
     // Step 4
-    if (GetInternalProperty(O, "Extensible")) {
+    if (@GetInternalProperty(O, "Extensible")) {
         return false;
     }
 
     // Step 3
     return true;
 };
-NoConstructor(Object.isFrozen);
+@NoConstructor(Object.isFrozen);
 
 // 15.2.3.13 Object.isExtensible ( O )
 
 Object.isExtensible = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.isExtensible");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.isExtensible");
 
-    return GetInternalProperty(O, "Extensible");
+    return @GetInternalProperty(O, "Extensible");
 };
-NoConstructor(Object.isExtensible);
+@NoConstructor(Object.isExtensible);
 
 // 15.2.3.14 Object.keys ( O )
 
 Object.keys = function (O) {
-    if (!IsObject(O)) throw TypeError("Invalid arguments: Object.keys");
+    if (!@IsObject(O)) throw TypeError("Invalid arguments: Object.keys");
 
     var names = new Array();
     for (var name in O) {
@@ -200,7 +200,7 @@ Object.keys = function (O) {
     }
     return names;
 };
-NoConstructor(Object.keys);
+@NoConstructor(Object.keys);
 
 // 15.2.4 Properties of the Object Prototype Object
 
@@ -213,31 +213,31 @@ Object.prototype.toString = function () {
         case null:
             return "[object Null]";
         default:
-            return "[object " + GetInternalProperty(ToObject(this), "Class") + "]"
+            return "[object " + @GetInternalProperty(@ToObject(this), "Class") + "]";
     }
 };
-NoConstructor(Object.prototype.toString);
+@NoConstructor(Object.prototype.toString);
 
 // 15.2.4.3 Object.prototype.toLocaleString ( )
 
 Object.prototype.toLocaleString = function () {
-    return ToObject(this).toString();
+    return @ToObject(this).toString();
 };
-NoConstructor(Object.prototype.toLocaleString);
+@NoConstructor(Object.prototype.toLocaleString);
 
 // 15.2.4.4 Object.prototype.valueOf ( )
 
 Object.prototype.valueOf = function () {
     // NOTE: Step 2 is ignored since we have no host objects.
-    return ToObject(this);
+    return @ToObject(this);
 };
-NoConstructor(Object.prototype.valueOf);
+@NoConstructor(Object.prototype.valueOf);
 
 // 15.2.4.5 Object.prototype.hasOwnProperty (V)
 
 Object.prototype.hasOwnProperty = function (V) {
     // Step 1-3
-    var desc = Object.getOwnPropertyDescriptor(ToObject(this), ToString(V));
+    var desc = Object.getOwnPropertyDescriptor(@ToObject(this), @ToString(V));
 
     // Step 4
     if (desc === undefined) {
@@ -247,16 +247,16 @@ Object.prototype.hasOwnProperty = function (V) {
     // Step 5
     return true;
 };
-NoConstructor(Object.prototype.hasOwnProperty);
+@NoConstructor(Object.prototype.hasOwnProperty);
 
 // 15.2.4.6 Object.prototype.isPrototypeOf (V)
 
 Object.prototype.isPrototypeOf = function (V) {
-    if (!IsObject(V)) {
+    if (!@IsObject(V)) {
         return false;
     }
 
-    var o = ToObject(this);
+    var o = @ToObject(this);
     while (true) {
         V = Object.getPrototypeOf(V);
         if (V === null) {
@@ -267,13 +267,13 @@ Object.prototype.isPrototypeOf = function (V) {
         }
     }
 };
-NoConstructor(Object.prototype.isPrototypeOf);
+@NoConstructor(Object.prototype.isPrototypeOf);
 
 // 15.2.4.7 Object.prototype.propertyIsEnumerable (V)
 
 Object.prototype.propertyIsEnumerable = function (V) {
     // Step 1-3
-    var desc = Object.getOwnPropertyDescriptor(ToObject(this), ToString(V));
+    var desc = Object.getOwnPropertyDescriptor(@ToObject(this), @ToString(V));
 
     // Step 4
     if (desc === undefined) {
@@ -283,4 +283,4 @@ Object.prototype.propertyIsEnumerable = function (V) {
     // Step 5
     return desc.enumerable;
 };
-NoConstructor(Object.prototype.propertyIsEnumerable);
+@NoConstructor(Object.prototype.propertyIsEnumerable);

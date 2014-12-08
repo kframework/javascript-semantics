@@ -2,6 +2,6 @@
 
 dir=`dirname $0`
 
+echo "rule @PWD => \"`pwd`\"" >$dir/js-pwd.k
 $dir/kpp.py $dir/js-main.k >$dir/js.k
-export JAVA_TOOL_OPTIONS='-Djava.awt.headless=true'
-$dir/k/bin/kompile $dir/js.k
+$dir/k/bin/kompile --backend java $dir/js.k
