@@ -183,4 +183,4 @@ Currently, the standard built-in objects are supported as follows:
 ----
 
 Note:
-The applications use a customized version of K, which is not publicly availabile yet. It will be available for the artifact evaluation.
+The applications use a customized version of K, which is not publicly availabile yet. It will be available soon.
