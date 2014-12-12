@@ -1,8 +1,6 @@
-require "builtins/mint.k"
-//require "modules/substitution.k"
-require "modules/k-functional-visitor.k"
 require "js-trans.k"
 require "js-str-numeric-literal.k"
+require "js-prelude.k"
 
 module JS-SYNTAX
 imports JS-ORIG-SYNTAX
@@ -11,11 +9,9 @@ endmodule
 
 module JS
 
-imports MINT
-//imports SUBSTITUTION
-imports K-FUNCTIONAL-VISITOR
 imports JS-SYNTAX
 imports JS-TRANS
+imports JS-PRELUDE
 
 //////////////////////////////////////////////////////////////////////////////
 // Configuration

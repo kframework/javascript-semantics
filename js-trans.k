@@ -1,10 +1,13 @@
 require "js-orig-syntax.k"
+require "js-orig-syntax-util.k"
 require "js-core-syntax.k"
 
 module JS-TRANS
 
 imports JS-ORIG-SYNTAX
 imports JS-CORE-SYNTAX
+
+imports JS-ORIG-SYNTAX-UTIL
 
 // top-level
 syntax Stmt ::= "^SourceElements" "(" SourceElements ")" [function]

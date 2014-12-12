@@ -1,4 +1,14 @@
+require "builtins/bool.k"
+require "builtins/int.k"
+require "builtins/float.k"
+require "builtins/string.k"
+
 module JS-CORE-SYNTAX
+
+imports BOOL-SYNTAX-HOOKS
+imports INT-SYNTAX-HOOKS
+imports FLOAT-SYNTAX-HOOKS
+imports STRING-SYNTAX-HOOKS
 
 syntax Pgm ::= Stmt
 
