@@ -272,7 +272,7 @@ rule %null => @NullVal
 //////////////////////////////////////////////////////////////////////////////
 
 syntax Reference    ::= "@Ref" "(" K /* Base */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict(1,2,3)]
-syntax ReferenceVal ::= "@Ref" "("      Base    ","      Var    ","      Bool    ")" [seqstrict(1,2,3)]
+syntax ReferenceVal ::= "@Ref" "("      Base    ","      Var    ","      Bool    ")"
 syntax Reference ::= ReferenceVal
 syntax Val ::= ReferenceVal
 //rule isVal(@Ref(B:Base,N:Var,S:Bool)) => true
@@ -2341,8 +2341,8 @@ rule @Not(false) => true
 
 // 11.? Binary Operator
 
-context %bop(OpNormal,HOLE,_)
-context %bop(OpNormal,_:Val,HOLE)
+context %bop(_:OpNormal,HOLE,_)
+context %bop(_:OpNormal,_:Val,HOLE)
 
 // TODO: IEEE 754 binary double-precision arithmetic: *, /, %, +, -
 
