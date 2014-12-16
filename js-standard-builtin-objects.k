@@ -66,7 +66,7 @@ rule Call(@("eval_i"), _, @Cons(V:Val,     _:Vals)) => V when #@IsString(V) ==K 
 rule Call(@("eval_d"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), true)
 rule Call(@("eval_i"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), false)
 
-syntax KItem ::= "@Eval" "(" K /* Stmt or Throw */ "," Bool ")"
+syntax KItem ::= "@Eval" "(" K /* Stmt or Throw */ "," K /* Bool */ ")" [seqstrict(2)]
 rule @Eval(Code:Stmt, Direct:Bool) => @EnterEvalCode(Code,Direct) ~> Code ~> @ExitEvalCode
 rule @Eval(@Throw(@SyntaxError(E:String,P:String)), _) => @Throw(@SyntaxError(E,P))
 //rule @Eval(@Throw(@SyntaxError("#parse",P:String)), _) => @Throw(@SyntaxError("#parse",P))
@@ -122,7 +122,7 @@ rule <k> @CreateObject => @o(!N) ... </k>
 // 15.2.3.4 Object.getOwnPropertyNames ( O )
 // TODO:STD: consider note: when O is string object
 
-syntax KItem ::= "@ObjectGetOwnPropertyNames" "(" Oid ")"
+syntax KItem ::= "@ObjectGetOwnPropertyNames" "(" K /* Oid */ ")" [seqstrict(1)]
 rule <k> @ObjectGetOwnPropertyNames(O:Oid) => @MakeArray(@Set2Vals(keys(Prop))) ... </k>
      <obj>
        <oid> O </oid>
@@ -182,12 +182,12 @@ rule Call(@FunctionProtoOid, _, _:Vals) => Undefined
 // 15.3.4.2 Function.prototype.toString ( )
 
 // TODO:STD: ad-hoc, temorary implementation
-syntax KItem ::= "@FunctionPrototypeToString" "(" Oid ")"
+syntax KItem ::= "@FunctionPrototypeToString" "(" K /* Oid */ ")" [seqstrict(1)]
 rule @FunctionPrototypeToString(F:Oid) => "[function ...]"
 
 // 15.3.4.3 Function.prototype.apply (thisArg, argArray)
 
-syntax KItem ::= "@FunctionPrototypeApply" "(" Val "," Val "," Val ")"
+syntax KItem ::= "@FunctionPrototypeApply" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$n" | "$argList"
 rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
   => If IsCallable(Func) = false then {
@@ -223,7 +223,7 @@ rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
 
 // 15.3.4.5 Function.prototype.bind (thisArg [, arg1 [, arg2, ...]])
 
-syntax KItem ::= "@FunctionPrototypeBind" "(" Val "," Val "," Val ")"
+syntax KItem ::= "@FunctionPrototypeBind" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$f"
 rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
   => If IsCallable(Func) = false then {
@@ -241,7 +241,7 @@ rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
        Return $f;
      }
 
-syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" Oid ")"
+syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" K /* Oid */ ")" [seqstrict(1)]
 rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
      <obj>
        <oid> O </oid>
@@ -305,7 +305,7 @@ rule HasInstance@Default(F:Oid,V:Val)
      }
 
 // TODO: Duplicated: Object.isPrototypeOf
-syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" Oid "," Oid ")"
+syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" K /* Oid */ "," K /* Oid */ ")" [seqstrict(1,2)]
 rule @IsPrototypeOf(O:Oid,V:Oid)
   => @IsPrototypeOfAux(O,GetInternalProperty(V,"Prototype"))
 
@@ -339,7 +339,7 @@ syntax KItem /* Oid */ ::= "@NewArray" "(" K /* Vals */ ")" [seqstrict(1)]
 rule @NewArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs) when #@LengthVals(Vs) =/=Int 1
 rule @NewArray(@Cons(V:Val,@Nil)) => @CreateArray(1, @Cons(V:Val,@Nil)) when notBool(isInt(V) ==K true)
 
-syntax KItem /* Oid */ ::= "@CreateArray" "(" Int "," Vals ")"
+syntax KItem /* Oid */ ::= "@CreateArray" "(" K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2)]
 rule <k> @CreateArray(Len:Int, Vs:Vals) => @CreateArray@InsertElements(@o(!N),Vs,0) ... </k>
      <objs>
        (. => <obj>
@@ -356,7 +356,7 @@ rule <k> @CreateArray(Len:Int, Vs:Vals) => @CreateArray@InsertElements(@o(!N),Vs
        _
      </objs>
 
-syntax KItem /* Oid */ ::= "@CreateArray@InsertElements" "(" Oid "," Vals "," Int ")"
+syntax KItem /* Oid */ ::= "@CreateArray@InsertElements" "(" K /* Oid */ "," K /* Vals */ "," K /* Int */ ")" [seqstrict(1,2,3)]
 rule     @CreateArray@InsertElements(O:Oid, @Nil, _) => O
 rule <k> @CreateArray@InsertElements(O:Oid, @Cons(V:Val,Vs:Vals), I:Int) => @CreateArray@InsertElements(O, Vs, I +Int 1) ... </k>
      <obj>
@@ -382,7 +382,7 @@ rule @MakeArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs)
 // 15.4.5 Properties of Array Instances
 
 // TODO: Duplicated: Array.isArray
-syntax KItem /* Bool */ ::= "@IsArrayObject" "(" Oid ")"
+syntax KItem /* Bool */ ::= "@IsArrayObject" "(" K /* Oid */ ")" [seqstrict(1)]
 rule <k> @IsArrayObject(O:Oid) => Class ==String "Array" ... </k>
      <obj>
        <oid> O </oid>
@@ -480,7 +480,7 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
        }
      }
 
-syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" Var ")"
+syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" K /* Var */ ")" [seqstrict(1)]
 rule @IsArrayIndex(P:Var) => @EqVal(ToString(ToUint32(P)), P) /* TODO:STD: and ToUint32(P) =/=K 2^32 - 1 */
 
 syntax KItem /* Bool */ ::= "DefineOwnProperty@Array@DeleteOthers" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ "," K /* PropertyDescriptor */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3,4,5,6,7)]
@@ -543,7 +543,7 @@ rule <k> @CreateString(S:String) => @o(!N) ... </k>
 
 // 15.5.5 Properties of String Instances
 
-syntax KItem /* Bool */ ::= "@IsStringObject" "(" Oid ")"
+syntax KItem /* Bool */ ::= "@IsStringObject" "(" K /* Oid */ ")" [seqstrict(1)]
 rule <k> @IsStringObject(O:Oid) => Class ==String "String" ... </k>
      <obj>
        <oid> O </oid>
@@ -680,7 +680,7 @@ rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01
 
 // 15.8.2.9 floor (x)
 
-syntax KItem ::= "@MathFloor" "(" Number ")"
+syntax KItem ::= "@MathFloor" "(" K /* Number */ ")" [seqstrict(1)]
 rule @MathFloor(I:Int)      => I
 rule @MathFloor(F:Float)    => Float2Int(F)
 rule @MathFloor(@nz)        => @nz
@@ -691,14 +691,14 @@ rule @MathFloor(@-Infinity) => @-Infinity
 // 15.8.2.13 pow (x, y)
 
 // TODO:STD: other cases
-syntax KItem ::= "@MathPow" "(" Number "," Number ")"
+syntax KItem ::= "@MathPow" "(" K /* Number */ "," K /* Number */ ")" [seqstrict(1,2)]
 rule @MathPow(I1:Int,  I2:Int)   => I1 ^Int   I2
 rule @MathPow(F1:Float,F2:Float) => F1 ^Float F2
 
 // 15.8.2.16 sin (x)
 
 // TODO:STD: hack
-syntax KItem ::= "@MathSin" "(" Number ")"
+syntax KItem ::= "@MathSin" "(" K /* Number */ ")" [seqstrict(1)]
 rule @MathSin(N:Number) => @MathSinAux(ToString(N))
 //
 syntax KItem ::= "@MathSinAux" "(" K /* String */ ")" [seqstrict(1)]
@@ -748,13 +748,13 @@ rule TimeClip(N:Number)
        Return @NaN;
      }
 
-syntax KItem /* Bool */ ::= "@IsFinite" "(" Number ")"
+syntax KItem /* Bool */ ::= "@IsFinite" "(" K /* Number */ ")" [seqstrict(1)]
 rule @IsFinite(N:Number) => N =/=K @NaN andBool N =/=K @+Infinity andBool N =/=K @-Infinity
 
 // 15.9.5.2 Date.prototype.toString ( )
 
 // TODO:STD: HACK
-syntax KItem /* String */ ::= "@DatePrototypeToString" "(" Oid ")"
+syntax KItem /* String */ ::= "@DatePrototypeToString" "(" K /* Oid */ ")" [seqstrict(1)]
 rule @DatePrototypeToString(O:Oid) => "[date ...]"
 
 //////////////////////////////////////////////////////////////////////////////
@@ -875,12 +875,12 @@ rule #@ResolveNativeError(@TypeErrorOid     ) => @TypeErrorProtoOid
 rule #@ResolveNativeError(@URIErrorOid      ) => @URIErrorProtoOid
 
 // TODO: more elegantly
-syntax KItem /* Oid */ ::= "@EvalError"      "(" String "," K ")"
-syntax KItem /* Oid */ ::= "@RangeError"     "(" String "," K ")"
-syntax KItem /* Oid */ ::= "@ReferenceError" "(" String "," K ")"
-syntax KItem /* Oid */ ::= "@SyntaxError"    "(" String "," K ")"
-syntax KItem /* Oid */ ::= "@TypeError"      "(" String "," K ")"
-syntax KItem /* Oid */ ::= "@URIError"       "(" String "," K ")"
+syntax KItem /* Oid */ ::= "@EvalError"      "(" K /* String */ "," K ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@RangeError"     "(" K /* String */ "," K ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@ReferenceError" "(" K /* String */ "," K ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@SyntaxError"    "(" K /* String */ "," K ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@TypeError"      "(" K /* String */ "," K ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@URIError"       "(" K /* String */ "," K ")" [seqstrict(1)]
 rule @EvalError     (Msg:String, KDebug:K) => @CreateNativeError(@EvalErrorOid     , Msg, KDebug)
 rule @RangeError    (Msg:String, KDebug:K) => @CreateNativeError(@RangeErrorOid    , Msg, KDebug)
 rule @ReferenceError(Msg:String, KDebug:K) => @CreateNativeError(@ReferenceErrorOid, Msg, KDebug)
