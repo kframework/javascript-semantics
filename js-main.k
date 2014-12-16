@@ -3764,7 +3764,8 @@ rule @SubDescAux(                    .Set , @desc( _:Map), @desc( _:Map)) => tru
 rule @SubDescAux((SetItem(X:String) S:Set), @desc(M1:Map), @desc(M2:Map)) => @AndBool(@SubDescAuxSingle(X,M1,M2), @SubDescAux(S,@desc(M1),@desc(M2)))
 //
 syntax KItem /* Bool */ ::= "@SubDescAuxSingle" "(" K /* String */ "," Map "," Map ")" [seqstrict(1)]
-rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => @AndBool(X in keys(M2), SameValue(M1[X], M2[X]))
+rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => SameValue(M1[X], M2[X]) when X in keys(M2)
+rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => false [owise]
 
 /*
 syntax Bool ::= "@SubDesc" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
