@@ -17,10 +17,10 @@ syntax Exp ::= Id
 rule PC:PseudoCode PCs:PseudoCodes => PC ~> PCs
 //rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => PCs[V / X]
 
-rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => #visit(PCs, '@Replace`(_`,_`), V, '_==K_, X)
+rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => #visit(PCs, '#@Replace`(_`,_`), V, '_==K_, X)
 //
-syntax KItem ::= "@Replace" "(" K "," K ")" [function]
-rule @Replace(_, K) => K
+syntax KItem ::= "#@Replace" "(" K "," K ")" [function]
+rule #@Replace(_, K) => K
 
 rule Do  K; => K
 rule DoI K; => K ~> @Ignore

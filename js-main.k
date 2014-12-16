@@ -135,6 +135,12 @@ syntax Number    ::= Int
                    | "@+Infinity"
                    | "@-Infinity"
 
+syntax Float ::= "@MAX_VALUE"
+rule @MAX_VALUE => 1.7976931348623157e308 [macro]
+//
+syntax Float ::= "@MIN_VALUE"
+rule @MIN_VALUE => 4.9e-324 [macro]
+
 // Subsorts information
 syntax Exps    ::= Vals
 syntax Exp     ::= Val
@@ -183,21 +189,21 @@ rule <k> @LoadConfig => . ... </k>
 
 syntax KItem ::= "@CheckReserved" "(" Bool "," Var ")"
 rule @CheckReserved(Strict:Bool, X:Var)
-  => If @IsReservedWord(Strict,X) = true then {
+  => If #@IsReservedWord(Strict,X) = true then {
        Do @Throw(@SyntaxError("A reserved word cannot be used as an identifier",X));
      };
 
-syntax Bool ::= "@IsReservedWord" "(" Bool "," Var ")" [function]
-rule @IsReservedWord(Strict:Bool, X:Var)
-  =>      @IsKeyword(X)
-   orBool @IsFutureReservedWord(X)
-   orBool (Strict andBool @IsFutureReservedWordInStrictMode(X))
+syntax Bool ::= "#@IsReservedWord" "(" Bool "," Var ")" [function]
+rule #@IsReservedWord(Strict:Bool, X:Var)
+  =>      #@IsKeyword(X)
+   orBool #@IsFutureReservedWord(X)
+   orBool (Strict andBool #@IsFutureReservedWordInStrictMode(X))
    orBool (X ==K "null")
    orBool (X ==K "true")
    orBool (X ==K "false")
 
-syntax Bool ::= "@IsKeyword" "(" Var ")" [function]
-rule @IsKeyword(X:Var)
+syntax Bool ::= "#@IsKeyword" "(" Var ")" [function]
+rule #@IsKeyword(X:Var)
   =>      (X ==K "break")
    orBool (X ==K "case")
    orBool (X ==K "catch")
@@ -225,8 +231,8 @@ rule @IsKeyword(X:Var)
    orBool (X ==K "while")
    orBool (X ==K "with")
 
-syntax Bool ::= "@IsFutureReservedWord" "(" Var ")" [function]
-rule @IsFutureReservedWord(X:Var)
+syntax Bool ::= "#@IsFutureReservedWord" "(" Var ")" [function]
+rule #@IsFutureReservedWord(X:Var)
   =>      (X ==K "class")
    orBool (X ==K "const")
    orBool (X ==K "enum")
@@ -235,8 +241,8 @@ rule @IsFutureReservedWord(X:Var)
    orBool (X ==K "import")
    orBool (X ==K "super")
 
-syntax Bool ::= "@IsFutureReservedWordInStrictMode" "(" Var ")" [function]
-rule @IsFutureReservedWordInStrictMode(X:Var)
+syntax Bool ::= "#@IsFutureReservedWordInStrictMode" "(" Var ")" [function]
+rule #@IsFutureReservedWordInStrictMode(X:Var)
   =>      (X ==K "implements")
    orBool (X ==K "interface")
    orBool (X ==K "let")
@@ -290,28 +296,28 @@ rule isBase(_:Oid) => true
 rule isBase(_:Eid) => true
 */
 
-syntax KItem /* Base */ ::= "GetBase" "(" K /* Reference */ ")" [function]
+syntax KItem /* Base */ ::= "GetBase" "(" K /* Reference */ ")" [seqstrict(1)]
 rule GetBase(@Ref(Base:Base,_,_)) => Base
 
-syntax Var ::= "GetReferencedName" "(" K /* Reference */ ")" [function]
+syntax KItem /* Var */ ::= "GetReferencedName" "(" K /* Reference */ ")" [seqstrict(1)]
 rule GetReferencedName(@Ref(_,Name:Var,_)) => Name
 
-syntax Bool ::= "IsStrictReference" "(" K /* Reference */ ")" [function]
+syntax KItem /* Bool */ ::= "IsStrictReference" "(" K /* Reference */ ")" [seqstrict(1)]
 rule IsStrictReference(@Ref(_,_,Strict:Bool)) => Strict
 
-syntax Bool ::= "HasPrimitiveBase" "(" K /* Reference */ ")" [function]
+syntax KItem /* Bool */ ::= "HasPrimitiveBase" "(" K /* Reference */ ")" [seqstrict(1)]
 rule HasPrimitiveBase(@Ref(Undefined, _,_)) => false
 rule HasPrimitiveBase(@Ref(_:Primitive,_,_)) => true
 rule HasPrimitiveBase(@Ref(_:Oid,      _,_)) => false
 rule HasPrimitiveBase(@Ref(_:Eid,      _,_)) => false
 
-syntax Bool ::= "IsPropertyReference" "(" K /* Reference */ ")" [function]
+syntax KItem /* Bool */ ::= "IsPropertyReference" "(" K /* Reference */ ")" [seqstrict(1)]
 rule IsPropertyReference(@Ref(Undefined, _,_)) => false
 rule IsPropertyReference(@Ref(_:Primitive,_,_)) => true
 rule IsPropertyReference(@Ref(_:Oid,      _,_)) => true
 rule IsPropertyReference(@Ref(_:Eid,      _,_)) => false
 
-syntax Bool ::= "IsUnresolvableReference" "(" K /* Reference */ ")" [function]
+syntax KItem /* Bool */ ::= "IsUnresolvableReference" "(" K /* Reference */ ")" [seqstrict(1)]
 rule IsUnresolvableReference(@Ref(Base:Base,_,_)) => Base ==K Undefined
 
 // 8.7.1 GetValue (V)
@@ -339,7 +345,7 @@ rule GetPrimitive(Base:Primitive,P:Var)
      If $desc = Undefined then {
        Return Undefined;
      } else {
-       If IsDataDescriptor($desc:>Val) = true then {
+       If IsDataDescriptor($desc) = true then {
          Return $desc."Value";
        } else {
          Let $getter = $desc."Get";
@@ -384,7 +390,7 @@ rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
        }
      } else {
        Let $ownDesc = GetOwnProperty($o:>Oid,P);
-       If IsDataDescriptor($ownDesc:>Val) = true then {
+       If IsDataDescriptor($ownDesc) = true then {
          // NOTE: different from [[Put]]: do not put value
          If Throw = true then {
            Do @Throw(@TypeError("PutPrimitive, own Desc is a data descriptor",PutPrimitive(Base,P,V,Throw)));
@@ -393,7 +399,7 @@ rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
          }
        } else {
          Let $desc = GetProperty($o:>Oid,P);
-         If IsAccessorDescriptor($desc:>Val) = true then {
+         If IsAccessorDescriptor($desc) = true then {
            Let $setter = $desc."Set";
            DoI Call($setter:>Oid,Base,@Cons(V,@Nil)); // NOTE: different from [[Put]]: use 'Base' instead of '$o'
          } else {
@@ -413,7 +419,7 @@ rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
 
 // 8.10.1 IsAccessorDescriptor ( Desc )
 
-syntax Bool ::= "IsAccessorDescriptor" "(" Val ")" [function]
+syntax KItem /* Bool */ ::= "IsAccessorDescriptor" "(" K /* Val */ ")" [seqstrict(1)]
 
 rule IsAccessorDescriptor(Undefined) => false
 rule IsAccessorDescriptor(@desc(Desc)) => ("Get" in keys(Desc)) orBool
@@ -421,7 +427,7 @@ rule IsAccessorDescriptor(@desc(Desc)) => ("Get" in keys(Desc)) orBool
 
 // 8.10.2 IsDataDescriptor ( Desc )
 
-syntax Bool ::= "IsDataDescriptor" "(" Val ")" [function]
+syntax KItem /* Bool */ ::= "IsDataDescriptor" "(" K /* Val */ ")" [seqstrict(1)]
 
 rule IsDataDescriptor(Undefined) => false
 rule IsDataDescriptor(@desc(Desc)) => ("Value"    in keys(Desc)) orBool
@@ -429,7 +435,7 @@ rule IsDataDescriptor(@desc(Desc)) => ("Value"    in keys(Desc)) orBool
 
 // 8.10.3 IsGenericDescriptor ( Desc )
 
-syntax Bool ::= "IsGenericDescriptor" "(" Val ")" [function]
+syntax KItem /* Bool */ ::= "IsGenericDescriptor" "(" K /* Val */ ")" [seqstrict(1)]
 
 rule IsGenericDescriptor(Undefined) => false
 rule IsGenericDescriptor(@desc(Desc)) => notBool("Get"      in keys(Desc)) andBool
@@ -439,38 +445,38 @@ rule IsGenericDescriptor(@desc(Desc)) => notBool("Get"      in keys(Desc)) andBo
 
 // 8.10.? IsValidDescriptor ( Desc )
 
-syntax Bool ::= "IsValidDescriptor" "(" PropertyDescriptor ")" [function]
+syntax KItem /* Bool */ ::= "IsValidDescriptor" "(" K /* PropertyDescriptor */ ")" [seqstrict(1)]
 
-rule IsValidDescriptor(Desc:PropertyDescriptor) => notBool(IsAccessorDescriptor(Desc) andBool IsDataDescriptor(Desc))
+rule IsValidDescriptor(Desc:PropertyDescriptor) => @NotBool(@AndBool(IsAccessorDescriptor(Desc),IsDataDescriptor(Desc)))
 
-// 8.10.? IsFullyPopulatedDescriptor ( Desc )
+// 8.10.? #IsFullyPopulatedDescriptor ( Desc )
 
-syntax Bool ::= "IsFullyPopulatedDescriptor" "(" PropertyDescriptor ")" [function]
+syntax Bool ::= "#IsFullyPopulatedDescriptor" "(" PropertyDescriptor ")" [function]
 
-rule IsFullyPopulatedDescriptor(@desc("Value" |-> _ "Writable" |-> _ "Enumerable" |-> _ "Configurable" |-> _)) => true
-rule IsFullyPopulatedDescriptor(@desc("Get"   |-> _ "Set"      |-> _ "Enumerable" |-> _ "Configurable" |-> _)) => true
+rule #IsFullyPopulatedDescriptor(@desc(Desc)) => (keys(Desc) ==K SetItem("Get")   SetItem("Set")      SetItem("Enumerable") SetItem("Configurable"))
+                                         orBool (keys(Desc) ==K SetItem("Value") SetItem("Writable") SetItem("Enumerable") SetItem("Configurable"))
 
 // 8.10.? MakeFullyPopulatedDescriptor ( Desc )
 
-syntax PropertyDescriptor ::= "MakeFullyPopulatedDataDescriptor1" "(" PropertyDescriptor ")" [function]
+syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedDataDescriptor1" "(" K /* PropertyDescriptor */ ")" [seqstrict(1)]
 rule MakeFullyPopulatedDataDescriptor1(Desc:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(Desc,@desc("Value" |-> Undefined "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false))
 
-syntax PropertyDescriptor ::= "MakeFullyPopulatedAccessorDescriptor1" "(" PropertyDescriptor ")" [function]
+syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedAccessorDescriptor1" "(" K /* PropertyDescriptor */ ")" [seqstrict(1)]
 rule MakeFullyPopulatedAccessorDescriptor1(Desc:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(Desc,@desc("Get" |-> Undefined "Set" |-> Undefined "Enumerable" |-> false "Configurable" |-> false))
 
-syntax PropertyDescriptor ::= "MakeFullyPopulatedDataDescriptor2" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
-rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(@AddMap("Value",       Default."Value",       Desc)),Default) when notBool("Value"        in keys(Desc))
-rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(@AddMap("Writable",    Default."Writable",    Desc)),Default) when notBool("Writable"     in keys(Desc))
-rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(@AddMap("Enumerable",  Default."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
-rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(@AddMap("Configurable",Default."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
-rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when IsFullyPopulatedDescriptor(@desc(Desc))
+syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedDataDescriptor2" "(" K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict(1,2)]
+rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Value",       Default.."Value",       Desc)),Default) when notBool("Value"        in keys(Desc))
+rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Writable",    Default.."Writable",    Desc)),Default) when notBool("Writable"     in keys(Desc))
+rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Enumerable",  Default.."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
+rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Configurable",Default.."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
+rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when #IsFullyPopulatedDescriptor(@desc(Desc))
 
-syntax PropertyDescriptor ::= "MakeFullyPopulatedAccessorDescriptor2" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
-rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(@AddMap("Get",         Default."Get",         Desc)),Default) when notBool("Get"          in keys(Desc))
-rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(@AddMap("Set",         Default."Set",         Desc)),Default) when notBool("Set"          in keys(Desc))
-rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(@AddMap("Enumerable",  Default."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
-rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(@AddMap("Configurable",Default."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
-rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when IsFullyPopulatedDescriptor(@desc(Desc))
+syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedAccessorDescriptor2" "(" K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict(1,2)]
+rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Get",         Default.."Get",         Desc)),Default) when notBool("Get"          in keys(Desc))
+rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Set",         Default.."Set",         Desc)),Default) when notBool("Set"          in keys(Desc))
+rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Enumerable",  Default.."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
+rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Configurable",Default.."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
+rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when #IsFullyPopulatedDescriptor(@desc(Desc))
 
 // 8.10.4 FromPropertyDescriptor ( Desc )
 
@@ -482,30 +488,24 @@ syntax Id ::= "$obj"
 
 rule FromPropertyDescriptor(Desc:PropertyDescriptor)
   => Let $obj = @CreateObject;
-     DoI DefineOwnProperty($obj, "value",        @desc("Value" |-> Desc."Value"        "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "writable",     @desc("Value" |-> Desc."Writable"     "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "enumerable",   @desc("Value" |-> Desc."Enumerable"   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "configurable", @desc("Value" |-> Desc."Configurable" "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+     If IsDataDescriptor(Desc) = true then {
+       DoI DefineOwnProperty($obj, "value",      @desc("Value" |-> Desc.."Value"        "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+       DoI DefineOwnProperty($obj, "writable",   @desc("Value" |-> Desc.."Writable"     "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+     } else /* IsAccessorDescriptor(Desc) = true */ {
+       DoI DefineOwnProperty($obj, "get",        @desc("Value" |-> Desc.."Get"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+       DoI DefineOwnProperty($obj, "set",        @desc("Value" |-> Desc.."Set"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+     }
+     DoI DefineOwnProperty($obj, "enumerable",   @desc("Value" |-> Desc.."Enumerable"   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+     DoI DefineOwnProperty($obj, "configurable", @desc("Value" |-> Desc.."Configurable" "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
      Return $obj;
-     when IsDataDescriptor(Desc) ==K true
-  andBool IsFullyPopulatedDescriptor(Desc) ==K true
-
-rule FromPropertyDescriptor(Desc:PropertyDescriptor)
-  => Let $obj = @CreateObject;
-     DoI DefineOwnProperty($obj, "get",          @desc("Value" |-> Desc."Get"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "set",          @desc("Value" |-> Desc."Set"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "enumerable",   @desc("Value" |-> Desc."Enumerable"   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     DoI DefineOwnProperty($obj, "configurable", @desc("Value" |-> Desc."Configurable" "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
-     Return $obj;
-     when IsAccessorDescriptor(Desc) ==K true
-  andBool IsFullyPopulatedDescriptor(Desc) ==K true
+     when #IsFullyPopulatedDescriptor(Desc)
 
 // 8.10.5 ToPropertyDescriptor ( Obj )
 // TODO: make it more elegant
 
 syntax KItem /* PropertyDescriptor */ ::= "ToPropertyDescriptor" "(" Val ")"
 
-rule ToPropertyDescriptor(V:Val) => @Throw(@TypeError("ToPropertyDescriptor",V)) when @IsOid(V) ==K false
+rule ToPropertyDescriptor(V:Val) => @Throw(@TypeError("ToPropertyDescriptor",V)) when notBool(#@IsOid(V))
 
 syntax Id ::= "$desc0" | "$desc1" | "$desc2" | "$desc3" | "$desc4" | "$desc5" | "$desc6"
 
@@ -517,7 +517,7 @@ rule ToPropertyDescriptor(O:Oid)
      Let $desc4 = ToPropertyDescriptorAux(O,"writable",    $desc3:>PropertyDescriptor,"Writable");
      Let $desc5 = ToPropertyDescriptorAux(O,"get",         $desc4:>PropertyDescriptor,"Get");
      Let $desc6 = ToPropertyDescriptorAux(O,"set",         $desc5:>PropertyDescriptor,"Set");
-     If IsValidDescriptor($desc6:>PropertyDescriptor) = true then {
+     If IsValidDescriptor($desc6) = true then {
        Return $desc6;
      } else {
        Do @Throw(@TypeError("ToPropertyDescriptor InvalidDescriptor",$desc6));
@@ -626,7 +626,7 @@ syntax KItem /* .K */ ::= "SetInternalProperty" "(" Oid "," Var "," Val ")"
 rule <k> SetInternalProperty(O:Oid,P:Var,V:Val) => . ... </k>
      <obj>
        <oid> O </oid>
-       <internalProperties> Prop:Map => @AddMap(P,V,Prop) </internalProperties>
+       <internalProperties> Prop:Map => #@AddMap(P,V,Prop) </internalProperties>
        _
      </obj>
 
@@ -710,7 +710,7 @@ rule Get@Default(O:Oid,P:Var)
      If $desc = Undefined then {
        Return Undefined;
      } else {
-       If IsDataDescriptor($desc:>Val) = true then {
+       If IsDataDescriptor($desc) = true then {
          Return $desc."Value";
        } else {
          Let $getter = $desc."Get";
@@ -751,7 +751,7 @@ rule CanPut(O:Oid,P:Var)
          If $inherited = Undefined then {
            Return GetInternalProperty(O,"Extensible");
          } else {
-           If IsAccessorDescriptor($inherited:>Val) = true then {
+           If IsAccessorDescriptor($inherited) = true then {
              If $inherited."Set" = Undefined then {
                Return false;
              } else {
@@ -767,7 +767,7 @@ rule CanPut(O:Oid,P:Var)
          }
        }
      } else {
-       If IsAccessorDescriptor($desc:>Val) = true then {
+       If IsAccessorDescriptor($desc) = true then {
          If $desc."Set" = Undefined then {
            Return false;
          } else {
@@ -792,12 +792,12 @@ rule Put(O:Oid,P:Var,V:Val,Throw:Bool)
        }
      } else {
        Let $ownDesc = GetOwnProperty(O,P);
-       If IsDataDescriptor($ownDesc:>Val) = true then {
+       If IsDataDescriptor($ownDesc) = true then {
          Let $valueDesc = @desc("Value" |-> V);
          DoI DefineOwnProperty(O,P,$valueDesc:>PropertyDescriptor,Throw);
        } else {
          Let $desc = GetProperty(O,P);
-         If IsAccessorDescriptor($desc:>Val) = true then {
+         If IsAccessorDescriptor($desc) = true then {
            Let $setter = $desc."Set";
            DoI Call($setter:>Oid,O,@Cons(V,@Nil));
          } else {
@@ -880,14 +880,14 @@ rule DefaultValue(O:Oid,"String")
      Let $toString = Get(O,"toString");
      If IsCallable($toString) = true then {
        Let $str = Call($toString,O,@Nil);
-       If @IsPrimitive($str:>Val) = true then {
+       If @IsPrimitive($str) = true then {
          Return $str; Exit;
        };
      };
      Let $valueOf = Get(O,"valueOf");
      If IsCallable($valueOf) = true then {
        Let $val = Call($valueOf,O,@Nil);
-       If @IsPrimitive($val:>Val) = true then {
+       If @IsPrimitive($val) = true then {
          Return $val; Exit;
        };
      };
@@ -899,14 +899,14 @@ rule DefaultValue(O:Oid,"Number")
      Let $valueOf = Get(O,"valueOf");
      If IsCallable($valueOf) = true then {
        Let $val = Call($valueOf,O,@Nil);
-       If @IsPrimitive($val:>Val) = true then {
+       If @IsPrimitive($val) = true then {
          Return $val; Exit;
        };
      };
      Let $toString = Get(O,"toString");
      If IsCallable($toString) = true then {
        Let $str = Call($toString,O,@Nil);
-       If @IsPrimitive($str:>Val) = true then {
+       If @IsPrimitive($str) = true then {
          Return $str; Exit;
        };
      };
@@ -1000,15 +1000,15 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool) =
          If IsGenericDescriptor(Desc) = true then {
            Nop;
          } else {
-           If @OrBool(@AndBool(IsDataDescriptor($current:>PropertyDescriptor), IsAccessorDescriptor(Desc)),
-                       @AndBool(IsAccessorDescriptor($current:>PropertyDescriptor), IsDataDescriptor(Desc))) = true then {
+           If @OrBool(@AndBool(IsDataDescriptor($current), IsAccessorDescriptor(Desc)),
+                       @AndBool(IsAccessorDescriptor($current), IsDataDescriptor(Desc))) = true then {
              If $current."Configurable" = false then {
                Return Reject(Throw,"DefineOwnProperty@Default conflict descriptor type",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
              };
            //Do @LOG("convert");
              Do ConvertDescriptorType(O,P);
            } else {
-             If @AndBool(IsDataDescriptor($current:>PropertyDescriptor), IsDataDescriptor(Desc)) = true then {
+             If @AndBool(IsDataDescriptor($current), IsDataDescriptor(Desc)) = true then {
                If $current."Configurable" = false then {
                  If @AndBool(@EqVal($current."Writable", false), @EqVal(Desc."Writable", true)) = true then {
                    Return Reject(Throw,"DefineOwnProperty@Default conflict writable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
@@ -1030,16 +1030,16 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool) =
            }
          }
          Let $current2 = GetOwnProperty(O,P);
-         If @OrBool(IsGenericDescriptor($current2:>PropertyDescriptor), IsDataDescriptor($current2:>PropertyDescriptor)) = true then {
+         If @OrBool(IsGenericDescriptor($current2), IsDataDescriptor($current2)) = true then {
          //Do @LOG("Data");
          //Do @LOG(Desc);
          //Do @LOG($current2);
-           Do SetOwnProperty(O,P,MakeFullyPopulatedDataDescriptor2(Desc,$current2:>PropertyDescriptor));
+           Do SetOwnProperty(O,P,MakeFullyPopulatedDataDescriptor2(Desc,$current2));
          } else {
          //Do @LOG("Accessor");
          //Do @LOG(Desc);
          //Do @LOG($current2);
-           Do SetOwnProperty(O,P,MakeFullyPopulatedAccessorDescriptor2(Desc,$current2:>PropertyDescriptor));
+           Do SetOwnProperty(O,P,MakeFullyPopulatedAccessorDescriptor2(Desc,$current2));
          }
          Return true;
        }
@@ -1074,7 +1074,7 @@ syntax KItem /* .K */ ::= "SetOwnProperty" "(" K /* Oid */ "," K /* Var */ "," K
 rule <k> SetOwnProperty(O:Oid,P:Var,V:Val) => . ... </k>
      <obj>
        <oid> O </oid>
-       <properties> Prop:Map => @AddMap(P,V,Prop) </properties>
+       <properties> Prop:Map => #@AddMap(P,V,Prop) </properties>
        _
      </obj>
 
@@ -1126,10 +1126,10 @@ rule ToNumber(O:Oid     ) => ToNumber(ToPrimitive(O,"Number"))
 
 // 9.3.1 ToNumber Applied to the String Type
 
-syntax KItem /* Bool */ ::= "@IsStrNumericLiteral" "(" String ")" [function]
+syntax KItem /* Bool */ ::= "@IsStrNumericLiteral" "(" String ")"
 rule @IsStrNumericLiteral(N:String) => @IsStrNumericLiteralAux(#parse(N,"StrNumericLiteral"))
 
-syntax KItem /* Bool */ ::= "@IsStrNumericLiteralAux" "(" K /* StrNumericLiteral */ ")" [function]
+syntax KItem /* Bool */ ::= "@IsStrNumericLiteralAux" "(" K /* StrNumericLiteral */ ")"
 rule @IsStrNumericLiteralAux(K) => isStrNumericLiteral(K) ==K true
 /*
 rule @IsStrNumericLiteralAux(_:StrNumericLiteral) => true
@@ -1174,7 +1174,7 @@ rule @StringToNumber@Core(S:String)
        }
      }
 
-syntax Bool ::= "@IsMinus" "(" String ")" [function]
+syntax KItem /* Bool */ ::= "@IsMinus" "(" String ")"
 rule @IsMinus(S:String) => substrString(S,0,1) ==String "-"
 
 syntax KItem /* String */ ::= "@RemoveLeadingSign" "(" K /* String */ ")" [seqstrict(1)]
@@ -1182,7 +1182,7 @@ syntax Id ::= "$prefix"
 rule @RemoveLeadingSign(S:String)
   => If lengthString(S) >=Int 2 = true then {
        Let $prefix = @SubstrString(S,0,1);
-       If @OrBool($prefix:>String ==String "+", $prefix:>String ==String "-") = true then {
+       If @OrBool(@EqVal($prefix,"+"), @EqVal($prefix,"-")) = true then {
          Return @SubstrString(S,1,lengthString(S));
        } else {
          Return S;
@@ -1207,18 +1207,18 @@ rule @RemoveLeadingZeros(S:String)
        Return S;
      }
 
-syntax Bool ::= "@IsHexIntegerLiteral" "(" String ")" [function]
+syntax KItem /* Bool */ ::= "@IsHexIntegerLiteral" "(" String ")"
 rule @IsHexIntegerLiteral(S:String) => substrString(S,0,1) ==String "x"
                                 orBool substrString(S,0,1) ==String "X"
 
-syntax Bool ::= "@IsFloatLiteral" "(" String ")" [function]
-rule @IsFloatLiteral(S:String) => @HasPoint(S) orBool @HasExponentPart(S)
+syntax KItem /* Bool */ ::= "@IsFloatLiteral" "(" String ")"
+rule @IsFloatLiteral(S:String) => @OrBool(@HasPoint(S), @HasExponentPart(S))
 
-syntax Bool ::= "@HasExponentPart" "(" String ")" [function]
+syntax KItem /* Bool */ ::= "@HasExponentPart" "(" String ")"
 rule @HasExponentPart(S:String) => findString(S, "e", 0) =/=Int -1
                             orBool findString(S, "E", 0) =/=Int -1
 
-syntax Bool ::= "@HasPoint" "(" String ")" [function]
+syntax KItem /* Bool */ ::= "@HasPoint" "(" String ")"
 rule @HasPoint(S:String) => findString(S, ".", 0) =/=Int -1
 
 // 9.4 ToInteger
@@ -1343,13 +1343,13 @@ rule IsCallable(@(_)) => true
 
 // 9.12 The SameValue Algorithm
 
-syntax Bool ::= "SameValue" "(" K /* Val */ "," K /* Val */ ")" [function]
+syntax KItem /* Bool */ ::= "SameValue" "(" K /* Val */ "," K /* Val */ ")" [seqstrict(1,2)]
 
 // TODO: Do more correctly Step 4 of Number
 rule SameValue(V1:Val,V2:Val) => V1 ==K V2 when notBool(isInt(V1)   ==K true andBool isFloat(V2) ==K true)
                                          andBool notBool(isFloat(V1) ==K true andBool isInt(V2)   ==K true)
-rule SameValue(I1:Int,  F2:Float) => @Int2Float(I1) ==Float F2
-rule SameValue(F1:Float,I2:Int  ) =>            F1 ==Float @Int2Float(I2)
+rule SameValue(I1:Int,  F2:Float) => #@Int2Float(I1) ==Float F2
+rule SameValue(F1:Float,I2:Int  ) =>            F1 ==Float #@Int2Float(I2)
 
 //////////////////////////////////////////////////////////////////////////////
 // 10.2.1 Environment Records
@@ -1613,9 +1613,9 @@ rule <k> NewObjectEnvironment(O:Oid,E:Eid,ProvideThis:Bool,Strict:Bool) => @e(!N
 
 syntax KItem /* .K */ ::= "@EnterGlobalCode" "(" Stmt ")"
 rule <k> @EnterGlobalCode(Code:Stmt)
-      => @CheckEarlyErrors(@IsStrict(Code), Code)
-      ~> @BindDeclarations("function",false,@IsStrict(Code),Code)
-      ~> @BindDeclarations("variable",false,@IsStrict(Code),Code)
+      => @CheckEarlyErrors(#@IsStrict(Code), Code)
+      ~> @BindDeclarations("function",false,#@IsStrict(Code),Code)
+      ~> @BindDeclarations("variable",false,#@IsStrict(Code),Code)
      ... </k>
      <envs>
        // 10.2.3 The Global Environment
@@ -1626,7 +1626,7 @@ rule <k> @EnterGlobalCode(Code:Stmt)
                  <provideThis> false </provideThis>
                </objEnvRec>
                <outer> @NullEid </outer>
-               <strict> @IsStrict(Code) </strict> // 10.1.1 Strict Mode Code, Case 1
+               <strict> #@IsStrict(Code) </strict> // 10.1.1 Strict Mode Code, Case 1
              </env>)
      </envs>
      <ctx>
@@ -1643,7 +1643,7 @@ rule <k> @EnterGlobalCode(Code:Stmt)
 syntax KItem /* .K */ ::= "@EnterEvalCode" "(" Stmt "," Bool /* Direct? */ ")"
 syntax Id ::= "$strict"
 rule <k> @EnterEvalCode(Code:Stmt, true)
-      => Let $strict = @IsStrict(Code) orBool Strict; // 10.1.1 Strict Mode Code, Case 2 (direct call to eval)
+      => Let $strict = #@IsStrict(Code) orBool Strict; // 10.1.1 Strict Mode Code, Case 2 (direct call to eval)
          Do @CheckEarlyErrors($strict:>Bool, Code);
          Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(E,$strict:>Bool), This);
          Do @BindDeclarations("function",true,$strict:>Bool,Code);
@@ -1664,7 +1664,7 @@ rule <k> @EnterEvalCode(Code:Stmt, true)
      </env>
 //
 rule @EnterEvalCode(Code:Stmt, false)
-  => Let $strict = @IsStrict(Code); // 10.1.1 Strict Mode Code, Case 2 (NOT direct call to eval)
+  => Let $strict = #@IsStrict(Code); // 10.1.1 Strict Mode Code, Case 2 (NOT direct call to eval)
      Do @CheckEarlyErrors($strict:>Bool, Code);
      Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(@GlobalEid,$strict:>Bool), @GlobalOid);
      Do @BindDeclarations("function",true,$strict:>Bool,Code);
@@ -1786,7 +1786,7 @@ rule <k> @BindFunctionDeclaration(N:Var, Params:Exps, FunBody:Stmt, Configurable
              If $existingProp."Configurable" = true then {
                DoI DefineOwnProperty(@GlobalOid, N, @desc("Value" |-> Undefined "Writable" |-> true "Enumerable" |-> true "Configurable" |-> ConfigurableBindings), true);
              } else {
-               If IsAccessorDescriptor($existingProp:>Val) = true then {
+               If IsAccessorDescriptor($existingProp) = true then {
                  Do @Throw(@TypeError("BindFunctionDeclaration accessor",$existingProp));
                };
                If @AndBool($existingProp."Writable", $existingProp."Enumerable") = false then {
@@ -1858,7 +1858,7 @@ rule <k> @BindArgumentsObject(F:Oid,Args:Vals,Strict:Bool)
 syntax KItem /* Oid */ ::= "@CreateArgumentsObject" "(" Oid "," Exps "," Vals "," Eid "," Bool ")"
 syntax Id ::= "$len" | "$map"
 rule @CreateArgumentsObject(Func:Oid, Names:Exps, Args:Vals, Env:Eid, Strict:Bool)
-  => Let $len = @LengthVals(Args);
+  => Let $len = #@LengthVals(Args);
      Let $obj = @CreateObject;
      Do SetInternalProperty($obj:>Oid, "Class", "Arguments");
      Do SetInternalProperty($obj:>Oid, "Strict", Strict); // NOTE: This is not specified in language standard, but added for our own @IsArgumentsObjectNonStrictWithFormalParams
@@ -1868,7 +1868,7 @@ rule @CreateArgumentsObject(Func:Oid, Names:Exps, Args:Vals, Env:Eid, Strict:Boo
      If Strict = false then {
        Do @BindFormalParams($map:>Oid, Names, Args, Env, 0);
      };
-     If @Length(Names) >Int 0 = true then {
+     If #@Length(Names) >Int 0 = true then {
        Do SetInternalProperty($obj:>Oid, "ParameterMap", $map:>Val);
      };
      If Strict = true then {
@@ -2027,11 +2027,11 @@ rule <k> @GetReference(%mem(O:Val,N:Val)) // NOTE: O does not need to be an Oid
        _
      </env>
 
-rule @GetReference(E:Exp) => @Throw(@ReferenceError("GetReference",E)) when @IsReferenceExp(E) =/=K true
+rule @GetReference(E:Exp) => @Throw(@ReferenceError("GetReference",E)) when notBool(#@IsReferenceExp(E))
 
-syntax KItem /* Bool */ ::= "@IsReferenceExp" "(" Exp ")" [function]
+syntax Bool ::= "#@IsReferenceExp" "(" Exp ")" [function]
 
-rule @IsReferenceExp(E:Exp) => getKLabel(E) ==KLabel '%var`(_`)
+rule #@IsReferenceExp(E:Exp) => getKLabel(E) ==KLabel '%var`(_`)
                         orBool getKLabel(E) ==KLabel '%mem`(_`,_`)
 
 rule %emptyExp => Undefined
@@ -2061,15 +2061,15 @@ rule %con(S:String) => S
 
 // 11.1.4 Array Initialiser
 
-rule %arr(Es:Exps) => @MakeArray(@RemoveLastEmptyExp(Es))
+rule %arr(Es:Exps) => @MakeArray(#@RemoveLastEmptyExp(Es))
 
 // NOTE: the last ending comma should be ignored: [ 1, 2, ] => [ 1, 2 ]
 //       "If an element is elided at the end of an array, that element does not contribute to the length of the Array." (p.63)
-syntax Exps ::= "@RemoveLastEmptyExp" "(" Exps ")" [function]
-rule @RemoveLastEmptyExp(                   %nil ) => %nil
-rule @RemoveLastEmptyExp(%cons(%emptyExp,   %nil)) => %nil
-rule @RemoveLastEmptyExp(%cons(E:Exp,       %nil)) => %cons(E,%nil) when E =/=K %emptyExp
-rule @RemoveLastEmptyExp(%cons(E:Exp,    Es:Exps)) => %cons(E,@RemoveLastEmptyExp(Es)) when Es =/=K %nil
+syntax Exps ::= "#@RemoveLastEmptyExp" "(" Exps ")" [function]
+rule #@RemoveLastEmptyExp(                   %nil ) => %nil
+rule #@RemoveLastEmptyExp(%cons(%emptyExp,   %nil)) => %nil
+rule #@RemoveLastEmptyExp(%cons(E:Exp,       %nil)) => %cons(E,%nil) when E =/=K %emptyExp
+rule #@RemoveLastEmptyExp(%cons(E:Exp,    Es:Exps)) => %cons(E,#@RemoveLastEmptyExp(Es)) when Es =/=K %nil
 
 // 11.1.5 Object Initialiser
 // NOTE: step 4 of p.66 (duplicated properties) is checked by 'CheckDuplicatedProp'
@@ -2087,7 +2087,7 @@ rule @AssignProp(O:Oid, %prop(P:Var,V:Val))
   => DefineOwnProperty(O, P, @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false) ~> @Ignore
 
 rule <k> @AssignProp(O:Oid, %get(P:Var,FunBody:Stmt))
-      => Let $closure = @CreateFunctionObject(%nil, FunBody, E, @IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
+      => Let $closure = @CreateFunctionObject(%nil, FunBody, E, #@IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
          DoI DefineOwnProperty(O, P, @GenDesc("Get", $closure, "Enumerable", true, "Configurable", true), false);
      ... </k>
      <ctx>
@@ -2104,7 +2104,7 @@ rule <k> @AssignProp(O:Oid, %get(P:Var,FunBody:Stmt))
      </env>
 
 rule <k> @AssignProp(O:Oid, %set(P:Var,X:Var,FunBody:Stmt))
-      => Let $closure = @CreateFunctionObject(%cons(%var(X),%nil), FunBody, E, @IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
+      => Let $closure = @CreateFunctionObject(%cons(%var(X),%nil), FunBody, E, #@IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
          DoI DefineOwnProperty(O, P, @GenDesc("Set", $closure, "Enumerable", true, "Configurable", true), false);
      ... </k>
      <ctx>
@@ -2146,18 +2146,18 @@ rule <k> @IsConstructable(F:Oid) => "prototype" in keys(Prop) ... </k>
        <properties> Prop:Map </properties>
        _
      </obj>
-rule @IsConstructable(F:Val) => false when @IsOid(F) =/=K true
+rule @IsConstructable(F:Val) => false when notBool(#@IsOid(F))
 
 // 11.2.3 Function Calls
 
 rule %call(F:Exp,Es:Exps) => @CallIfPossible(F, @DetermineThis(F), Es)
-     when @IsEval(F) ==K false // TODO: could it be made in uniform way?
-  andBool @IsAPI(F) ==K false
+     when #@IsEval(F) ==K false // TODO: could it be made in uniform way?
+  andBool #@IsAPI(F) ==K false
 
 syntax KItem /* Val */ ::= "@DetermineThis" "(" Exp ")"
 
-rule @DetermineThis(F) => @FindThis(@GetReference(F)) when @IsReferenceExp(F) ==K true
-rule @DetermineThis(F) => Undefined                  when @IsReferenceExp(F) ==K false
+rule @DetermineThis(F) => @FindThis(@GetReference(F)) when #@IsReferenceExp(F)
+rule @DetermineThis(F) => Undefined                  when notBool(#@IsReferenceExp(F))
 
 syntax KItem /* Val */ ::= "@FindThis" "(" K /* Reference */ ")" [seqstrict(1)]
 
@@ -2167,7 +2167,7 @@ rule @FindThis(@Ref(I:Primitive,_,_)) => I // NOTE: This will be resolved by @Re
 /* NOTE: Not possible.
    If @GetReference(F) is Ref(Undefined,_,_), then it could not get to here, because evaluating F, which is GetValue(@GetReference(F)), will raise RefereneError.
    Indeed, this rule is not specified in the standard, which already knows this.
-   Indeed, the condition of Step 7 is "@IsReferenceExp(F) is false", not "@GetReference(F) is Ref(Undefined,_,_)".
+   Indeed, the condition of Step 7 is "#@IsReferenceExp(F) is false", not "@GetReference(F) is Ref(Undefined,_,_)".
 rule @FindThis(@Ref(Undefined,_,_)) => Undefined
 */
 
@@ -2216,7 +2216,7 @@ rule %post(E:Exp,%dec)
 
 // TODO: consider the first sentence of note.
 rule %pre(%delete,E:Exp)
-  => If @IsReferenceExp(E) = false then {
+  => If #@IsReferenceExp(E) = false then {
        DoI E;
        Return true;
      } else {
@@ -2348,22 +2348,20 @@ context %bop(_:OpNormal,_:Val,HOLE)
 
 syntax KItem ::= "@ResolveOverflow" "(" K /* Number */ ")" [seqstrict(1)]
 rule @ResolveOverflow(F:Float) => @ResolveOverflowAux(F,F)
-rule @ResolveOverflow(I:Int)   => @ResolveOverflowAux(I,@Int2Float(I))
+rule @ResolveOverflow(I:Int)   => @ResolveOverflowAux(I,#@Int2Float(I))
 //
 rule @ResolveOverflow(N:Number) => N when isFloat(N) =/=K true andBool isInt(N) =/=K true
 
 syntax KItem ::= "@ResolveOverflowAux" "(" Number "," Float ")"
-syntax Id ::= "$max"
 rule @ResolveOverflowAux(N:Number, F:Float)
-  => Let $max = 1.7976931348623157e308; // MAX_VALUE
-     If F >=Float 0.0 = true then {
-       If F >Float $max:>Float = true then {
+  => If F >=Float 0.0 = true then {
+       If F >Float @MAX_VALUE = true then {
          Return @+Infinity;
        } else {
          Return N;
        }
      } else {
-       If (F *Float -1.0) >Float $max:>Float = true then {
+       If (F *Float -1.0) >Float @MAX_VALUE = true then {
          Return @-Infinity;
        } else {
          Return N;
@@ -2377,7 +2375,7 @@ rule @ResolveNumber(0.0,false) => @nz
 rule @ResolveNumber(-0.0,false) => @nz
 rule @ResolveNumber(N:Number,Positive:Bool) => N when (N =/=K 0 andBool N =/=K 0.0) orBool Positive =/=K false
 
-syntax Bool ::= "@IsPositive" "(" Number ")" [function]
+syntax KItem /* Bool */ ::= "@IsPositive" "(" Number ")"
 rule @IsPositive(I:Int)   => I >=Int   0
 rule @IsPositive(F:Float) => F >=Float 0.0
 rule @IsPositive(@nz) => false
@@ -2397,12 +2395,12 @@ rule @Multiplication(@NaN,_) => @NaN
 rule @Multiplication(_,@NaN) => @NaN
 //
 rule @Multiplication(I1:Int,I2:Int    ) => I1            *Int   I2
-rule @Multiplication(I1:Int,F2:Float  ) => @Int2Float(I1) *Float F2
+rule @Multiplication(I1:Int,F2:Float  ) => #@Int2Float(I1) *Float F2
 rule @Multiplication( I:Int,@nz       ) => @MultiplicationNegativeZero(I)
 rule @Multiplication( I:Int,@+Infinity) => @MultiplicationInfinity(I)
 rule @Multiplication( I:Int,@-Infinity) => @MultiplicationInfinity(@Minus(I))
 //
-rule @Multiplication(F1:Float,I2:Int    ) => F1 *Float @Int2Float(I2)
+rule @Multiplication(F1:Float,I2:Int    ) => F1 *Float #@Int2Float(I2)
 rule @Multiplication(F1:Float,F2:Float  ) => F1 *Float F2
 rule @Multiplication( F:Float,@nz       ) => @MultiplicationNegativeZero(F)
 rule @Multiplication( F:Float,@+Infinity) => @MultiplicationInfinity(F)
@@ -2467,9 +2465,9 @@ rule @Division(N:Number,@+Infinity) =>        @DivisionByInfinity(N)  when N =/=
 rule @Division(N:Number,@-Infinity) => @Minus(@DivisionByInfinity(N)) when N =/=K @NaN
 //
 rule @Division(I1:Int,  I2:Int    ) =>           I1  /Int             I2  when I1 =/=Int   0   andBool I2 =/=Int   0    andBool I1 %Int I2 ==Int  0
-rule @Division(I1:Int,  I2:Int    ) => @Int2Float(I1) /Float @Int2Float(I2) when I1 =/=Int   0   andBool I2 =/=Int   0    andBool I1 %Int I2 =/=Int 0
-rule @Division(I1:Int,  F2:Float  ) => @Int2Float(I1) /Float F2            when I1 =/=Int   0   andBool F2 =/=Float 0.0
-rule @Division(F1:Float,I2:Int    ) =>           F1  /Float @Int2Float(I2) when F1 =/=Float 0.0 andBool I2 =/=Int   0
+rule @Division(I1:Int,  I2:Int    ) => #@Int2Float(I1) /Float #@Int2Float(I2) when I1 =/=Int   0   andBool I2 =/=Int   0    andBool I1 %Int I2 =/=Int 0
+rule @Division(I1:Int,  F2:Float  ) => #@Int2Float(I1) /Float F2            when I1 =/=Int   0   andBool F2 =/=Float 0.0
+rule @Division(F1:Float,I2:Int    ) =>           F1  /Float #@Int2Float(I2) when F1 =/=Float 0.0 andBool I2 =/=Int   0
 rule @Division(F1:Float,F2:Float  ) =>           F1  /Float F2            when F1 =/=Float 0.0 andBool F2 =/=Float 0.0
 
 syntax KItem ::= "@DivisionZero" "(" K /* Number */ ")" [seqstrict(1)]
@@ -2529,8 +2527,8 @@ rule @Modulo(_,@NaN) => @NaN
 //
 rule @Modulo(I1:Int,I2:Int) => I1 %Int I2 when I2 =/=Int 0
 rule @Modulo(I1:Int,0     ) => @NaN
-rule @Modulo(I1:Int,N2:Number) => @Modulo(@Int2Float(I1),N2) when notBool(isInt(N2))
-rule @Modulo(N1:Number,I2:Int) => @Modulo(N1,@Int2Float(I2)) when notBool(isInt(N1))
+rule @Modulo(I1:Int,N2:Number) => @Modulo(#@Int2Float(I1),N2) when notBool(isInt(N2))
+rule @Modulo(N1:Number,I2:Int) => @Modulo(N1,#@Int2Float(I2)) when notBool(isInt(N1))
 //
 rule @Modulo( _:Float,@nz       ) => @NaN
 rule @Modulo( _:Float,0.0       ) => @NaN
@@ -2554,8 +2552,8 @@ rule @Modulo(@-Infinity,_) => @NaN
 rule %bop(%plus,V1:Val,V2:Val) => @PolymorphicAddition(ToPrimitive(V1,""), ToPrimitive(V2,""))
 
 syntax KItem ::= "@PolymorphicAddition" "(" K /* Val */ "," K /* Val */ ")" [seqstrict(1,2)]
-rule @PolymorphicAddition(V1:Val,V2:Val) => @ResolveOverflow(@Addition(ToNumber(V1), ToNumber(V2))) when notBool(@IsString(V1) ==K true) andBool notBool(@IsString(V2) ==K true)
-rule @PolymorphicAddition(V1:Val,V2:Val) =>              @Concatnation(ToString(V1), ToString(V2))  when          isString(V1) ==K true   orBool          isString(V2) ==K true
+rule @PolymorphicAddition(V1:Val,V2:Val) => @ResolveOverflow(@Addition(ToNumber(V1), ToNumber(V2))) when notBool(#@IsString(V1)) andBool notBool(#@IsString(V2))
+rule @PolymorphicAddition(V1:Val,V2:Val) =>              @Concatnation(ToString(V1), ToString(V2))  when          isString(V1)   orBool          isString(V2)
 
 syntax KItem ::= "@Concatnation" "(" K /* String */ "," K /* String */ ")" [seqstrict(1,2)]
 rule @Concatnation(S1:String,S2:String) => S1 +String S2
@@ -2571,12 +2569,12 @@ rule @Addition(@NaN,_) => @NaN
 rule @Addition(_,@NaN) => @NaN
 //
 rule @Addition(I1:Int,I2:Int    ) => I1 +Int I2
-rule @Addition(I1:Int,F2:Float  ) => @Int2Float(I1) +Float F2
+rule @Addition(I1:Int,F2:Float  ) => #@Int2Float(I1) +Float F2
 rule @Addition( I:Int,@nz       ) => I
 rule @Addition( _:Int,@+Infinity) => @+Infinity
 rule @Addition( _:Int,@-Infinity) => @-Infinity
 //
-rule @Addition(F1:Float,I2:Int    ) => F1 +Float @Int2Float(I2)
+rule @Addition(F1:Float,I2:Int    ) => F1 +Float #@Int2Float(I2)
 rule @Addition(F1:Float,F2:Float  ) => F1 +Float F2
 rule @Addition( F:Float,@nz       ) => F
 rule @Addition( _:Float,@+Infinity) => @+Infinity
@@ -2683,15 +2681,15 @@ rule %bop(%ge,V1:Val,V2:Val)
 
 syntax KItem ::= "@LessThan" "(" K "," K ")"
 rule @LessThan(V1:Val,V2:Val) => @LessThanNumber(ToNumber(V1),ToNumber(V2))
-     when notBool(@IsString(V1) andBool @IsString(V2))
+     when notBool(#@IsString(V1) andBool #@IsString(V2))
 rule @LessThan(V1:String,V2:String) => @LessThanString(V1,V2)
 
 syntax KItem ::= "@LessThanNumber" "(" K "," K ")" [seqstrict(1,2)]
 rule @LessThanNumber(@NaN,_) => Undefined
 rule @LessThanNumber(_,@NaN) => Undefined
 //
-rule @LessThanNumber(I:Int,N:Number) => @LessThanNumber(@Int2Float(I),N)
-rule @LessThanNumber(N:Number,I:Int) => @LessThanNumber(N,@Int2Float(I))
+rule @LessThanNumber(I:Int,N:Number) => @LessThanNumber(#@Int2Float(I),N)
+rule @LessThanNumber(N:Number,I:Int) => @LessThanNumber(N,#@Int2Float(I))
 //
 rule @LessThanNumber(F1:Float,F2:Float  ) => F1 <Float F2
 rule @LessThanNumber( 0.0    ,@nz       ) => false
@@ -3009,7 +3007,7 @@ syntax KItem ::= "@unspecified"
 syntax KItem /* Set */ ::= "@EnumerateAllProperties" "(" Oid "," Map "," Set ")"
 rule     @EnumerateAllProperties(@NullOid, TM:Map, _:Set) => @m(TM)
 rule <k> @EnumerateAllProperties(O:Oid, TM:Map, KS:Set)
-      => @EnumerateAllProperties(Proto, @AddProp(O,Prop,TM,KS), keys(Prop) KS) ... </k>
+      => @EnumerateAllProperties(Proto, #@AddProp(O,Prop,TM,KS), keys(Prop) KS) ... </k>
      <obj>
        <oid> O </oid>
        <properties> Prop:Map </properties>
@@ -3017,18 +3015,18 @@ rule <k> @EnumerateAllProperties(O:Oid, TM:Map, KS:Set)
      </obj>
      when O =/=K @NullOid
 
-syntax Map ::= "@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
-rule @AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
-rule @AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => @AddPropAux(O, P, Desc, M, TM, KS)
+syntax Map ::= "#@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
+rule #@AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
+rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddPropAux(O, P, Desc, M, TM, KS)
 //
-syntax Map ::= "@AddPropAux" "(" Oid "," Var "," PropertyDescriptor "," Map "," Map "," Set ")" [function]
-rule @AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => @AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc."Enumerable" ==K true
-rule @AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => @AddProp(O, M,         TM, KS) when         P in KS   orBool Desc."Enumerable" ==K false
+syntax Map ::= "#@AddPropAux" "(" Oid "," Var "," PropertyDescriptor "," Map "," Map "," Set ")" [function]
+rule #@AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => #@AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc.."Enumerable" ==K true
+rule #@AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => #@AddProp(O, M,         TM, KS) when         P in KS   orBool Desc.."Enumerable" ==K false
 /*
-syntax Map ::= "@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
-rule @AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
-rule @AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => @AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc."Enumerable" ==K true
-rule @AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => @AddProp(O, M,         TM, KS) when         P in KS   orBool Desc."Enumerable" ==K false
+syntax Map ::= "#@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
+rule #@AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
+rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc."Enumerable" ==K true
+rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddProp(O, M,         TM, KS) when         P in KS   orBool Desc."Enumerable" ==K false
 */
 
 // XXX: Unsupported AC Matching
@@ -3191,15 +3189,15 @@ rule %default(S) => S
 // 12.12 Labelled Statements
 // TODO: Move to the first-pass
 
-rule %label(L,S) => %seq(@AddContinueLabel(L,S), %labelBreak(L))
+rule %label(L,S) => %seq(#@AddContinueLabel(L,S), %labelBreak(L))
 
-syntax Stmt ::= "@AddContinueLabel" "(" Var "," Stmt ")" [function]
-rule @AddContinueLabel(L, %while(E,S)) => %while(E, %seq(S, %labelContinue(L)))
-rule @AddContinueLabel(L, %do(S,E))    =>    %do(   %seq(S, %labelContinue(L)), E)
-rule @AddContinueLabel(L, %for  (S0,E1,E2,S)) => %for  (S0, E1, E2, %seq(S, %labelContinue(L)))
-rule @AddContinueLabel(L, %forin(S0,E1,E2,S)) => %forin(S0, E1, E2, %seq(S, %labelContinue(L)))
-rule @AddContinueLabel(L, %label(L',S)) => %label(L', @AddContinueLabel(L,S))
-rule @AddContinueLabel(_, S) => S   when getKLabel(S) =/=KLabel '%while`(_`,_`)
+syntax Stmt ::= "#@AddContinueLabel" "(" Var "," Stmt ")" [function]
+rule #@AddContinueLabel(L, %while(E,S)) => %while(E, %seq(S, %labelContinue(L)))
+rule #@AddContinueLabel(L, %do(S,E))    =>    %do(   %seq(S, %labelContinue(L)), E)
+rule #@AddContinueLabel(L, %for  (S0,E1,E2,S)) => %for  (S0, E1, E2, %seq(S, %labelContinue(L)))
+rule #@AddContinueLabel(L, %forin(S0,E1,E2,S)) => %forin(S0, E1, E2, %seq(S, %labelContinue(L)))
+rule #@AddContinueLabel(L, %label(L',S)) => %label(L', #@AddContinueLabel(L,S))
+rule #@AddContinueLabel(_, S) => S   when getKLabel(S) =/=KLabel '%while`(_`,_`)
                                  andBool getKLabel(S) =/=KLabel '%do`(_`,_`)
                                  andBool getKLabel(S) =/=KLabel '%for`(_`,_`,_`,_`)
                                  andBool getKLabel(S) =/=KLabel '%forin`(_`,_`,_`,_`)
@@ -3331,7 +3329,7 @@ rule @FunctionDeclaration(_,Params:Exps,FunBody:Stmt)
 
 syntax KItem /* Oid */ ::= "@FunctionExpressionAnonymous" "(" Exps "," Stmt ")"
 rule <k> @FunctionExpressionAnonymous(Params:Exps, FunBody:Stmt)
-      => @CreateFunctionObject(Params, FunBody, E, @IsStrict(FunBody) orBool Strict) ... </k> // 10.1.1 Strict Mode Code, Case 3
+      => @CreateFunctionObject(Params, FunBody, E, #@IsStrict(FunBody) orBool Strict) ... </k> // 10.1.1 Strict Mode Code, Case 3
      <ctx>
        <running>
          <lexicalEnv> E:Eid </lexicalEnv>
@@ -3348,7 +3346,7 @@ rule <k> @FunctionExpressionAnonymous(Params:Exps, FunBody:Stmt)
 syntax KItem /* Oid */ ::= "@FunctionExpressionRecursive" "(" Var "," Exps "," Stmt ")"
 syntax Id ::= "$funcEnv" | "$closure"
 rule <k> @FunctionExpressionRecursive(F:Var, Params:Exps, FunBody:Stmt)
-      => Let $strict = @IsStrict(FunBody) orBool Strict; // 10.1.1 Strict Mode Code, Case 3
+      => Let $strict = #@IsStrict(FunBody) orBool Strict; // 10.1.1 Strict Mode Code, Case 3
          Let $funcEnv = NewDeclarativeEnvironment(E, $strict:>Bool);
          Do CreateImmutableBinding($funcEnv:>Eid, F);
          Let $closure = @CreateFunctionObject(Params, FunBody, $funcEnv:>Eid, $strict:>Bool);
@@ -3378,7 +3376,7 @@ rule <k> @CreateFunctionObject(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool
        (. => <obj>
                <oid> @o(!F:Int) </oid>
                <properties>
-                 "length"           |-> @desc("Value" |-> @Length(Params) "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                 "length"           |-> @desc("Value" |-> #@Length(Params) "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
                  "prototype"        |-> @desc("Value" |-> @o(!P)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false)
                </properties>
                <internalProperties>
@@ -3427,7 +3425,7 @@ rule Call(F:Oid, This:Val, Args:Vals)
      } else {
        Do Call@Default(F,This,Args);
      }
-     when @IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
+     when #@IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
 
 syntax KItem /* Val */ ::= "Call@Default" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
 rule <k> Call@Default(F:Oid, This:Val, Args:Vals)
@@ -3458,7 +3456,7 @@ rule Construct(F:Oid, Args:Vals)
      } else {
        Do Construct@Default(F,Args);
      }
-     when @IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
+     when #@IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
 
 syntax KItem /* Oid */ ::= "Construct@Default" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict(1,2)]
 rule <k> Construct@Default(F:Oid, Args:Vals) => Call(F,@o(!N),Args) ~> @ReturnConstructedObject(@o(!N)) ... </k>
@@ -3467,7 +3465,7 @@ rule <k> Construct@Default(F:Oid, Args:Vals) => Call(F,@o(!N),Args) ~> @ReturnCo
                <oid> @o(!N:Int) </oid>
                <properties> .Map </properties>
                <internalProperties>
-                 "Prototype"  |-> @ResolvePrototype(Prototype)
+                 "Prototype"  |-> #@ResolvePrototype(Prototype)
                  "Class"      |-> "Object"
                  "Extensible" |-> true
                </internalProperties>
@@ -3484,15 +3482,15 @@ rule <k> Construct@Default(F:Oid, Args:Vals) => Call(F,@o(!N),Args) ~> @ReturnCo
      </objs>
 // TODO: Check correctness of steps 5-7
 
-syntax Oid ::= "@ResolvePrototype" "(" Val ")" [function]
-rule @ResolvePrototype(Prototype:Oid) => Prototype
-rule @ResolvePrototype(Prototype:Val) => @ObjectProtoOid when notBool(@IsOid(Prototype) ==K true)
+syntax Oid ::= "#@ResolvePrototype" "(" Val ")" [function]
+rule #@ResolvePrototype(Prototype:Oid) => Prototype
+rule #@ResolvePrototype(Prototype:Val) => @ObjectProtoOid when notBool(#@IsOid(Prototype))
 
 // Return the newly created object, but if the previous construct call returns another object, then use it.
 // NOTE: (From p.31 of the book, Good Parts): If the function was invoked with the new prefix and the return value is not an object, then this (the new object) is returned instaed.
 syntax KItem /* Oid */ ::= "@ReturnConstructedObject" "(" Oid ")"
 rule O:Oid ~> @ReturnConstructedObject(_    ) => O
-rule V:Val ~> @ReturnConstructedObject(O:Oid) => O when notBool(@IsOid(V) ==K true)
+rule V:Val ~> @ReturnConstructedObject(O:Oid) => O when notBool(#@IsOid(V))
 
 // 13.2.3 The [[ThrowTypeError]] Function Object
 
@@ -3510,24 +3508,24 @@ rule %seq(Head:CompletionTypeReturn,    _:Stmt          ) => Head
 rule %seq(Head:CompletionTypeGoto,   Tail:Stmt          ) => @ResolveGoto(Head, Tail)
 
 syntax KItem ::= "@ResolveGoto" "(" CompletionTypeGoto "," Stmt ")"
-rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => @Normal             when @IsMatch(CT,S)  ==K true
-rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => CT                  when @IsMatch(CT,S)  ==K false
+rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => @Normal             when #@IsMatch(CT,S)  ==K true
+rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => CT                  when #@IsMatch(CT,S)  ==K false
 //
-rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => S2                  when @IsMatch(CT,S1) ==K true
-rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => @ResolveGoto(CT,S2) when @IsMatch(CT,S1) ==K false
+rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => S2                  when #@IsMatch(CT,S1) ==K true
+rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => @ResolveGoto(CT,S2) when #@IsMatch(CT,S1) ==K false
 //
 rule @ResolveGoto(CT:CompletionTypeGoto, %seq(%seq(S1,S2),S3)) => @ResolveGoto(CT, %seq(S1,%seq(S2,S3)))
 
-syntax Bool ::= "@IsMatch" "(" CompletionTypeGoto "," Stmt ")" [function]
-rule @IsMatch(@Break(L:Var),    %labelBreak(L:Var ))    => true
-rule @IsMatch(@Break(""   ),    %labelBreak(_     ))    => true
-rule @IsMatch(@Break(L:Var),    %labelBreak(L':Var))    => false when L =/=K "" andBool L =/=K L'
-rule @IsMatch(@Break(_    ),    S                  )    => false when getKLabel(S) =/=KLabel '%labelBreak`(_`)
+syntax Bool ::= "#@IsMatch" "(" CompletionTypeGoto "," Stmt ")" [function]
+rule #@IsMatch(@Break(L:Var),    %labelBreak(L:Var ))    => true
+rule #@IsMatch(@Break(""   ),    %labelBreak(_     ))    => true
+rule #@IsMatch(@Break(L:Var),    %labelBreak(L':Var))    => false when L =/=K "" andBool L =/=K L'
+rule #@IsMatch(@Break(_    ),    S                  )    => false when getKLabel(S) =/=KLabel '%labelBreak`(_`)
                                                               andBool getKLabel(S) =/=KLabel '%seq`(_`,_`)
-rule @IsMatch(@Continue(L:Var), %labelContinue(L:Var )) => true
-rule @IsMatch(@Continue(""   ), %labelContinue(_     )) => true
-rule @IsMatch(@Continue(L:Var), %labelContinue(L':Var)) => false when L =/=K "" andBool L =/=K L' 
-rule @IsMatch(@Continue(_    ), S                     ) => false when getKLabel(S) =/=KLabel '%labelContinue`(_`)
+rule #@IsMatch(@Continue(L:Var), %labelContinue(L:Var )) => true
+rule #@IsMatch(@Continue(""   ), %labelContinue(_     )) => true
+rule #@IsMatch(@Continue(L:Var), %labelContinue(L':Var)) => false when L =/=K "" andBool L =/=K L' 
+rule #@IsMatch(@Continue(_    ), S                     ) => false when getKLabel(S) =/=KLabel '%labelContinue`(_`)
                                                               andBool getKLabel(S) =/=KLabel '%seq`(_`,_`)
 
 // NOTE: @FunctionDeclaration is not executed here, but at 10.5 Declaration Binding Instantiation
@@ -3536,22 +3534,23 @@ rule %fdecl(_,_,_) => %emptyStmt
 //////////////////////////////////////////////////////////////////////////////
 // 14.1 Directive Prologues and the Use Strict Directive
 
-syntax Bool ::= "@IsStrict" "(" Stmt ")" [function]
-rule @IsStrict(S:Stmt) => @IsStrictPartial(@SkipPrelude(S)) ==K true
+syntax Bool ::= "#@IsStrict" "(" Stmt ")" [function]
+rule #@IsStrict(S:Stmt) => #@IsStrictAux(#@SkipPrelude(S))
 
-syntax Bool ::= "@IsStrictPartial" "(" Stmt ")" [function]
-rule @IsStrictPartial(     %exp(%con("USE_STRICT"))   ) => true
-rule @IsStrictPartial(%seq(%exp(%con("USE_STRICT")),_)) => true
-rule @IsStrictPartial(%seq(%exp(%con(C:String    )),S)) => @IsStrictPartial(S) when C =/=String "USE_STRICT"
+syntax Bool ::= "#@IsStrictAux" "(" Stmt ")" [function]
+rule #@IsStrictAux(     %exp(%con("USE_STRICT"))   ) => true
+rule #@IsStrictAux(%seq(%exp(%con("USE_STRICT")),_)) => true
+rule #@IsStrictAux(%seq(%exp(%con(C:String    )),S)) => #@IsStrictAux(S) when C =/=String "USE_STRICT"
+rule #@IsStrictAux(_) => false [owise]
 
-syntax Stmt ::= "@SkipPrelude" "(" Stmt ")" [function]
-rule @SkipPrelude(%seq(%exp(%con("BEGIN PRELUDE")),S)) => @SkipPreludeAux(S)
-rule @SkipPrelude(%seq(S1,S2)) => %seq(S1,S2) when S1 =/=K %exp(%con("BEGIN PRELUDE"))
-rule @SkipPrelude(S) => S when getKLabel(S) =/=KLabel '%seq`(_`,_`)
+syntax Stmt ::= "#@SkipPrelude" "(" Stmt ")" [function]
+rule #@SkipPrelude(%seq(%exp(%con("BEGIN PRELUDE")),S)) => #@SkipPreludeAux(S)
+rule #@SkipPrelude(%seq(S1,S2)) => %seq(S1,S2) when S1 =/=K %exp(%con("BEGIN PRELUDE"))
+rule #@SkipPrelude(S) => S when getKLabel(S) =/=KLabel '%seq`(_`,_`)
 //
-syntax Stmt ::= "@SkipPreludeAux" "(" Stmt ")" [function]
-rule @SkipPreludeAux(%seq(%exp(%con("END PRELUDE")),S)) => S
-rule @SkipPreludeAux(%seq(S1,S2)) => @SkipPreludeAux(S2) when S1 =/=K %exp(%con("END PRELUDE"))
+syntax Stmt ::= "#@SkipPreludeAux" "(" Stmt ")" [function]
+rule #@SkipPreludeAux(%seq(%exp(%con("END PRELUDE")),S)) => S
+rule #@SkipPreludeAux(%seq(S1,S2)) => #@SkipPreludeAux(S2) when S1 =/=K %exp(%con("END PRELUDE"))
 
 //////////////////////////////////////////////////////////////////////////////
 // 15 Standard Built-in ECMAScript Objects
@@ -3568,7 +3567,7 @@ rule @CheckEarlyErrors(Strict:Bool, Code:Stmt) => @CEE(Strict, .Set, Code)
 
 syntax KItem ::= "@CEE" /* Check Early Errors */ "(" Bool "," Set "," K /* Stmt or Exp or Exps */ ")"
 //
-rule @CEE(Strict:Bool, Ls:Set, %fdecl(F:Var,Es:Exps,S:Stmt))            => @CheckReserved(Strict,F) ~> @SMRFun(Strict,F,Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool @IsStrict(S), .Set, S)
+rule @CEE(Strict:Bool, Ls:Set, %fdecl(F:Var,Es:Exps,S:Stmt))            => @CheckReserved(Strict,F) ~> @SMRFun(Strict,F,Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
 rule @CEE(Strict:Bool, Ls:Set, %vdecl(N:Var))                           => @CheckReserved(Strict,N) ~> @SMRVar(Strict,N)
 rule @CEE(Strict:Bool, Ls:Set, %seq(S1:Stmt,S2:Stmt))                   => @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2)
 rule @CEE(Strict:Bool, Ls:Set, %exp(E))                                 => @CEE(Strict,Ls,E)
@@ -3595,8 +3594,8 @@ rule @CEE(Strict:Bool, Ls:Set, %var(N:Var))                             => @Chec
 rule @CEE(Strict:Bool, Ls:Set, %arr(Es:Exps))                           => @CEE(Strict,Ls,Es)
 rule @CEE(Strict:Bool, Ls:Set, %obj(Es:Exps))                           => @CheckDuplicatedProp(Strict,Es) ~> @CEE(Strict,Ls,Es)
 rule @CEE(Strict:Bool, Ls:Set, %prop(P:Var,E:Exp))                      => /* @CheckReserved(Strict,P) ~> */ @CEE(Strict,Ls,E)
-rule @CEE(Strict:Bool, Ls:Set, %get(P:Var,      S:Stmt))                => /* @CheckReserved(Strict,P) ~> */                                                                       @CEE(Strict orBool @IsStrict(S), .Set, S)
-rule @CEE(Strict:Bool, Ls:Set, %set(P:Var,X:Var,S:Stmt))                => /* @CheckReserved(Strict,P) ~> */ @CheckReserved(Strict,X) ~> @SMRVar(Strict orBool @IsStrict(S), X) ~> @CEE(Strict orBool @IsStrict(S), .Set, S)
+rule @CEE(Strict:Bool, Ls:Set, %get(P:Var,      S:Stmt))                => /* @CheckReserved(Strict,P) ~> */                                                                       @CEE(Strict orBool #@IsStrict(S), .Set, S)
+rule @CEE(Strict:Bool, Ls:Set, %set(P:Var,X:Var,S:Stmt))                => /* @CheckReserved(Strict,P) ~> */ @CheckReserved(Strict,X) ~> @SMRVar(Strict orBool #@IsStrict(S), X) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
 rule @CEE(Strict:Bool, Ls:Set, %mem(E1:Exp,E2:Exp))                     => @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
 rule @CEE(Strict:Bool, Ls:Set, %new(E:Exp,Es:Exps))                     => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
 rule @CEE(Strict:Bool, Ls:Set, %call(E:Exp,Es:Exps))                    => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
@@ -3607,8 +3606,8 @@ rule @CEE(Strict:Bool, Ls:Set, %bop(O:Op,E1:Exp,E2:Exp))                => @Chec
 rule @CEE(Strict:Bool, Ls:Set, %bopassign(O:Op,E1:Exp,E2:Exp))          => @CheckInvalidLValue(Strict,%bopassign(O,E1,E2)) ~> @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
 rule @CEE(Strict:Bool, Ls:Set, %cond(E1:Exp,E2:Exp,E3:Exp))             => @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2) ~> @CEE(Strict,Ls,E3)
 rule @CEE(Strict:Bool, Ls:Set, %emptyExp)                               => .
-rule @CEE(Strict:Bool, Ls:Set, %fun(X:Var,Es:Exps,S:Stmt))              => @CheckReserved(Strict,X) ~> @SMRFun(Strict,X, Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool @IsStrict(S), .Set, S)
-rule @CEE(Strict:Bool, Ls:Set, %fun(      Es:Exps,S:Stmt))              =>                             @SMRFun(Strict,"",Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool @IsStrict(S), .Set, S)
+rule @CEE(Strict:Bool, Ls:Set, %fun(X:Var,Es:Exps,S:Stmt))              => @CheckReserved(Strict,X) ~> @SMRFun(Strict,X, Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
+rule @CEE(Strict:Bool, Ls:Set, %fun(      Es:Exps,S:Stmt))              =>                             @SMRFun(Strict,"",Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
 //
 rule @CEE(Strict:Bool, Ls:Set, %cons(E:Exp,Es:Exps))                    => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
 rule @CEE(Strict:Bool, Ls:Set, %nil)                                    => .
@@ -3624,9 +3623,9 @@ rule @DuplicatedProp(Strict:Bool,Es:Exps) => @DuplicatedPropAux(Strict,Es,.Set,.
 //
 syntax KItem ::= "@DuplicatedPropAux" "(" Bool "," Exps "," Set "," Set "," Set ")"
 rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => true when D in GS orBool D in SS
-rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => true when D in DS andBool Strict ==K true
+rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => true when D in DS andBool Strict
 rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => @DuplicatedPropAux(Strict, Es, SetItem(D) DS, GS, SS) when notBool(D in GS orBool D in SS)
-                                                                                                                                                   andBool notBool(D in DS andBool Strict ==K true)
+                                                                                                                                                   andBool notBool(D in DS andBool Strict)
 //
 rule @DuplicatedPropAux(Strict:Bool, %cons(%get(G:Var,_),  Es:Exps), DS:Set, GS:Set, SS:Set) => true when G in GS orBool G in DS
 rule @DuplicatedPropAux(Strict:Bool, %cons(%get(G:Var,_),  Es:Exps), DS:Set, GS:Set, SS:Set) => @DuplicatedPropAux(Strict, Es, DS, SetItem(G) GS, SS) when notBool(G in GS orBool G in DS)
@@ -3642,27 +3641,27 @@ rule @CheckInvalidLValue(Strict:Bool, E:Exp)
        Do @Throw(@SyntaxError("In strict mode, 'eval' or 'arguments' cannot be updated",E));
      };
 //
-syntax Bool ::= "@InvalidLValue" "(" Bool "," Exp ")" [function]
-rule @InvalidLValue(Strict:Bool, E:Exp) => @InvalidLValueAux(Strict,E) ==K true
+syntax KItem /* Bool */ ::= "@InvalidLValue" "(" Bool "," Exp ")"
+rule @InvalidLValue(true, %bop(%assign,%var("eval"     ),_)) => true
+rule @InvalidLValue(true, %bop(%assign,%var("arguments"),_)) => true
 //
-syntax Bool ::= "@InvalidLValueAux" "(" Bool "," Exp ")" [function]
-rule @InvalidLValueAux(true, %bop(%assign,%var("eval"     ),_)) => true
-rule @InvalidLValueAux(true, %bop(%assign,%var("arguments"),_)) => true
+rule @InvalidLValue(true, %bopassign(_,%var("eval"     ),_)) => true
+rule @InvalidLValue(true, %bopassign(_,%var("arguments"),_)) => true
 //
-rule @InvalidLValueAux(true, %bopassign(_,%var("eval"     ),_)) => true
-rule @InvalidLValueAux(true, %bopassign(_,%var("arguments"),_)) => true
+rule @InvalidLValue(true, %pre(%inc,%var("eval"     ))) => true
+rule @InvalidLValue(true, %pre(%inc,%var("arguments"))) => true
 //
-rule @InvalidLValueAux(true, %pre(%inc,%var("eval"     ))) => true
-rule @InvalidLValueAux(true, %pre(%inc,%var("arguments"))) => true
+rule @InvalidLValue(true, %pre(%dec,%var("eval"     ))) => true
+rule @InvalidLValue(true, %pre(%dec,%var("arguments"))) => true
 //
-rule @InvalidLValueAux(true, %pre(%dec,%var("eval"     ))) => true
-rule @InvalidLValueAux(true, %pre(%dec,%var("arguments"))) => true
+rule @InvalidLValue(true, %post(%var("eval"     ),%inc)) => true
+rule @InvalidLValue(true, %post(%var("arguments"),%inc)) => true
 //
-rule @InvalidLValueAux(true, %post(%var("eval"     ),%inc)) => true
-rule @InvalidLValueAux(true, %post(%var("arguments"),%inc)) => true
+rule @InvalidLValue(true, %post(%var("eval"     ),%dec)) => true
+rule @InvalidLValue(true, %post(%var("arguments"),%dec)) => true
 //
-rule @InvalidLValueAux(true, %post(%var("eval"     ),%dec)) => true
-rule @InvalidLValueAux(true, %post(%var("arguments"),%dec)) => true
+rule @InvalidLValue(_,_) => false [owise]
+
 
 syntax KItem ::= "@CheckWith" "(" Bool ")"
 rule @CheckWith(Strict:Bool)
@@ -3688,13 +3687,13 @@ rule @CheckGoto(Ls:Set, L:Var)
 
 syntax KItem ::= "@SMRVar" "(" Bool "," Var ")"
 rule @SMRVar(Strict:Bool, P:Var)
-  => If @AndBool(Strict ==K true, @OrBool(P ==K "eval", P ==K "arguments")) = true then {
+  => If @AndBool(Strict, @OrBool(P ==K "eval", P ==K "arguments")) = true then {
        Do @Throw(@SyntaxError("Strict Mode Restrictions, eval or arguments as a variable",P));
      };
 
 syntax KItem ::= "@SMRFun" "(" Bool "," Var "," Exps "," Stmt ")"
 rule @SMRFun(Strict:Bool, F:Var, Ps:Exps, FB:Stmt)
-  => Let $strict = @IsStrict(FB) orBool Strict;
+  => Let $strict = #@IsStrict(FB) orBool Strict;
      Do @SMRVar($strict:>Bool,F);
      Do @SMRVars($strict:>Bool,Ps);
      Do @SMRParams($strict:>Bool,Ps);
@@ -3734,27 +3733,38 @@ rule false ~> @False? => .
 syntax KItem /* .K */ ::= "@Ignore"
 rule _:Val ~> @Ignore => .
 
-syntax Int ::= "@Length" "(" Exps ")" [function]
-rule @Length(%cons(_,Es)) => 1 +Int @Length(Es)
-rule @Length(%nil) => 0
+syntax KItem /* Int */ ::= "@Length" "(" K /* Exps */ ")" [seqstrict(1)]
+rule @Length(Es:Exps) => #@Length(Es)
+//
+syntax Int ::= "#@Length" "(" Exps ")" [function]
+rule #@Length(%cons(_,Es)) => 1 +Int #@Length(Es)
+rule #@Length(%nil) => 0
 
-syntax Int ::= "@LengthVals" "(" Vals ")" [function]
-rule @LengthVals(@Cons(_,Vs)) => 1 +Int @LengthVals(Vs)
-rule @LengthVals(@Nil) => 0
+syntax KItem /* Int */ ::= "@LengthVals" "(" K /* Vals */ ")" [seqstrict(1)]
+rule @LengthVals(Vs:Vals) => #@LengthVals(Vs)
+//
+syntax Int ::= "#@LengthVals" "(" Vals ")" [function]
+rule #@LengthVals(@Cons(_,Vs)) => 1 +Int #@LengthVals(Vs)
+rule #@LengthVals(@Nil) => 0
 
-syntax Exp ::= Exp /* PropertyDescriptor */ "." Var [function]
-rule @desc(X |-> V:Val _) . X => V
-rule @desc(M:Map        ) . X => Undefined when notBool(X in keys(M))
+// TODO: remove
+syntax Val ::= PropertyDescriptor ".." Var [function]
+rule @desc(X |-> V:Val _) .. X:Var => V
+rule @desc(M:Map        ) .. X:Var => Undefined when notBool(X in keys(M))
 
-syntax Bool ::= "@SubDesc" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
+syntax KItem /* Val */ ::= K /* PropertyDescriptor */ "." Var [seqstrict(1)]
+rule @desc(X |-> V:Val _) . X:Var => V
+rule @desc(M:Map        ) . X:Var => Undefined when notBool(X in keys(M))
+
+syntax KItem /* Bool */ ::= "@SubDesc" "(" PropertyDescriptor "," PropertyDescriptor ")"
 rule @SubDesc(@desc(M1:Map), @desc(M2:Map)) => @SubDescAux(keys(M1), @desc(M1), @desc(M2))
 //
-syntax Bool ::= "@SubDescAux" "(" Set "," PropertyDescriptor "," PropertyDescriptor ")" [function]
+syntax KItem /* Bool */ ::= "@SubDescAux" "(" Set "," PropertyDescriptor "," PropertyDescriptor ")"
 rule @SubDescAux(                    .Set , @desc( _:Map), @desc( _:Map)) => true
-rule @SubDescAux((SetItem(X:String) S:Set), @desc(M1:Map), @desc(M2:Map)) => @SubDescAuxSingle(X,M1,M2) andBool @SubDescAux(S,@desc(M1),@desc(M2))
+rule @SubDescAux((SetItem(X:String) S:Set), @desc(M1:Map), @desc(M2:Map)) => @AndBool(@SubDescAuxSingle(X,M1,M2), @SubDescAux(S,@desc(M1),@desc(M2)))
 //
-syntax Bool ::= "@SubDescAuxSingle" "(" String "," Map "," Map ")" [function]
-rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => X in keys(M2) andBool SameValue(M1[X], M2[X])
+syntax KItem /* Bool */ ::= "@SubDescAuxSingle" "(" String "," Map "," Map ")"
+rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => @AndBool(X in keys(M2), SameValue(M1[X], M2[X]))
 
 /*
 syntax Bool ::= "@SubDesc" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
@@ -3766,33 +3776,39 @@ rule @SubDesc(@desc((X |-> _     ) _     ), @desc(               M2:Map)) => fal
 rule @SubDesc(@desc(               M1:Map), @desc((X |-> V2:Val) M2:Map)) => @SubDesc(@desc(M1),@desc(M2)) when notBool(X in keys(M2))
 */
 
-syntax Map ::= "@AddMap" "(" K "," K "," Map ")" [function]
-rule @AddMap(X, V,           M:Map) => (X |-> V) M when notBool(X in keys(M))
-rule @AddMap(X, V, (X |-> _) M:Map) => (X |-> V) M when notBool(X in keys(M))
+syntax Map ::= "#@AddMap" "(" K "," K "," Map ")" [function]
+rule #@AddMap(X, V,           M:Map) => (X |-> V) M when notBool(X in keys(M))
+rule #@AddMap(X, V, (X |-> _) M:Map) => (X |-> V) M when notBool(X in keys(M))
 
 syntax KItem /* .K */ ::= "@AddDesc" "(" K /* Var */ "," K /* Val */ "," K /* PropertyDescriptor */ ")" [seqstrict(1,2,3)]
-rule @AddDesc(X:Var,V:Val,@desc(Desc)) => @desc(@AddMap(X,V,Desc))
+rule @AddDesc(X:Var,V:Val,@desc(Desc)) => @desc(#@AddMap(X,V,Desc))
 
-syntax Bool ::= "@MemDesc" "(" PropertyDescriptor "," Var ")" [function]
+syntax KItem /* Bool */ ::= "@MemDesc" "(" K /* PropertyDescriptor */ "," K /* Var */ ")" [seqstrict(1,2)]
 rule @MemDesc(@desc(Desc),X:Var) => X in keys(Desc)
 
-syntax KItem ::= "@GenDesc" "(" K "," K                                     ")" [function]
-           | "@GenDesc" "(" K "," K "," K "," K                         ")" [function]
-           | "@GenDesc" "(" K "," K "," K "," K "," K "," K             ")" [function]
-           | "@GenDesc" "(" K "," K "," K "," K "," K "," K "," K "," K ")" [function]
+syntax KItem ::= "@GenDesc" "(" K "," K                                     ")"
+           | "@GenDesc" "(" K "," K "," K "," K                         ")"
+           | "@GenDesc" "(" K "," K "," K "," K "," K "," K             ")"
+           | "@GenDesc" "(" K "," K "," K "," K "," K "," K "," K "," K ")"
 rule @GenDesc(X1:Var,V1:Val                                          ) => @desc(X1 |-> V1                              )
 rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val                            ) => @desc(X1 |-> V1 X2 |-> V2                    )
 rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val,X3:Var,V3:Val              ) => @desc(X1 |-> V1 X2 |-> V2 X3 |-> V3          )
 rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val,X3:Var,V3:Val,X4:Var,V4:Val) => @desc(X1 |-> V1 X2 |-> V2 X3 |-> V3 X4 |-> V4)
 
 // NOTE: Set of Values => Vals
-syntax Vals ::= "@Set2Vals" "(" Set ")" [function]
-rule @Set2Vals(SetItem(V:Val) Vs:Set) => @Cons(V, @Set2Vals(Vs))
-rule @Set2Vals(                 .Set) => @Nil
+syntax KItem /* Vals */ ::= "@Set2Vals" "(" Set ")"
+rule @Set2Vals(S:Set) => #@Set2Vals(S)
+//
+syntax Vals ::= "#@Set2Vals" "(" Set ")" [function]
+rule #@Set2Vals(SetItem(V:Val) Vs:Set) => @Cons(V, #@Set2Vals(Vs))
+rule #@Set2Vals(                 .Set) => @Nil
 
-syntax Vals ::= "@AppendVals" "(" Vals "," Vals ")" [function]
-rule @AppendVals(@Cons(V1:Val,Vs1:Vals), Vs2:Vals) => @Cons(V1, @AppendVals(Vs1,Vs2))
-rule @AppendVals(@Nil, Vs:Vals) => Vs
+syntax KItem /* Vals */ ::= "@AppendVals" "(" K /* Vals */ "," K /* Vals */ ")" [seqstrict(1,2)]
+rule @AppendVals(Vs1:Vals,Vs2:Vals) => #@AppendVals(Vs1,Vs2)
+//
+syntax Vals ::= "#@AppendVals" "(" Vals "," Vals ")" [function]
+rule #@AppendVals(@Cons(V1:Val,Vs1:Vals), Vs2:Vals) => @Cons(V1, #@AppendVals(Vs1,Vs2))
+rule #@AppendVals(@Nil, Vs:Vals) => Vs
 
 syntax KItem ::= "@Print" "(" K ")" [seqstrict(1)]
 rule <k> @Print(S:String) => Undefined ... </k>
@@ -3805,40 +3821,43 @@ syntax KItem ::= "@LOG" "(" K ")"
 rule <k> @LOG(K) => . ... </k>
      <log> _:List (.List => ListItem(K)) </log>
 
-syntax Bool ::= "@IsPrimitive" "(" Val ")" [function]
-rule @IsPrimitive(V:Val) => @IsBool(V) orBool @IsString(V) orBool @IsNumber(V)
+syntax KItem /* Bool */ ::= "@IsPrimitive" "(" K /* Val */ ")" [seqstrict(1)]
+rule @IsPrimitive(V:Val) => #@IsBool(V) orBool #@IsString(V) orBool #@IsNumber(V)
 
-syntax Bool ::= "@IsBool" "(" Val ")" [function]
-rule @IsBool(Undefined) => false
-rule @IsBool(@NullVal  ) => false
-rule @IsBool(_:Bool    ) => true
-rule @IsBool(_:String  ) => false
-rule @IsBool(_:Number  ) => false
-rule @IsBool(_:Oid     ) => false
+syntax Bool ::= "#@IsBool" "(" Val ")" [function]
+rule #@IsBool(Undefined) => false
+rule #@IsBool(@NullVal  ) => false
+rule #@IsBool(_:Bool    ) => true
+rule #@IsBool(_:String  ) => false
+rule #@IsBool(_:Number  ) => false
+rule #@IsBool(_:Oid     ) => false
 
-syntax Bool ::= "@IsString" "(" Val ")" [function]
-rule @IsString(Undefined) => false
-rule @IsString(@NullVal  ) => false
-rule @IsString(_:Bool    ) => false
-rule @IsString(_:String  ) => true
-rule @IsString(_:Number  ) => false
-rule @IsString(_:Oid     ) => false
+syntax Bool ::= "#@IsString" "(" Val ")" [function]
+rule #@IsString(Undefined) => false
+rule #@IsString(@NullVal  ) => false
+rule #@IsString(_:Bool    ) => false
+rule #@IsString(_:String  ) => true
+rule #@IsString(_:Number  ) => false
+rule #@IsString(_:Oid     ) => false
 
-syntax Bool ::= "@IsNumber" "(" Val ")" [function]
-rule @IsNumber(Undefined) => false
-rule @IsNumber(@NullVal  ) => false
-rule @IsNumber(_:Bool    ) => false
-rule @IsNumber(_:String  ) => false
-rule @IsNumber(_:Number  ) => true
-rule @IsNumber(_:Oid     ) => false
+syntax Bool ::= "#@IsNumber" "(" Val ")" [function]
+rule #@IsNumber(Undefined) => false
+rule #@IsNumber(@NullVal  ) => false
+rule #@IsNumber(_:Bool    ) => false
+rule #@IsNumber(_:String  ) => false
+rule #@IsNumber(_:Number  ) => true
+rule #@IsNumber(_:Oid     ) => false
 
-syntax Bool ::= "@IsOid" "(" Val ")" [function]
-rule @IsOid(Undefined) => false
-rule @IsOid(@NullVal  ) => false
-rule @IsOid(_:Bool    ) => false
-rule @IsOid(_:String  ) => false
-rule @IsOid(_:Number  ) => false
-rule @IsOid(_:Oid     ) => true
+syntax KItem /* Bool */ ::= "@IsOid" "(" K /* Val */ ")" [seqstrict(1)]
+rule @IsOid(V:Val) => #@IsOid(V)
+//
+syntax Bool ::= "#@IsOid" "(" Val ")" [function]
+rule #@IsOid(Undefined) => false
+rule #@IsOid(@NullVal  ) => false
+rule #@IsOid(_:Bool    ) => false
+rule #@IsOid(_:String  ) => false
+rule #@IsOid(_:Number  ) => false
+rule #@IsOid(_:Oid     ) => true
 
 syntax KItem /* Bool */ ::= "@AndBool" "(" K /* Bool */ "," K /* Bool */ ")" [seqstrict(1,2)]
 rule @AndBool(B1:Bool,B2:Bool) => B1 andBool B2
@@ -3858,7 +3877,7 @@ rule @EqVal(V1:Val,V2:Val) => V1 ==K V2
 syntax KItem /* Bool */ ::= "@NeqVal" "(" K /* Val */ "," K /* Val */ ")" [seqstrict(1,2)]
 rule @NeqVal(V1:Val,V2:Val) => V1 =/=K V2
 
-syntax String ::= "@CharAt" "(" String "," Number ")" [function]
+syntax KItem /* String */ ::= "@CharAt" "(" K /* String */ "," K /* Number */ ")" [seqstrict(1,2)]
 rule @CharAt(S:String,I:Int) => substrString(S, I, I +Int 1)
 rule @CharAt(S:String,@nz  ) => @CharAt(S,0)
 
@@ -3867,6 +3886,9 @@ rule @Int2Char(I:Int) => chrChar(I)
 
 syntax KItem /* Int */ ::= "@Char2Int" "(" String ")"
 rule @Char2Int(S:String) => ordChar(S)
+
+syntax KItem /* String */ ::= "@LengthString" "(" K /* String */ ")" [seqstrict(1)]
+rule @LengthString(S:String) => lengthString(S)
 
 syntax KItem /* String */ ::= "@SubstrString" "(" String "," Int "," Int ")"
 rule @SubstrString(S:String,I1:Int,I2:Int) => substrString(S,I1,I2)
@@ -3907,10 +3929,10 @@ rule @Max(N1:Number,N2:Number)
        Return N2;
      }
 
-syntax Float ::= "@Int2Float" "(" Int ")" [function]
-rule @Int2Float(I:Int) => Int2Float(I, 53, 11)
+syntax Float ::= "#@Int2Float" "(" Int ")" [function]
+rule #@Int2Float(I:Int) => Int2Float(I, 53, 11)
 
-syntax String ::= "@PWD" [function]
+syntax String ::= "#@PWD" [function]
 #include "js-pwd.k"
 
 // XXX: Copied from "include/builtins/string.k"

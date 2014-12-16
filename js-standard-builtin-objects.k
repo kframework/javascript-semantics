@@ -2,8 +2,8 @@
 // 15 Standard Built-in ECMAScript Objects
 //////////////////////////////////////////////////////////////////////////////
 
-syntax KItem /* Bool */ ::= "@IsStandardBuiltinObject" "(" Oid ")" [function]
-rule @IsStandardBuiltinObject(O:Oid) => (O ==K @ObjectOid        )
+syntax Bool ::= "#@IsStandardBuiltinObject" "(" Oid ")" [function]
+rule #@IsStandardBuiltinObject(O:Oid) => (O ==K @ObjectOid        )
                                  orBool (O ==K @FunctionOid      ) orBool (O ==K @FunctionProtoOid )
                                  orBool (O ==K @ArrayOid         )
                                  orBool (O ==K @StringOid        )
@@ -30,28 +30,28 @@ syntax Val ::= "@" "(" String ")"
 //////////////////////////////////////////////////////////////////////////////
 // Parse
 
-syntax KItem /* Stmt or Throw */ ::= "@Parse" "(" String ")" [function]
-rule @Parse(P:String) => @ParseAux(#external(@PWD +String "/jsmassage.sh\x01" +String P),P)
+syntax KItem /* Stmt or Throw */ ::= "#@Parse" "(" String ")" [function]
+rule #@Parse(P:String) => #@ParseAux(#external(#@PWD +String "/jsmassage.sh\x01" +String P),P)
 //
-syntax KItem /* Stmt or Throw */ ::= "@ParseAux" "(" K /* Program */ "," K /* String */ ")" [function]
-rule @ParseAux(P:String, _) => @ParsePgm(P)
-rule @ParseAux(#tcpError(E:String), P:String) => @Throw(@SyntaxError("#external: " +String E, P))
+syntax KItem /* Stmt or Throw */ ::= "#@ParseAux" "(" K /* Program */ "," K /* String */ ")" [function]
+rule #@ParseAux(P:String, _) => #@ParsePgm(P)
+rule #@ParseAux(#tcpError(E:String), P:String) => @Throw(@SyntaxError("#external: " +String E, P))
 
-syntax KItem /* Stmt or Throw */ ::= "@ParsePgm" "(" String ")" [function]
-rule @ParsePgm(P:String) => @ParsePgmAux(#parse(P,"Program"),P)
+syntax KItem /* Stmt or Throw */ ::= "#@ParsePgm" "(" String ")" [function]
+rule #@ParsePgm(P:String) => #@ParsePgmAux(#parse(P,"Program"),P)
 //
-syntax KItem /* Stmt or Throw */ ::= "@ParsePgmAux" "(" K /* Program */ "," K /* String */ ")" [function]
-rule @ParsePgmAux(P:SourceElements, _) => ^SourceElements(P)
-rule @ParsePgmAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Program",P))
-//rule @ParsePgmAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
+syntax KItem /* Stmt or Throw */ ::= "#@ParsePgmAux" "(" K /* Program */ "," K /* String */ ")" [function]
+rule #@ParsePgmAux(P:SourceElements, _) => ^SourceElements(P)
+rule #@ParsePgmAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Program",P))
+//rule #@ParsePgmAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
 
-syntax KItem /* Exps or Throw */ ::= "@ParseParams" "(" String ")" [function]
-rule @ParseParams(P:String) => @ParseParamsAux(#parse(P,"Parameters"),P)
+syntax KItem /* Exps or Throw */ ::= "#@ParseParams" "(" String ")" [function]
+rule #@ParseParams(P:String) => #@ParseParamsAux(#parse(P,"Parameters"),P)
 //
-syntax KItem /* Exps or Throw */ ::= "@ParseParamsAux" "(" K /* Parameters */ "," K /* String */ ")" [function]
-rule @ParseParamsAux(P:Parameters, _) => ^Parameters(P)
-rule @ParseParamsAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Parameters",P))
-//rule @ParseParamsAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
+syntax KItem /* Exps or Throw */ ::= "#@ParseParamsAux" "(" K /* Parameters */ "," K /* String */ ")" [function]
+rule #@ParseParamsAux(P:Parameters, _) => ^Parameters(P)
+rule #@ParseParamsAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Parameters",P))
+//rule #@ParseParamsAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
 
 //////////////////////////////////////////////////////////////////////////////
 // 15.1 The Global Object
@@ -60,11 +60,11 @@ rule @ParseParamsAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Paramete
 
 rule %call(%var("eval"), Es:Exps) => Call(@("eval_d"), Undefined, Es)
 
-rule Call(@("eval_d"), _, @Cons(V:Val,     _:Vals)) => V when @IsString(V) ==K false
-rule Call(@("eval_i"), _, @Cons(V:Val,     _:Vals)) => V when @IsString(V) ==K false
+rule Call(@("eval_d"), _, @Cons(V:Val,     _:Vals)) => V when #@IsString(V) ==K false
+rule Call(@("eval_i"), _, @Cons(V:Val,     _:Vals)) => V when #@IsString(V) ==K false
 //
-rule Call(@("eval_d"), _, @Cons(Pgm:String,_:Vals)) => @Eval(@Parse(Pgm), true)
-rule Call(@("eval_i"), _, @Cons(Pgm:String,_:Vals)) => @Eval(@Parse(Pgm), false)
+rule Call(@("eval_d"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), true)
+rule Call(@("eval_i"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), false)
 
 syntax KItem ::= "@Eval" "(" K /* Stmt or Throw */ "," Bool ")"
 rule @Eval(Code:Stmt, Direct:Bool) => @EnterEvalCode(Code,Direct) ~> Code ~> @ExitEvalCode
@@ -75,8 +75,8 @@ syntax KItem ::= "@ExitEvalCode"
 rule <k> @Normal ~> @ExitEvalCode => @RestoreRunningCtx ~> V ... </k>
      <lastNonEmptyValue> V:Val </lastNonEmptyValue>
 
-syntax KItem /* Bool */ ::= "@IsEval" "(" Exp ")" [function]
-rule @IsEval(E:Exp) => E ==K %var("eval") // TODO: this is quick fix. any better way?
+syntax Bool ::= "#@IsEval" "(" Exp ")" [function]
+rule #@IsEval(E:Exp) => E ==K %var("eval") // TODO: this is quick fix. any better way?
 
 //////////////////////////////////////////////////////////////////////////////
 // 15.2 Object Objects
@@ -144,22 +144,25 @@ rule Construct(@FunctionOid, Vs:Vals) => @NewFunction(Vs)
 syntax KItem /* Oid */ ::= "@NewFunction" "(" K /* Vals */ ")" [seqstrict(1)]
 rule @NewFunction(             @Nil      ) => @CreateFunction(%nil, %emptyStmt)
 // NOTE: We have two rules because of preventing a leading comma.
-rule @NewFunction(             Args:Vals ) => @NewFunctionAux("",            Args) when @LengthVals(Args) ==Int 1
+rule @NewFunction(             Args:Vals ) => @NewFunctionAux("",            Args) when #@LengthVals(Args) ==Int 1
 rule @NewFunction(@Cons(P1:Val,Args:Vals)) => @NewFunctionAux(ToString(P1), Args) when Args =/=K @Nil
 
 syntax KItem /* Oid */ ::= "@NewFunctionAux" "(" K /* String */ "," K /* Vals */ ")" [seqstrict(1,2)]
 syntax Id ::= "$p" | "$body"
 rule @NewFunctionAux(Params:String, @Cons(P:Val,Args:Vals))
   => Let $p = ToString(P);
-     Do @NewFunctionAux(Params +String "," +String $p:>String, Args);
+     Do @NewFunctionAux(@Concatnation(Params, @Concatnation(",", $p)), Args);
      when Args =/=K @Nil
 rule @NewFunctionAux(Params:String, @Cons(Body:Val,@Nil))
   => Let $body = ToString(Body);
-     Do @CreateFunction(@ParseParams(Params), @Parse($body:>String));
+     Do @NewFunctionAuxAux(Params, $body);
+syntax KItem /* Oid */ ::= "@NewFunctionAuxAux" "(" K /* String */ "," K /* String */ ")" [seqstrict(1,2)]
+rule @NewFunctionAuxAux(Params:String, Body:String)
+  => @CreateFunction(#@ParseParams(Params), #@Parse(Body))
 
 syntax KItem /* Oid */ ::= "@CreateFunction" "(" Exps "," Stmt ")"
 rule <k> @CreateFunction(Params:Exps,FunBody:Stmt)
-      => Let $strict = @IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
+      => Let $strict = #@IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
          Do @CheckEarlyErrors($strict:>Bool, FunBody);
          Do @CreateFunctionObject(Params, FunBody, E, $strict:>Bool);
      ... </k>
@@ -206,9 +209,9 @@ syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict(1)]
 rule @Array2List(ArgArray:Oid)
   => Let $len = Get(ArgArray,"length");
      Let $n = ToUint32($len:>Val);
-     Do @Array2ListAux(ArgArray, $n:>Int -Int 1, @Nil);
+     Do @Array2ListAux(ArgArray, %bop(%minus, $n, 1), @Nil);
 //
-syntax KItem /* Vals */ ::= "@Array2ListAux" "(" Oid "," Int "," Vals ")"
+syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$v"
 rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
   => If N <Int 0 = true then {
@@ -254,7 +257,7 @@ rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
   => Let $target    =             GetInternalProperty(F, "TargetFunction");
      Let $boundThis =             GetInternalProperty(F, "BoundThis");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
-     Let $args = @AppendVals($boundArgs:>Vals, Args);
+     Let $args = @AppendVals($boundArgs, Args);
      Return Call@Default($target:>Oid, $boundThis:>Val, $args:>Vals);
 
 // 15.3.4.5.2 [[Construct]]
@@ -264,7 +267,7 @@ syntax KItem /* Oid */ ::= "Construct@BoundFunction" "(" K /* Oid */ "," K /* Va
 rule Construct@BoundFunction(F:Oid, Args:Vals)
   => Let $target    =             GetInternalProperty(F, "TargetFunction");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
-     Let $args = @AppendVals($boundArgs:>Vals, Args);
+     Let $args = @AppendVals($boundArgs, Args);
      Return Construct@Default($target:>Oid, $args:>Vals);
 
 // 15.3.4.5.3 [[HasInstance]] (V)
@@ -292,7 +295,7 @@ syntax Id ::= "$o"
 rule HasInstance@Default(F:Oid,V:Val)
   => If @IsOid(V) = true then {
        Let $o = Get(F,"prototype");
-       If @IsOid($o:>Val) = true then {
+       If @IsOid($o) = true then {
          Return @IsPrototypeOf($o:>Oid, V:>Oid);
        } else {
          Do @Throw(@TypeError("HasInstance@Default",F));
@@ -333,7 +336,7 @@ rule Call(@ArrayOid, _, Vs:Vals) => @NewArray(Vs)
 rule Construct(@ArrayOid, Vs:Vals) => @NewArray(Vs)
 
 syntax KItem /* Oid */ ::= "@NewArray" "(" K /* Vals */ ")" [seqstrict(1)]
-rule @NewArray(Vs:Vals) => @CreateArray(@LengthVals(Vs), Vs) when @LengthVals(Vs) =/=Int 1
+rule @NewArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs) when #@LengthVals(Vs) =/=Int 1
 rule @NewArray(@Cons(V:Val,@Nil)) => @CreateArray(1, @Cons(V:Val,@Nil)) when notBool(isInt(V) ==K true)
 
 syntax KItem /* Oid */ ::= "@CreateArray" "(" Int "," Vals ")"
@@ -374,7 +377,7 @@ rule @NewArray(@Cons(Len:Int,@Nil)) => @CreateArray(Len, @Nil)
 // NOTE: @MakeArray differs from @NewArray in that it simply creates array object given arguments instead of distinguishing the single argument case
 
 syntax KItem /* Oid */ ::= "@MakeArray" "(" K /* Vals */ ")" [seqstrict(1)]
-rule @MakeArray(Vs:Vals) => @CreateArray(@LengthVals(Vs), Vs)
+rule @MakeArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs)
 
 // 15.4.5 Properties of Array Instances
 
@@ -561,7 +564,7 @@ rule GetOwnProperty@String(O:Oid,P:Var)
        If ToString(ToInteger(P:>Val)) = P then { // TODO:STD: it should have been 'ToString(abs(ToInteger(P)))'
          Let $str = GetInternalProperty(O,"PrimitiveValue");
          Let $index = ToInteger(P:>Val);
-         Let $len = lengthString($str:>String);
+         Let $len = @LengthString($str);
        //If $len:>Int <=Int $index:>Int = true then {
          If @OrBool(%bop(%lt,$index:>Number,0), %bop(%ge,$index:>Number,$len:>Int)) = true then {
            Return Undefined;
@@ -691,6 +694,15 @@ rule @MathFloor(@-Infinity) => @-Infinity
 syntax KItem ::= "@MathPow" "(" Number "," Number ")"
 rule @MathPow(I1:Int,  I2:Int)   => I1 ^Int   I2
 rule @MathPow(F1:Float,F2:Float) => F1 ^Float F2
+
+// 15.8.2.16 sin (x)
+
+// TODO:STD: hack
+syntax KItem ::= "@MathSin" "(" Number ")"
+rule @MathSin(N:Number) => @MathSinAux(ToString(N))
+//
+syntax KItem ::= "@MathSinAux" "(" K /* String */ ")" [seqstrict(1)]
+rule @MathSinAux(N:String) => ToNumber(#external("node\x01-p\x01-e\x01Math.sin(" +String N +String ")"))
 
 //////////////////////////////////////////////////////////////////////////////
 // 15.9 Date Objects
@@ -845,7 +857,7 @@ rule <k> @CreateNativeError(NativeError:Oid, Msg:String, KDebug:K) => @o(!N) ...
                  "message"    |-> @desc("Value" |-> Msg "Writable" |-> true "Enumerable" |-> false "Configurable" |-> true)
                </properties>
                <internalProperties>
-                 "Prototype"  |-> @ResolveNativeError(NativeError)
+                 "Prototype"  |-> #@ResolveNativeError(NativeError)
                  "Class"      |-> "Error"
                  "Extensible" |-> true
                  "KDebug"     |-> KDebug // NOTE: For debug
@@ -854,13 +866,13 @@ rule <k> @CreateNativeError(NativeError:Oid, Msg:String, KDebug:K) => @o(!N) ...
        _
      </objs>
 
-syntax Oid ::= "@ResolveNativeError" "(" Oid ")" [function]
-rule @ResolveNativeError(@EvalErrorOid     ) => @EvalErrorProtoOid
-rule @ResolveNativeError(@RangeErrorOid    ) => @RangeErrorProtoOid
-rule @ResolveNativeError(@ReferenceErrorOid) => @ReferenceErrorProtoOid
-rule @ResolveNativeError(@SyntaxErrorOid   ) => @SyntaxErrorProtoOid
-rule @ResolveNativeError(@TypeErrorOid     ) => @TypeErrorProtoOid
-rule @ResolveNativeError(@URIErrorOid      ) => @URIErrorProtoOid
+syntax Oid ::= "#@ResolveNativeError" "(" Oid ")" [function]
+rule #@ResolveNativeError(@EvalErrorOid     ) => @EvalErrorProtoOid
+rule #@ResolveNativeError(@RangeErrorOid    ) => @RangeErrorProtoOid
+rule #@ResolveNativeError(@ReferenceErrorOid) => @ReferenceErrorProtoOid
+rule #@ResolveNativeError(@SyntaxErrorOid   ) => @SyntaxErrorProtoOid
+rule #@ResolveNativeError(@TypeErrorOid     ) => @TypeErrorProtoOid
+rule #@ResolveNativeError(@URIErrorOid      ) => @URIErrorProtoOid
 
 // TODO: more elegantly
 syntax KItem /* Oid */ ::= "@EvalError"      "(" String "," K ")"
@@ -888,12 +900,12 @@ rule @URIError      (Msg:String, KDebug:K) => @CreateNativeError(@URIErrorOid   
 //////////////////////////////////////////////////////////////////////////////
 
 // An API name starts with '@'
-syntax KItem /* Bool */ ::= "@IsAPIName" "(" Var ")" [function]
-rule @IsAPIName(X:Var) => findString(X:>String,"@",0) ==K 0
+syntax Bool ::= "#@IsAPIName" "(" Var ")" [function]
+rule #@IsAPIName(X:Var) => findString(X:>String,"@",0) ==K 0
 //
-syntax KItem /* Bool */ ::= "@IsAPI" "(" Exp ")" [function]
-rule @IsAPI(%var(X:Var)) => @IsAPIName(X)
-rule @IsAPI(E:Exp) => false when getKLabel(E) =/=KLabel '%var`(_`)
+syntax Bool ::= "#@IsAPI" "(" Exp ")" [function]
+rule #@IsAPI(%var(X:Var)) => #@IsAPIName(X)
+rule #@IsAPI(E:Exp) => false when getKLabel(E) =/=KLabel '%var`(_`)
 
 // API Calls Redirection, Phase I
 
@@ -1003,9 +1015,7 @@ rule Call(@("NumberPrototypeToFixed"), Undefined, @Cons(O:Val,@Cons(V:Val,@Nil))
 
 rule Call(@("MathFloor"),          Undefined, @Cons(N:Val,@Nil)) => @MathFloor(N:>Number)
 rule Call(@("MathPow"),            Undefined, @Cons(N1:Val,@Cons(N2:Val,@Nil))) => @MathPow(N1:>Number, N2:>Number)
-rule Call(@("MathSin"),            Undefined, @Cons(N:Val,@Nil))
-  => Let $n = ToString(N);
-     Return ToNumber(#external("node\x01-p\x01-e\x01Math.sin(" +String $n:>String +String ")"));
+rule Call(@("MathSin"),            Undefined, @Cons(N:Val,@Nil)) => @MathSin(N:>Number)
 
 rule Call(@("DatePrototypeToString"), Undefined, @Cons(O:Val,@Nil)) => @DatePrototypeToString(O:>Oid)
 
