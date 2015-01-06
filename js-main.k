@@ -1029,7 +1029,7 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool) =
              }
            }
          }
-         Let $current2 = GetOwnProperty(O,P);
+         Let $current2 = GetOwnProperty@Default(O,P);
          If @OrBool(IsGenericDescriptor($current2), IsDataDescriptor($current2)) = true then {
          //Do @LOG("Data");
          //Do @LOG(Desc);
