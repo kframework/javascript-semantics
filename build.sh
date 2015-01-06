@@ -25,7 +25,8 @@ echo "Self-hosted standard built-in objects..."
 
 echo "Hard-wiring standard built-in objects..."
 { echo "<objs> ( _ =>" && \
-  ./k/bin/krun stdlib.js | awk '/<objs>/ {p=1; next} /<\/objs>/ {p=0} p' | sed 's/@o/@oo/g' && \
+  ./k/bin/krun stdlib.js >stdlib.out 2>&1 && \
+  cat stdlib.out | awk '/<objs>/ {p=1; next} /<\/objs>/ {p=0} p' | sed 's/@o/@oo/g' && \
   echo ") </objs>" && \
   echo "syntax Oid ::= \"@oo\" \"(\" Int \")\""
 } >js-config.k || error "failed to create js-config.k"
