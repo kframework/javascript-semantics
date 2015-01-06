@@ -694,6 +694,7 @@ rule @MathFloor(@-Infinity) => @-Infinity
 syntax KItem ::= "@MathPow" "(" K /* Number */ "," K /* Number */ ")" [seqstrict(1,2)]
 rule @MathPow(I1:Int,  I2:Int)   => I1 ^Int   I2
 rule @MathPow(F1:Float,F2:Float) => F1 ^Float F2
+rule @MathPow(_:Number,@NaN) => @NaN
 
 // 15.8.2.16 sin (x)
 
