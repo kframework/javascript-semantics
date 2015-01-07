@@ -43,7 +43,7 @@ $ patch -p1 <../jsaf.patch
 $ wget http://cs.nyu.edu/rgrimm/xtc/xtc.jar
 $ mv xtc.jar bin/
 $ export JS_HOME=`pwd`
-$ ant clean compile
+$ ./ant clean compile
 ```
 
 ### 3. Install Node.js
