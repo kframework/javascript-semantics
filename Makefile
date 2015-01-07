@@ -40,3 +40,5 @@ test262:
 	git clone https://github.com/tc39/test262.git
 	( cd test262 && \
       git reset --hard 9b669da66c78bd583bc130a7ca3151258e4681a1 )
+
+include Makefile.test262

@@ -1,0 +1,25 @@
+TEST262_CORE_POSITIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -L '@negative' {} \;)
+TEST262_CORE_NEGATIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -q '@negative' {} \; -print)
+
+.PHONY: test262-core
+test262-core: test262-core-positive test262-core-negative
+
+.PHONY: test262-core-positive
+test262-core-positive: $(TEST262_CORE_POSITIVE:%=%.out.positive)
+
+.PHONY: test262-core-negative
+test262-core-negative: $(TEST262_CORE_NEGATIVE:%=%.out.negative)
+
+%.js.out.positive: %.js.out
+	grep -q 'Empty substitution' $< && echo "#### $*.js succeed" || echo "#### $*.js failed"
+	rm -f $<
+
+%.js.out.negative: %.js.out
+	grep -L 'Empty substitution' $< && echo "#### $*.js succeed" || echo "#### $*.js failed"
+	rm -f $<
+
+%.js.out: %.js
+	-cat prelude.js $< >$<.prelude
+	-./jsmassage.sh -f $<.prelude >$<.prelude.massage
+	-krun -d . --pattern-matching --pattern "<k> @Normal </k>" $<.prelude.massage >$@ 2>&1
+	-rm -f $<.prelude $<.prelude.massage
