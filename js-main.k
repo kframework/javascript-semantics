@@ -1189,7 +1189,7 @@ rule @StringToNumber(S:String)
          Let $str = @RemoveLeadingZeros(@RemoveLeadingSign(S));
          Let $num = @ResolveOverflow(@StringToNumber@Core($str:>String));
          If $isMinus = true then {
-           Return %bop(%times, -1, $num:>Number);
+           Return @Bop(%times, -1, $num:>Number);
          } else {
            Return $num;
          }
@@ -1973,8 +1973,7 @@ syntax KItem /* Oid */ ::= "@MakeArgSetter" "(" K /* Var */ "," K /* Eid */ ")" 
 syntax Id ::= "$param"
 rule @MakeArgSetter(N:Var,E:Eid)
   => BEGIN
-     Let $param = N:>String +String "_arg";
-     Return @CreateFunctionObject(%cons(%var($param:>Var),%nil), %exp(%bop(%assign,%var(N),%var($param:>Var))), E, true); // TODO: in what case? // 10.1.1 Strict Mode Code, Case ?
+     Return @CreateFunctionObject(%cons(%var((N:>String +String "_arg"):>Var),%nil), %exp(%bop(%assign,%var(N),%var((N:>String +String "_arg"):>Var))), E, true); // TODO: in what case? // 10.1.1 Strict Mode Code, Case ?
      END
 
 syntax KItem /* Bool */ ::= "@IsArgumentsObjectNonStrictWithFormalParams" "(" K /* Oid */ ")" [seqstrict(1)]
@@ -4114,5 +4113,8 @@ syntax KItem ::= "#externalAux" "(" K ")" [function]
 rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => Stdout            when ExitCode ==Int 0
 rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => #externalError(Stderr) when ExitCode =/=Int 0
 syntax KItem ::= "#externalError" "(" String ")"
+
+syntax KItem /* Exp */ ::= "@Bop" "(" OpNormal "," K /* Val */ "," K /* Val */ ")" [seqstrict(2,3)]
+rule @Bop(OP:OpNormal,V1:Val,V2:Val) => %bop(OP,V1,V2)
 
 endmodule

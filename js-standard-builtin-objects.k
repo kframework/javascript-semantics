@@ -218,7 +218,7 @@ rule @Array2List(ArgArray:Oid)
   => BEGIN
      Let $len = Get(ArgArray,"length");
      Let $n = ToUint32($len:>Val);
-     Do @Array2ListAux(ArgArray, %bop(%minus, $n, 1), @Nil);
+     Do @Array2ListAux(ArgArray, @Bop(%minus, $n, 1), @Nil);
      END
 //
 syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
@@ -453,7 +453,7 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
            // Step 3.e
            Let $newLenDesc = @AddDesc("Value", $newLen, Desc);
            // Step 3.f
-           If %bop(%ge, $newLen:>Val, $oldLen:>Val) = true then {
+           If @Bop(%ge, $newLen, $oldLen) = true then {
              Do DefineOwnProperty@Default(O, "length", $newLenDesc, Throw);
            } else {
              // Step 3.g
@@ -483,7 +483,7 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
          // Step 4.a
          Let $index = ToUint32(P);
          // Step 4.b
-         If @AndBool(%bop(%ge, $index:>Val, $oldLen:>Val), @EqVal($oldLenDesc."Writable",false)) = true then {
+         If @AndBool(@Bop(%ge, $index, $oldLen), @EqVal($oldLenDesc."Writable",false)) = true then {
            Return Reject(Throw, "DefineOwnProperty@Array cannot increase length", DefineOwnProperty@Array(O,P,Desc,Throw));
          } else {
            // Step 4.c
@@ -493,8 +493,8 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
              Return Reject(Throw, "DefineOwnProperty@Array cannot assign", DefineOwnProperty@Array(O,P,Desc,Throw));
            } else {
              // Step 4.e
-             If %bop(%ge, $index:>Val, $oldLen:>Val) = true then {
-               Do DefineOwnProperty@Default(O, "length", @AddDesc("Value", %bop(%plus, $index:>Val, 1), $oldLenDesc), false); // NOTE: should return true
+             If @Bop(%ge, $index, $oldLen) = true then {
+               Do DefineOwnProperty@Default(O, "length", @AddDesc("Value", @Bop(%plus, $index, 1), $oldLenDesc), false); // NOTE: should return true
              } else {
                // Step 4.f
                Return true;
@@ -522,7 +522,7 @@ rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Th
        Let $deleteSucceeded = Delete(O, ToString($oldLen), false);
        // Step 3.l.iii
        If $deleteSucceeded = false then {
-         Let $newLenDesc = @AddDesc("Value", %bop(%plus, $oldLen:>Val, 1), NewLenDesc);
+         Let $newLenDesc = @AddDesc("Value", @Bop(%plus, $oldLen, 1), NewLenDesc);
          DoI DefineOwnProperty@Default(O, "length", $newLenDesc, false);
          Return Reject(Throw, "DefineOwnProperty@Array cannot delete others", DefineOwnProperty@Array(O,P,Desc,Throw));
        } else {
@@ -597,7 +597,7 @@ rule GetOwnProperty@String(O:Oid,P:Var)
          Let $index = ToInteger(P:>Val);
          Let $len = @LengthString($str);
        //If $len:>Int <=Int $index:>Int = true then {
-         If @OrBool(%bop(%lt,$index:>Number,0), %bop(%ge,$index:>Number,$len:>Int)) = true then {
+         If @OrBool(@Bop(%lt,$index,0), @Bop(%ge,$index,$len)) = true then {
            Return Undefined;
          } else {
            Let $resultStr = @CharAt($str:>String, $index:>Number);
