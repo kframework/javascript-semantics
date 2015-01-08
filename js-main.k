@@ -62,7 +62,10 @@ configuration
       </running>
     </ctx>
     <excStack> .List </excStack>
-    <pseudoStack> .List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> .List </pseudoStack>
+      <pseudoEnv> .Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <in stream="stdin"> .List </in>
   <out stream="stdout"> .List </out>
@@ -87,7 +90,7 @@ syntax KItem ::= "@excTC"  "(" Var "," Stmt ","          K "," CtrlCellFragment 
                   | "@excTCF" "(" Var "," Stmt "," Stmt "," K "," CtrlCellFragment ")"
 
 // <pseudoStack>
-syntax KItem ::= "@pseudo" "(" K ")"
+syntax KItem ::= "@pseudo" "(" K "," Map ")"
 
 //////////////////////////////////////////////////////////////////////////////
 // Values
