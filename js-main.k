@@ -3951,6 +3951,7 @@ syntax KItem ::= "#external" "(" String ")" [function]
 rule #external(Cmd:String) => #externalAux(#system(Cmd))
 syntax KItem ::= "#externalAux" "(" K ")" [function]
 rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => Stdout            when ExitCode ==Int 0
-rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => #tcpError(Stderr) when ExitCode =/=Int 0
+rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => #externalError(Stderr) when ExitCode =/=Int 0
+syntax KItem ::= "#externalError" "(" String ")"
 
 endmodule

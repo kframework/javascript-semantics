@@ -4,7 +4,6 @@ require "builtins/map.k"
 require "builtins/set.k"
 require "builtins/mint.k"
 require "io/io.k"
-require "io/tcp.k"
 //require "modules/substitution.k"
 require "modules/k-functional-visitor.k"
 
@@ -17,7 +16,6 @@ imports MAP
 imports SET
 imports MINT
 imports K-IO
-imports TCP-HOOKS
 //imports SUBSTITUTION
 imports K-FUNCTIONAL-VISITOR
 

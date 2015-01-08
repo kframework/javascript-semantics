@@ -35,7 +35,7 @@ rule #@Parse(P:String) => #@ParseAux(#external(#@PWD +String "/jsmassage.sh\x01"
 //
 syntax KItem /* Stmt or Throw */ ::= "#@ParseAux" "(" K /* Program */ "," K /* String */ ")" [function]
 rule #@ParseAux(P:String, _) => #@ParsePgm(P)
-rule #@ParseAux(#tcpError(E:String), P:String) => @Throw(@SyntaxError("#external: " +String E, P))
+rule #@ParseAux(#externalError(E:String), P:String) => @Throw(@SyntaxError("#external: " +String E, P))
 
 syntax KItem /* Stmt or Throw */ ::= "#@ParsePgm" "(" String ")" [function]
 rule #@ParsePgm(P:String) => #@ParsePgmAux(#parse(P,"Program"),P)
