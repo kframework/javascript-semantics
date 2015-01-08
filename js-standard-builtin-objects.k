@@ -150,21 +150,27 @@ rule @NewFunction(@Cons(P1:Val,Args:Vals)) => @NewFunctionAux(ToString(P1), Args
 syntax KItem /* Oid */ ::= "@NewFunctionAux" "(" K /* String */ "," K /* Vals */ ")" [seqstrict(1,2)]
 syntax Id ::= "$p" | "$body"
 rule @NewFunctionAux(Params:String, @Cons(P:Val,Args:Vals))
-  => Let $p = ToString(P);
+  => BEGIN
+     Let $p = ToString(P);
      Do @NewFunctionAux(@Concatnation(Params, @Concatnation(",", $p)), Args);
+     END
      when Args =/=K @Nil
 rule @NewFunctionAux(Params:String, @Cons(Body:Val,@Nil))
-  => Let $body = ToString(Body);
+  => BEGIN
+     Let $body = ToString(Body);
      Do @NewFunctionAuxAux(Params, $body);
+     END
 syntax KItem /* Oid */ ::= "@NewFunctionAuxAux" "(" K /* String */ "," K /* String */ ")" [seqstrict(1,2)]
 rule @NewFunctionAuxAux(Params:String, Body:String)
   => @CreateFunction(#@ParseParams(Params), #@Parse(Body))
 
 syntax KItem /* Oid */ ::= "@CreateFunction" "(" Exps "," Stmt ")"
 rule <k> @CreateFunction(Params:Exps,FunBody:Stmt)
-      => Let $strict = #@IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
+      => BEGIN
+         Let $strict = #@IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
          Do @CheckEarlyErrors($strict:>Bool, FunBody);
          Do @CreateFunctionObject(Params, FunBody, E, $strict:>Bool);
+         END
      ... </k>
      <ctx>
        <running>
@@ -190,7 +196,8 @@ rule @FunctionPrototypeToString(F:Oid) => "[function ...]"
 syntax KItem ::= "@FunctionPrototypeApply" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$n" | "$argList"
 rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
-  => If IsCallable(Func) = false then {
+  => BEGIN
+     If IsCallable(Func) = false then {
        Do @Throw(@TypeError("Function.prototype.apply: func is not callable",Func));
      } else {
        If @OrBool(@EqVal(ArgArray,@NullVal), @EqVal(ArgArray,Undefined)) = true then {
@@ -203,30 +210,36 @@ rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
          }
        }
      }
+     END
 
 syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict(1)]
 //syntax Id ::= "$n"
 rule @Array2List(ArgArray:Oid)
-  => Let $len = Get(ArgArray,"length");
+  => BEGIN
+     Let $len = Get(ArgArray,"length");
      Let $n = ToUint32($len:>Val);
      Do @Array2ListAux(ArgArray, %bop(%minus, $n, 1), @Nil);
+     END
 //
 syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$v"
 rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
-  => If N <Int 0 = true then {
+  => BEGIN
+     If N <Int 0 = true then {
        Return Args;
      } else {
        Let $v = Get(ArgArray, ToString(N));
        Do @Array2ListAux(ArgArray, N -Int 1, @Cons($v:>Val, Args));
      }
+     END
 
 // 15.3.4.5 Function.prototype.bind (thisArg [, arg1 [, arg2, ...]])
 
 syntax KItem ::= "@FunctionPrototypeBind" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$f"
 rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
-  => If IsCallable(Func) = false then {
+  => BEGIN
+     If IsCallable(Func) = false then {
        Do @Throw(@TypeError("Function.prototype.bind",Func));
      } else {
        Let $f = @CreateObject;
@@ -240,6 +253,7 @@ rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
        DoI DefineOwnProperty($f:>Oid, "arguments", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
        Return $f;
      }
+     END
 
 syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" K /* Oid */ ")" [seqstrict(1)]
 rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
@@ -254,29 +268,35 @@ rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
 syntax KItem /* Val */ ::= "Call@BoundFunction" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
 syntax Id ::= "$boundArgs" | "$boundThis" | "$target" | "$args"
 rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
-  => Let $target    =             GetInternalProperty(F, "TargetFunction");
+  => BEGIN
+     Let $target    =             GetInternalProperty(F, "TargetFunction");
      Let $boundThis =             GetInternalProperty(F, "BoundThis");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
      Let $args = @AppendVals($boundArgs, Args);
      Return Call@Default($target:>Oid, $boundThis:>Val, $args:>Vals);
+     END
 
 // 15.3.4.5.2 [[Construct]]
 
 // TODO:STD: step 2
 syntax KItem /* Oid */ ::= "Construct@BoundFunction" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict(1,2)]
 rule Construct@BoundFunction(F:Oid, Args:Vals)
-  => Let $target    =             GetInternalProperty(F, "TargetFunction");
+  => BEGIN
+     Let $target    =             GetInternalProperty(F, "TargetFunction");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
      Let $args = @AppendVals($boundArgs, Args);
      Return Construct@Default($target:>Oid, $args:>Vals);
+     END
 
 // 15.3.4.5.3 [[HasInstance]] (V)
 
 // TODO:STD: step 2
 syntax KItem /* Bool */ ::= "HasInstance@BoundFunction" "(" K /* Oid */ "," K /* Val */ ")" [seqstrict(1,2)]
 rule HasInstance@BoundFunction(F:Oid, V:Val)
-  => Let $target = GetInternalProperty(F, "TargetFunction");
+  => BEGIN
+     Let $target = GetInternalProperty(F, "TargetFunction");
      Return HasInstance@Default($target:>Oid, V);
+     END
 
 // 15.3.5 Properties of Function Instances
 
@@ -284,16 +304,19 @@ rule HasInstance@BoundFunction(F:Oid, V:Val)
 
 syntax KItem /* Bool */ ::= "HasInstance" "(" K "," K ")" [seqstrict(1,2)]
 rule HasInstance(F:Oid, V:Val)
-  => If @IsBoundFunction(F) = true then {
+  => BEGIN
+     If @IsBoundFunction(F) = true then {
        Do HasInstance@BoundFunction(F,V);
      } else {
        Do HasInstance@Default(F,V);
      }
+     END
 
 syntax KItem /* Bool */ ::= "HasInstance@Default" "(" K "," K ")" [seqstrict(1,2)]
 syntax Id ::= "$o"
 rule HasInstance@Default(F:Oid,V:Val)
-  => If @IsOid(V) = true then {
+  => BEGIN
+     If @IsOid(V) = true then {
        Let $o = Get(F,"prototype");
        If @IsOid($o) = true then {
          Return @IsPrototypeOf($o:>Oid, V:>Oid);
@@ -303,6 +326,7 @@ rule HasInstance@Default(F:Oid,V:Val)
      } else {
        Return false;
      }
+     END
 
 // TODO: Duplicated: Object.isPrototypeOf
 syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" K /* Oid */ "," K /* Oid */ ")" [seqstrict(1,2)]
@@ -311,7 +335,8 @@ rule @IsPrototypeOf(O:Oid,V:Oid)
 
 syntax KItem /* Bool */ ::= "@IsPrototypeOfAux" "(" K "," K ")" [seqstrict(1,2)]
 rule @IsPrototypeOfAux(O:Oid,V:Oid)
-  => If V = @NullOid then {
+  => BEGIN
+     If V = @NullOid then {
        Return false;
      } else {
        If O = V then {
@@ -320,6 +345,7 @@ rule @IsPrototypeOfAux(O:Oid,V:Oid)
          Do @IsPrototypeOfAux(O,GetInternalProperty(V,"Prototype"));
        }
      }
+     END
 
 // 15.3.5.4 [[Get]] (P)
 // TODO:STD:
@@ -409,7 +435,8 @@ rule <k> @IsArrayObject(O:Oid) => Class ==String "Array" ... </k>
 syntax KItem /* Bool */ ::= "DefineOwnProperty@Array" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict(1,2,3,4)]
 syntax Id ::= "$oldLenDesc" | "$oldLen" | "$newLenDesc" | "$newLen" | "$succeeded" | "$succeeded2"
 rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
-  => // Step 1,2
+  => BEGIN
+     // Step 1,2
      Let $oldLenDesc = GetOwnProperty(O,"length");
      Let $oldLen = $oldLenDesc."Value";
      // Step 3
@@ -479,6 +506,7 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
          Do DefineOwnProperty@Default(O,P,Desc,Throw);
        }
      }
+     END
 
 syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" K /* Var */ ")" [seqstrict(1)]
 rule @IsArrayIndex(P:Var) => @EqVal(ToString(ToUint32(P)), P) /* TODO:STD: and ToUint32(P) =/=K 2^32 - 1 */
@@ -486,7 +514,8 @@ rule @IsArrayIndex(P:Var) => @EqVal(ToString(ToUint32(P)), P) /* TODO:STD: and T
 syntax KItem /* Bool */ ::= "DefineOwnProperty@Array@DeleteOthers" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ "," K /* PropertyDescriptor */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3,4,5,6,7)]
 syntax Id ::= "$deleteSucceeded"
 rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool,NewLenDesc:PropertyDescriptor,NewLen:Val,OldLen:Val)
-  => If %bop(%lt, NewLen, OldLen) = true then {
+  => BEGIN
+     If %bop(%lt, NewLen, OldLen) = true then {
        // Step 3.l.i
        Let $oldLen = %bop(%minus, OldLen, 1);
        // Step 3.l.ii
@@ -503,6 +532,7 @@ rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Th
        // Step 3.n
        Return true;
      }
+     END
 
 //////////////////////////////////////////////////////////////////////////////
 // 15.5 String Objects
@@ -559,7 +589,8 @@ rule <k> @IsStringObject(O:Oid) => Class ==String "String" ... </k>
 syntax KItem /* Val */ ::= "GetOwnProperty@String" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict(1,2)]
 syntax Id ::= "$index" | "$resultStr"
 rule GetOwnProperty@String(O:Oid,P:Var)
-  => Let $desc = GetOwnProperty@Default(O,P);
+  => BEGIN
+     Let $desc = GetOwnProperty@Default(O,P);
      If $desc = Undefined then {
        If ToString(ToInteger(P:>Val)) = P then { // TODO:STD: it should have been 'ToString(abs(ToInteger(P)))'
          Let $str = GetInternalProperty(O,"PrimitiveValue");
@@ -578,6 +609,7 @@ rule GetOwnProperty@String(O:Oid,P:Var)
      } else {
        Return $desc;
      }
+     END
 
 //////////////////////////////////////////////////////////////////////////////
 // 15.6 Boolean Objects
@@ -743,11 +775,13 @@ rule <k> @CreateDate(V:Number) => @o(!N) ... </k>
 // TODO:STD: Consider Step 2. If abs(N) > 8.64 * 10^15, return NaN.
 syntax KItem /* Number */ ::= "TimeClip" "(" K /* Number */ ")" [seqstrict(1)]
 rule TimeClip(N:Number)
-  => If @IsFinite(N) = true then {
+  => BEGIN
+     If @IsFinite(N) = true then {
        Return ToInteger(N);
      } else {
        Return @NaN;
      }
+     END
 
 syntax KItem /* Bool */ ::= "@IsFinite" "(" K /* Number */ ")" [seqstrict(1)]
 rule @IsFinite(N:Number) => N =/=K @NaN andBool N =/=K @+Infinity andBool N =/=K @-Infinity
@@ -984,19 +1018,23 @@ rule <k> Call(@("NoConstructor"), Undefined, @Cons(O:Val,@Nil)) => Undefined ...
      </objs>
 
 rule Call(@("GetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Nil)))
-  => Let $v = GetInternalProperty(O:>Oid,P:>Var);
+  => BEGIN
+     Let $v = GetInternalProperty(O:>Oid,P:>Var);
      If @AndBool(@EqVal(P,"Prototype"), @EqVal($v,@NullOid)) = true then {
         Return @NullVal;
      } else {
         Return $v;
      }
+     END
 rule Call(@("SetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Cons(V:Val,@Nil))))
-  => If @AndBool(@EqVal(P,"Prototype"), @EqVal(V,@NullVal)) = true then {
+  => BEGIN
+     If @AndBool(@EqVal(P,"Prototype"), @EqVal(V,@NullVal)) = true then {
        Do SetInternalProperty(O:>Oid,P:>Var,@NullOid);
      } else {
        Do SetInternalProperty(O:>Oid,P:>Var,V);
      }
      Return Undefined;
+     END
 
 rule Call(@("GetOwnProperty"),         Undefined, @Cons(O:Val,@Cons(P:Val,                             @Nil  ))) => GetOwnProperty(O,P)
 rule Call(@("DefineOwnProperty"),      Undefined, @Cons(O:Val,@Cons(P:Val,@Cons(V:Val,@Cons(Strict:Val,@Nil))))) => DefineOwnProperty(O,P,V,Strict)

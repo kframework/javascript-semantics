@@ -5,7 +5,7 @@ require "builtins/set.k"
 require "builtins/mint.k"
 require "io/io.k"
 //require "modules/substitution.k"
-require "modules/k-functional-visitor.k"
+//require "modules/k-functional-visitor.k"
 
 module JS-PRELUDE
 
@@ -17,6 +17,6 @@ imports SET
 imports MINT
 imports K-IO
 //imports SUBSTITUTION
-imports K-FUNCTIONAL-VISITOR
+//imports K-FUNCTIONAL-VISITOR
 
 endmodule
