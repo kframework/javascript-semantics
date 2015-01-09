@@ -1,0 +1,6 @@
+test262/test/suite/ch10/10.4/10.4.2/10.4.2-1-2.js
+test262/test/suite/ch12/12.14/12.14-13.js
+test262/test/suite/ch12/12.8/S12.8_A3.js
+test262/test/suite/ch12/12.8/S12.8_A4_T1.js
+test262/test/suite/ch12/12.8/S12.8_A4_T2.js
+test262/test/suite/ch12/12.8/S12.8_A4_T3.js

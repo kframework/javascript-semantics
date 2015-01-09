@@ -1,8 +1,8 @@
 SHELL=/bin/bash
 
 ifeq ($(shell test -d test262; echo $$?),0)
-TEST262_CORE_POSITIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -L '@negative' {} \;)
-TEST262_CORE_NEGATIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -q '@negative' {} \; -print)
+TEST262_CORE_POSITIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -L '@negative' {} \; | grep -vFf list-invalid-tests.txt)
+TEST262_CORE_NEGATIVE?=$(shell find test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js' -exec grep -q '@negative' {} \; -print; cat list-invalid-tests.txt)
 endif
 
 .PHONY: test262-core
@@ -27,9 +27,9 @@ define krun-test262
   grep -q 'Empty substitution' $(1).out; \
   echo $$? >$(1).exitcode )
 @if [ $(2) = "positive" ]; then \
-  [ `cat $(1).exitcode` -eq 0 ] && echo "#### $(1) succeed" || echo "#### $(1) failed"; \
+  if   [ `cat $(1).exitcode` -eq 0 ]; then echo "#### $(1) succeed"; else echo "#### $(1) failed"; exit 1; fi; \
 else \
-  [ `cat $(1).exitcode` -eq 0 ] && echo "#### $(1) failed" || echo "#### $(1) succeed"; \
+  if ! [ `cat $(1).exitcode` -eq 0 ]; then echo "#### $(1) succeed"; else echo "#### $(1) failed"; exit 1; fi; \
 fi
 endef
 
