@@ -33,9 +33,9 @@ ifeq ($(shell which node),)
 endif
 
 jsaf:
-	git clone https://github.com/daejunpark/jsaf.git
-	( cd jsaf && \
-      wget http://cs.nyu.edu/rgrimm/xtc/xtc.jar && mv xtc.jar bin/ )
+	git clone https://github.com/daejunpark/jsaf-bin.git jsaf
+	( cd jsaf/jsaf/bin && \
+      wget http://cs.nyu.edu/rgrimm/xtc/xtc.jar )
 
 test262:
 	git clone https://github.com/tc39/test262.git
