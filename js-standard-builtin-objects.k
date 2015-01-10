@@ -85,7 +85,7 @@ rule #@IsEval(E:Exp) => E ==K %var("eval") // TODO: this is quick fix. any bette
 
 rule Call(@ObjectOid, _, Vs:Vals) => @CallObject(Vs)
 
-syntax KItem /* Oid */ ::= "@CallObject" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CallObject" "(" K /* Vals */ ")" [seqstrict]
 rule @CallObject(@Cons(V:Val,     _:Vals)) => ToObject(V) when V =/=K @NullVal andBool V =/=K Undefined
 rule @CallObject(@Cons(@NullVal,  _:Vals)) => @CreateObject
 rule @CallObject(@Cons(Undefined,_:Vals)) => @CreateObject
@@ -95,7 +95,7 @@ rule @CallObject(                 @Nil   ) => @CreateObject
 
 rule Construct(@ObjectOid, Vs:Vals) => @NewObject(Vs)
 
-syntax KItem /* Oid */ ::= "@NewObject" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewObject" "(" K /* Vals */ ")" [seqstrict]
 rule @NewObject(@Cons(Undefined,_:Vals)) => @CreateObject
 rule @NewObject(@Cons(@NullVal,  _:Vals)) => @CreateObject
 rule @NewObject(@Cons(B:Bool,    _:Vals)) => ToObject(B)
@@ -122,7 +122,7 @@ rule <k> @CreateObject => @o(!N) ... </k>
 // 15.2.3.4 Object.getOwnPropertyNames ( O )
 // TODO:STD: consider note: when O is string object
 
-syntax KItem ::= "@ObjectGetOwnPropertyNames" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem ::= "@ObjectGetOwnPropertyNames" "(" K /* Oid */ ")" [seqstrict]
 rule <k> @ObjectGetOwnPropertyNames(O:Oid) => @MakeArray(@Set2Vals(keys(Prop))) ... </k>
      <obj>
        <oid> O </oid>
@@ -141,13 +141,13 @@ rule Call(@FunctionOid, _, Vs:Vals) => @NewFunction(Vs)
 
 rule Construct(@FunctionOid, Vs:Vals) => @NewFunction(Vs)
 
-syntax KItem /* Oid */ ::= "@NewFunction" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewFunction" "(" K /* Vals */ ")" [seqstrict]
 rule @NewFunction(             @Nil      ) => @CreateFunction(%nil, %emptyStmt)
 // NOTE: We have two rules because of preventing a leading comma.
 rule @NewFunction(             Args:Vals ) => @NewFunctionAux("",            Args) when #@LengthVals(Args) ==Int 1
 rule @NewFunction(@Cons(P1:Val,Args:Vals)) => @NewFunctionAux(ToString(P1), Args) when Args =/=K @Nil
 
-syntax KItem /* Oid */ ::= "@NewFunctionAux" "(" K /* String */ "," K /* Vals */ ")" [seqstrict(1,2)]
+syntax KItem /* Oid */ ::= "@NewFunctionAux" "(" K /* String */ "," K /* Vals */ ")" [seqstrict]
 syntax Id ::= "$p" | "$body"
 rule @NewFunctionAux(Params:String, @Cons(P:Val,Args:Vals))
   => BEGIN
@@ -160,7 +160,7 @@ rule @NewFunctionAux(Params:String, @Cons(Body:Val,@Nil))
      Let $body = ToString(Body);
      Do @NewFunctionAuxAux(Params, $body);
      END
-syntax KItem /* Oid */ ::= "@NewFunctionAuxAux" "(" K /* String */ "," K /* String */ ")" [seqstrict(1,2)]
+syntax KItem /* Oid */ ::= "@NewFunctionAuxAux" "(" K /* String */ "," K /* String */ ")" [seqstrict]
 rule @NewFunctionAuxAux(Params:String, Body:String)
   => @CreateFunction(#@ParseParams(Params), #@Parse(Body))
 
@@ -188,12 +188,12 @@ rule Call(@FunctionProtoOid, _, _:Vals) => Undefined
 // 15.3.4.2 Function.prototype.toString ( )
 
 // TODO:STD: ad-hoc, temorary implementation
-syntax KItem ::= "@FunctionPrototypeToString" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem ::= "@FunctionPrototypeToString" "(" K /* Oid */ ")" [seqstrict]
 rule @FunctionPrototypeToString(F:Oid) => "[function ...]"
 
 // 15.3.4.3 Function.prototype.apply (thisArg, argArray)
 
-syntax KItem ::= "@FunctionPrototypeApply" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
+syntax KItem ::= "@FunctionPrototypeApply" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
 syntax Id ::= "$n" | "$argList"
 rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
   => BEGIN
@@ -212,7 +212,7 @@ rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
      }
      END
 
-syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict]
 //syntax Id ::= "$n"
 rule @Array2List(ArgArray:Oid)
   => BEGIN
@@ -221,7 +221,7 @@ rule @Array2List(ArgArray:Oid)
      Do @Array2ListAux(ArgArray, @Bop(%minus, $n, 1), @Nil);
      END
 //
-syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
+syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict]
 syntax Id ::= "$v"
 rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
   => BEGIN
@@ -235,7 +235,7 @@ rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
 
 // 15.3.4.5 Function.prototype.bind (thisArg [, arg1 [, arg2, ...]])
 
-syntax KItem ::= "@FunctionPrototypeBind" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3)]
+syntax KItem ::= "@FunctionPrototypeBind" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
 syntax Id ::= "$f"
 rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
   => BEGIN
@@ -255,7 +255,7 @@ rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
      }
      END
 
-syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" K /* Oid */ ")" [seqstrict]
 rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
      <obj>
        <oid> O </oid>
@@ -265,7 +265,7 @@ rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
 
 // 15.3.4.5.1 [[Call]]
 
-syntax KItem /* Val */ ::= "Call@BoundFunction" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict(1,2,3)]
+syntax KItem /* Val */ ::= "Call@BoundFunction" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
 syntax Id ::= "$boundArgs" | "$boundThis" | "$target" | "$args"
 rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
   => BEGIN
@@ -279,7 +279,7 @@ rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
 // 15.3.4.5.2 [[Construct]]
 
 // TODO:STD: step 2
-syntax KItem /* Oid */ ::= "Construct@BoundFunction" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict(1,2)]
+syntax KItem /* Oid */ ::= "Construct@BoundFunction" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
 rule Construct@BoundFunction(F:Oid, Args:Vals)
   => BEGIN
      Let $target    =             GetInternalProperty(F, "TargetFunction");
@@ -291,7 +291,7 @@ rule Construct@BoundFunction(F:Oid, Args:Vals)
 // 15.3.4.5.3 [[HasInstance]] (V)
 
 // TODO:STD: step 2
-syntax KItem /* Bool */ ::= "HasInstance@BoundFunction" "(" K /* Oid */ "," K /* Val */ ")" [seqstrict(1,2)]
+syntax KItem /* Bool */ ::= "HasInstance@BoundFunction" "(" K /* Oid */ "," K /* Val */ ")" [seqstrict]
 rule HasInstance@BoundFunction(F:Oid, V:Val)
   => BEGIN
      Let $target = GetInternalProperty(F, "TargetFunction");
@@ -302,7 +302,7 @@ rule HasInstance@BoundFunction(F:Oid, V:Val)
 
 // 15.3.5.3 [[HasInstance]] (V)
 
-syntax KItem /* Bool */ ::= "HasInstance" "(" K "," K ")" [seqstrict(1,2)]
+syntax KItem /* Bool */ ::= "HasInstance" "(" K "," K ")" [seqstrict]
 rule HasInstance(F:Oid, V:Val)
   => BEGIN
      If @IsBoundFunction(F) = true then {
@@ -312,7 +312,7 @@ rule HasInstance(F:Oid, V:Val)
      }
      END
 
-syntax KItem /* Bool */ ::= "HasInstance@Default" "(" K "," K ")" [seqstrict(1,2)]
+syntax KItem /* Bool */ ::= "HasInstance@Default" "(" K "," K ")" [seqstrict]
 syntax Id ::= "$o"
 rule HasInstance@Default(F:Oid,V:Val)
   => BEGIN
@@ -329,11 +329,11 @@ rule HasInstance@Default(F:Oid,V:Val)
      END
 
 // TODO: Duplicated: Object.isPrototypeOf
-syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" K /* Oid */ "," K /* Oid */ ")" [seqstrict(1,2)]
+syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" K /* Oid */ "," K /* Oid */ ")" [seqstrict]
 rule @IsPrototypeOf(O:Oid,V:Oid)
   => @IsPrototypeOfAux(O,GetInternalProperty(V,"Prototype"))
 
-syntax KItem /* Bool */ ::= "@IsPrototypeOfAux" "(" K "," K ")" [seqstrict(1,2)]
+syntax KItem /* Bool */ ::= "@IsPrototypeOfAux" "(" K "," K ")" [seqstrict]
 rule @IsPrototypeOfAux(O:Oid,V:Oid)
   => BEGIN
      If V = @NullOid then {
@@ -361,11 +361,11 @@ rule Call(@ArrayOid, _, Vs:Vals) => @NewArray(Vs)
 
 rule Construct(@ArrayOid, Vs:Vals) => @NewArray(Vs)
 
-syntax KItem /* Oid */ ::= "@NewArray" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewArray" "(" K /* Vals */ ")" [seqstrict]
 rule @NewArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs) when #@LengthVals(Vs) =/=Int 1
 rule @NewArray(@Cons(V:Val,@Nil)) => @CreateArray(1, @Cons(V:Val,@Nil)) when notBool(isInt(V) ==K true)
 
-syntax KItem /* Oid */ ::= "@CreateArray" "(" K /* Int */ "," K /* Vals */ ")" [seqstrict(1,2)]
+syntax KItem /* Oid */ ::= "@CreateArray" "(" K /* Int */ "," K /* Vals */ ")" [seqstrict]
 rule <k> @CreateArray(Len:Int, Vs:Vals) => @CreateArray@InsertElements(@o(!N),Vs,0) ... </k>
      <objs>
        (. => <obj>
@@ -382,7 +382,7 @@ rule <k> @CreateArray(Len:Int, Vs:Vals) => @CreateArray@InsertElements(@o(!N),Vs
        _
      </objs>
 
-syntax KItem /* Oid */ ::= "@CreateArray@InsertElements" "(" K /* Oid */ "," K /* Vals */ "," K /* Int */ ")" [seqstrict(1,2,3)]
+syntax KItem /* Oid */ ::= "@CreateArray@InsertElements" "(" K /* Oid */ "," K /* Vals */ "," K /* Int */ ")" [seqstrict]
 rule     @CreateArray@InsertElements(O:Oid, @Nil, _) => O
 rule <k> @CreateArray@InsertElements(O:Oid, @Cons(V:Val,Vs:Vals), I:Int) => @CreateArray@InsertElements(O, Vs, I +Int 1) ... </k>
      <obj>
@@ -402,13 +402,13 @@ rule @NewArray(@Cons(Len:Int,@Nil)) => @CreateArray(Len, @Nil)
 // 15.4.X make Array
 // NOTE: @MakeArray differs from @NewArray in that it simply creates array object given arguments instead of distinguishing the single argument case
 
-syntax KItem /* Oid */ ::= "@MakeArray" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@MakeArray" "(" K /* Vals */ ")" [seqstrict]
 rule @MakeArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs)
 
 // 15.4.5 Properties of Array Instances
 
 // TODO: Duplicated: Array.isArray
-syntax KItem /* Bool */ ::= "@IsArrayObject" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem /* Bool */ ::= "@IsArrayObject" "(" K /* Oid */ ")" [seqstrict]
 rule <k> @IsArrayObject(O:Oid) => Class ==String "Array" ... </k>
      <obj>
        <oid> O </oid>
@@ -432,7 +432,7 @@ rule <k> @IsArrayObject(O:Oid) => Class ==String "Array" ... </k>
 // If P is 'length' and new length value < length, then delete all elements whose index >= new length.
 //   If some elements cannot be deleted, then set the new length value to the largest element's index + 1.
 
-syntax KItem /* Bool */ ::= "DefineOwnProperty@Array" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict(1,2,3,4)]
+syntax KItem /* Bool */ ::= "DefineOwnProperty@Array" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict]
 syntax Id ::= "$oldLenDesc" | "$oldLen" | "$newLenDesc" | "$newLen" | "$succeeded" | "$succeeded2"
 rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
   => BEGIN
@@ -508,10 +508,10 @@ rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
      }
      END
 
-syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" K /* Var */ ")" [seqstrict(1)]
+syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" K /* Var */ ")" [seqstrict]
 rule @IsArrayIndex(P:Var) => @EqVal(ToString(ToUint32(P)), P) /* TODO:STD: and ToUint32(P) =/=K 2^32 - 1 */
 
-syntax KItem /* Bool */ ::= "DefineOwnProperty@Array@DeleteOthers" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ "," K /* PropertyDescriptor */ "," K /* Val */ "," K /* Val */ ")" [seqstrict(1,2,3,4,5,6,7)]
+syntax KItem /* Bool */ ::= "DefineOwnProperty@Array@DeleteOthers" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ "," K /* PropertyDescriptor */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
 syntax Id ::= "$deleteSucceeded"
 rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool,NewLenDesc:PropertyDescriptor,NewLen:Val,OldLen:Val)
   => BEGIN
@@ -541,7 +541,7 @@ rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Th
 
 rule Call(@StringOid, _, Vs:Vals) => @CallString(Vs)
 
-syntax KItem /* String */ ::= "@CallString" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* String */ ::= "@CallString" "(" K /* Vals */ ")" [seqstrict]
 rule @CallString(@Cons(V:Val,_:Vals)) => ToString(V)
 rule @CallString(            @Nil   ) => ""
 
@@ -549,11 +549,11 @@ rule @CallString(            @Nil   ) => ""
 
 rule Construct(@StringOid, Vs:Vals) => @NewString(Vs)
 
-syntax KItem /* Oid */ ::= "@NewString" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewString" "(" K /* Vals */ ")" [seqstrict]
 rule @NewString(@Cons(V:Val,_:Vals)) => @CreateString(ToString(V))
 rule @NewString(            @Nil   ) => @CreateString("")
 
-syntax KItem /* Oid */ ::= "@CreateString" "(" K /* String */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CreateString" "(" K /* String */ ")" [seqstrict]
 rule <k> @CreateString(S:String) => @o(!N) ... </k>
      <objs>
        (. => <obj>
@@ -573,7 +573,7 @@ rule <k> @CreateString(S:String) => @o(!N) ... </k>
 
 // 15.5.5 Properties of String Instances
 
-syntax KItem /* Bool */ ::= "@IsStringObject" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem /* Bool */ ::= "@IsStringObject" "(" K /* Oid */ ")" [seqstrict]
 rule <k> @IsStringObject(O:Oid) => Class ==String "String" ... </k>
      <obj>
        <oid> O </oid>
@@ -586,7 +586,7 @@ rule <k> @IsStringObject(O:Oid) => Class ==String "String" ... </k>
 
 // 15.5.5.2 [[GetOwnProperty]] ( P )
 
-syntax KItem /* Val */ ::= "GetOwnProperty@String" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict(1,2)]
+syntax KItem /* Val */ ::= "GetOwnProperty@String" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
 syntax Id ::= "$index" | "$resultStr"
 rule GetOwnProperty@String(O:Oid,P:Var)
   => BEGIN
@@ -618,7 +618,7 @@ rule GetOwnProperty@String(O:Oid,P:Var)
 
 rule Call(@BooleanOid, _, Vs:Vals) => @CallBoolean(Vs)
 
-syntax KItem /* Boolean */ ::= "@CallBoolean" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Boolean */ ::= "@CallBoolean" "(" K /* Vals */ ")" [seqstrict]
 rule @CallBoolean(@Cons(V:Val,_:Vals)) => ToBoolean(V)
 rule @CallBoolean(            @Nil   ) => false
 
@@ -626,11 +626,11 @@ rule @CallBoolean(            @Nil   ) => false
 
 rule Construct(@BooleanOid, Vs:Vals) => @NewBoolean(Vs)
 
-syntax KItem /* Oid */ ::= "@NewBoolean" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewBoolean" "(" K /* Vals */ ")" [seqstrict]
 rule @NewBoolean(@Cons(V:Val,_:Vals)) => @CreateBoolean(ToBoolean(V))
 rule @NewBoolean(            @Nil   ) => @CreateBoolean(false) // TODO: Report: This is not specified in standard.
 
-syntax KItem /* Oid */ ::= "@CreateBoolean" "(" K /* Bool */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CreateBoolean" "(" K /* Bool */ ")" [seqstrict]
 rule <k> @CreateBoolean(B:Bool) => @o(!N) ... </k>
      <objs>
        (. => <obj>
@@ -653,7 +653,7 @@ rule <k> @CreateBoolean(B:Bool) => @o(!N) ... </k>
 
 rule Call(@NumberOid, _, Vs:Vals) => @CallNumber(Vs)
 
-syntax KItem /* Number */ ::= "@CallNumber" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Number */ ::= "@CallNumber" "(" K /* Vals */ ")" [seqstrict]
 rule @CallNumber(@Cons(V:Val,_:Vals)) => ToNumber(V)
 rule @CallNumber(            @Nil   ) => 0
 
@@ -661,11 +661,11 @@ rule @CallNumber(            @Nil   ) => 0
 
 rule Construct(@NumberOid, Vs:Vals) => @NewNumber(Vs)
 
-syntax KItem /* Oid */ ::= "@NewNumber" "(" K /* Val */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewNumber" "(" K /* Val */ ")" [seqstrict]
 rule @NewNumber(@Cons(V:Val,_:Vals)) => @CreateNumber(ToNumber(V))
 rule @NewNumber(            @Nil   ) => @CreateNumber(0)
 
-syntax KItem /* Oid */ ::= "@CreateNumber" "(" K /* Bool */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CreateNumber" "(" K /* Bool */ ")" [seqstrict]
 rule <k> @CreateNumber(V:Number) => @o(!N) ... </k>
      <objs>
        (. => <obj>
@@ -683,7 +683,7 @@ rule <k> @CreateNumber(V:Number) => @o(!N) ... </k>
 
 // 15.7.4.5 Number.prototype.toFixed (fractionDigits)
 
-syntax KItem /* String */ ::= "@NumberPrototypeToFixed" "(" K /* Oid */ "," K /* Int */ ")" [seqstrict(1,2)]
+syntax KItem /* String */ ::= "@NumberPrototypeToFixed" "(" K /* Oid */ "," K /* Int */ ")" [seqstrict]
 rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01new Number(" +String Int2String(I) +String ").toFixed(" +String Int2String(D) +String ")") ... </k>
      <obj>
        <oid> O </oid>
@@ -712,7 +712,7 @@ rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01
 
 // 15.8.2.9 floor (x)
 
-syntax KItem ::= "@MathFloor" "(" K /* Number */ ")" [seqstrict(1)]
+syntax KItem ::= "@MathFloor" "(" K /* Number */ ")" [seqstrict]
 rule @MathFloor(I:Int)      => I
 rule @MathFloor(F:Float)    => Float2Int(F)
 rule @MathFloor(@nz)        => @nz
@@ -723,7 +723,7 @@ rule @MathFloor(@-Infinity) => @-Infinity
 // 15.8.2.13 pow (x, y)
 
 // TODO:STD: other cases
-syntax KItem ::= "@MathPow" "(" K /* Number */ "," K /* Number */ ")" [seqstrict(1,2)]
+syntax KItem ::= "@MathPow" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
 rule @MathPow(I1:Int,  I2:Int)   => I1 ^Int   I2
 rule @MathPow(F1:Float,F2:Float) => F1 ^Float F2
 rule @MathPow(_:Number,@NaN) => @NaN
@@ -731,10 +731,10 @@ rule @MathPow(_:Number,@NaN) => @NaN
 // 15.8.2.16 sin (x)
 
 // TODO:STD: hack
-syntax KItem ::= "@MathSin" "(" K /* Number */ ")" [seqstrict(1)]
+syntax KItem ::= "@MathSin" "(" K /* Number */ ")" [seqstrict]
 rule @MathSin(N:Number) => @MathSinAux(ToString(N))
 //
-syntax KItem ::= "@MathSinAux" "(" K /* String */ ")" [seqstrict(1)]
+syntax KItem ::= "@MathSinAux" "(" K /* String */ ")" [seqstrict]
 rule @MathSinAux(N:String) => ToNumber(#external("node\x01-p\x01-e\x01Math.sin(" +String N +String ")"))
 
 //////////////////////////////////////////////////////////////////////////////
@@ -754,7 +754,7 @@ rule Call(@DateOid, _, _:Vals) => %call(%mem(%new(%var("Date"), %nil), %con("toS
 rule Construct(@DateOid, @Cons(V:Val,@Nil)) => @CreateDate(TimeClip(ToNumber(V)))
 rule Construct(@DateOid,             @Nil ) => @CreateDate(0) // HACK: 0 is used instead of the current time in milli-seconds
 
-syntax KItem /* Oid */ ::= "@CreateDate" "(" K /* Number */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CreateDate" "(" K /* Number */ ")" [seqstrict]
 rule <k> @CreateDate(V:Number) => @o(!N) ... </k>
      <objs>
        (. => <obj>
@@ -773,7 +773,7 @@ rule <k> @CreateDate(V:Number) => @o(!N) ... </k>
 // 15.9.1.14 TimeClip (time)
 
 // TODO:STD: Consider Step 2. If abs(N) > 8.64 * 10^15, return NaN.
-syntax KItem /* Number */ ::= "TimeClip" "(" K /* Number */ ")" [seqstrict(1)]
+syntax KItem /* Number */ ::= "TimeClip" "(" K /* Number */ ")" [seqstrict]
 rule TimeClip(N:Number)
   => BEGIN
      If @IsFinite(N) = true then {
@@ -783,13 +783,13 @@ rule TimeClip(N:Number)
      }
      END
 
-syntax KItem /* Bool */ ::= "@IsFinite" "(" K /* Number */ ")" [seqstrict(1)]
+syntax KItem /* Bool */ ::= "@IsFinite" "(" K /* Number */ ")" [seqstrict]
 rule @IsFinite(N:Number) => N =/=K @NaN andBool N =/=K @+Infinity andBool N =/=K @-Infinity
 
 // 15.9.5.2 Date.prototype.toString ( )
 
 // TODO:STD: HACK
-syntax KItem /* String */ ::= "@DatePrototypeToString" "(" K /* Oid */ ")" [seqstrict(1)]
+syntax KItem /* String */ ::= "@DatePrototypeToString" "(" K /* Oid */ ")" [seqstrict]
 rule @DatePrototypeToString(O:Oid) => "[date ...]"
 
 //////////////////////////////////////////////////////////////////////////////
@@ -833,11 +833,11 @@ rule Call(@ErrorOid, _, Vs:Vals) => @NewError(Vs)
 
 rule Construct(@ErrorOid, Vs:Vals) => @NewError(Vs)
 
-syntax KItem /* Oid */ ::= "@NewError" "(" K /* Vals */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@NewError" "(" K /* Vals */ ")" [seqstrict]
 rule @NewError(@Cons(V:Val,_:Vals)) => @CreateError(ToString(V))
 rule @NewError(            @Nil   ) => @CreateError("")
 
-syntax KItem /* Oid */ ::= "@CreateError" "(" K /* String */ ")" [seqstrict(1)]
+syntax KItem /* Oid */ ::= "@CreateError" "(" K /* String */ ")" [seqstrict]
 rule <k> @CreateError(Msg:String) => @o(!N) ... </k>
      <objs>
        (. => <obj>
@@ -878,7 +878,7 @@ rule Construct(NativeError:Oid, Vs:Vals) => @NewNativeError(NativeError, Vs)
    orBool (NativeError ==K @TypeErrorOid     )
    orBool (NativeError ==K @URIErrorOid      )
 
-syntax KItem /* Oid */ ::= "@NewNativeError" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict(1,2)]
+syntax KItem /* Oid */ ::= "@NewNativeError" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
 rule @NewNativeError(NativeError:Oid, @Cons(V:Val,_)) => @CreateNativeError(NativeError, ToString(V), "@NewNativeError") // NOTE: multiple arguments are allowed: e.g. ch12/12.14/S12.14_A19_T2.js; ch12/12.14/S12.14_A19_T1.js
 rule @NewNativeError(NativeError:Oid, @Nil)           => @CreateNativeError(NativeError, "",           "@NewNativeError")
 
