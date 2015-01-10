@@ -204,7 +204,7 @@ rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
          Do Call(Func,ThisArg,@Nil);
        } else {
          If @IsOid(ArgArray) = true then {
-           Do Call(Func, ThisArg, @Array2List(ArgArray:>Oid));
+           Do Call(Func, ThisArg, @Array2List(ArgArray));
          } else {
            Do @Throw(@TypeError("Function.prototype.apply: argArray is not an object",Func));
          }
@@ -319,7 +319,7 @@ rule HasInstance@Default(F:Oid,V:Val)
      If @IsOid(V) = true then {
        Let $o = Get(F,"prototype");
        If @IsOid($o) = true then {
-         Return @IsPrototypeOf($o, V:>Oid);
+         Return @IsPrototypeOf($o, V);
        } else {
          Do @Throw(@TypeError("HasInstance@Default",F));
        }
@@ -592,9 +592,9 @@ rule GetOwnProperty@String(O:Oid,P:Var)
   => BEGIN
      Let $desc = GetOwnProperty@Default(O,P);
      If $desc = Undefined then {
-       If ToString(ToInteger(P:>Val)) = P then { // TODO:STD: it should have been 'ToString(abs(ToInteger(P)))'
+       If ToString(ToInteger(P)) = P then { // TODO:STD: it should have been 'ToString(abs(ToInteger(P)))'
          Let $str = GetInternalProperty(O,"PrimitiveValue");
-         Let $index = ToInteger(P:>Val);
+         Let $index = ToInteger(P);
          Let $len = @LengthString($str);
        //If $len <=Int $index = true then {
          If @OrBool(@Bop(%lt,$index,0), @Bop(%ge,$index,$len)) = true then {
@@ -683,7 +683,7 @@ rule <k> @CreateNumber(V:Number) => @o(!N) ... </k>
 
 // 15.7.4.5 Number.prototype.toFixed (fractionDigits)
 
-syntax KItem /* String */ ::= "@NumberPrototypeToFixed" "(" Oid "," K /* Int */ ")" [seqstrict(2)]
+syntax KItem /* String */ ::= "@NumberPrototypeToFixed" "(" K /* Oid */ "," K /* Int */ ")" [seqstrict(1,2)]
 rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01new Number(" +String Int2String(I) +String ").toFixed(" +String Int2String(D) +String ")") ... </k>
      <obj>
        <oid> O </oid>
@@ -1019,7 +1019,7 @@ rule <k> Call(@("NoConstructor"), Undefined, @Cons(O:Val,@Nil)) => Undefined ...
 
 rule Call(@("GetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Nil)))
   => BEGIN
-     Let $v = GetInternalProperty(O:>Oid,P:>Var);
+     Let $v = GetInternalProperty(O,P);
      If @AndBool(@EqVal(P,"Prototype"), @EqVal($v,@NullOid)) = true then {
         Return @NullVal;
      } else {
@@ -1029,9 +1029,9 @@ rule Call(@("GetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Nil)))
 rule Call(@("SetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Cons(V:Val,@Nil))))
   => BEGIN
      If @AndBool(@EqVal(P,"Prototype"), @EqVal(V,@NullVal)) = true then {
-       Do SetInternalProperty(O:>Oid,P:>Var,@NullOid);
+       Do SetInternalProperty(O,P,@NullOid);
      } else {
-       Do SetInternalProperty(O:>Oid,P:>Var,V);
+       Do SetInternalProperty(O,P,V);
      }
      Return Undefined;
      END
@@ -1044,29 +1044,29 @@ rule Call(@(  "ToPropertyDescriptor"), Undefined, @Cons(V:Val,@Nil)) =>   ToProp
 
 rule Call(@("CheckObjectCoercible"),   Undefined, @Cons(V:Val,@Nil)) => CheckObjectCoercible(V) ~> Undefined
 
-rule Call(@("ObjectGetOwnPropertyNames"),  Undefined, @Cons(O:Val,@Nil)) => @ObjectGetOwnPropertyNames(O:>Oid)
+rule Call(@("ObjectGetOwnPropertyNames"),  Undefined, @Cons(O:Val,@Nil)) => @ObjectGetOwnPropertyNames(O)
 
-rule Call(@("FunctionPrototypeToString"),  Undefined, @Cons(Func:Val,@Nil)) => @FunctionPrototypeToString(Func:>Oid)
+rule Call(@("FunctionPrototypeToString"),  Undefined, @Cons(Func:Val,@Nil)) => @FunctionPrototypeToString(Func)
 rule Call(@("FunctionPrototypeApply"   ),  Undefined, @Cons(Func:Val,@Cons(ThisArg:Val,@Cons(ArgArray:Val,@Nil)))) => @FunctionPrototypeApply(Func,ThisArg,ArgArray)
 rule Call(@("FunctionPrototypeBind"    ),  Undefined, @Cons(Func:Val,@Cons(ThisArg:Val,@Cons(ArgArray:Val,@Nil)))) => @FunctionPrototypeBind(Func,ThisArg,ArgArray)
 
-rule Call(@("NumberPrototypeToFixed"), Undefined, @Cons(O:Val,@Cons(V:Val,@Nil))) => @NumberPrototypeToFixed(O:>Oid, ToInteger(V))
+rule Call(@("NumberPrototypeToFixed"), Undefined, @Cons(O:Val,@Cons(V:Val,@Nil))) => @NumberPrototypeToFixed(O, ToInteger(V))
 
-rule Call(@("MathFloor"),          Undefined, @Cons(N:Val,@Nil)) => @MathFloor(N:>Number)
-rule Call(@("MathPow"),            Undefined, @Cons(N1:Val,@Cons(N2:Val,@Nil))) => @MathPow(N1:>Number, N2:>Number)
-rule Call(@("MathSin"),            Undefined, @Cons(N:Val,@Nil)) => @MathSin(N:>Number)
+rule Call(@("MathFloor"),          Undefined, @Cons(N:Val,@Nil)) => @MathFloor(N)
+rule Call(@("MathPow"),            Undefined, @Cons(N1:Val,@Cons(N2:Val,@Nil))) => @MathPow(N1, N2)
+rule Call(@("MathSin"),            Undefined, @Cons(N:Val,@Nil)) => @MathSin(N)
 
-rule Call(@("DatePrototypeToString"), Undefined, @Cons(O:Val,@Nil)) => @DatePrototypeToString(O:>Oid)
+rule Call(@("DatePrototypeToString"), Undefined, @Cons(O:Val,@Nil)) => @DatePrototypeToString(O)
 
 rule Call(@("LengthString"),       Undefined, @Cons(S:Val,@Nil)) => lengthString(S:>String)
 rule Call(@("Trim"),               Undefined, @Cons(S:Val,@Nil)) => trim(S:>String) // TODO:STD: check the builtin's trim has correct whitespaces and lineterminators.
-rule Call(@("Int2Char"),           Undefined, @Cons(I:Val,@Nil)) => @Int2Char(I:>Int)
-rule Call(@("Char2Int"),           Undefined, @Cons(S:Val,@Nil)) => @Char2Int(S:>String)
-rule Call(@("CharAt"),             Undefined, @Cons(S:Val,@Cons(N:Val,@Nil))) => @CharAt(S:>String, N:>Number)
-rule Call(@("FindString"),         Undefined, @Cons(S1:Val,@Cons(S2:Val,@Cons(I:Val,@Nil)))) => @FindString(S1:>String, S2:>String, I:>Int)
-rule Call(@("SubstrString"),       Undefined, @Cons(S:Val,@Cons(I1:Val,@Cons(I2:Val,@Nil)))) => @SubstrString(S:>String, I1:>Int, I2:>Int)
+rule Call(@("Int2Char"),           Undefined, @Cons(I:Val,@Nil)) => @Int2Char(I)
+rule Call(@("Char2Int"),           Undefined, @Cons(S:Val,@Nil)) => @Char2Int(S)
+rule Call(@("CharAt"),             Undefined, @Cons(S:Val,@Cons(N:Val,@Nil))) => @CharAt(S, N)
+rule Call(@("FindString"),         Undefined, @Cons(S1:Val,@Cons(S2:Val,@Cons(I:Val,@Nil)))) => @FindString(S1, S2, I)
+rule Call(@("SubstrString"),       Undefined, @Cons(S:Val,@Cons(I1:Val,@Cons(I2:Val,@Nil)))) => @SubstrString(S, I1, I2)
 
-rule Call(@("NumberToString"),     Undefined, @Cons(N:Val,@Cons(R:Val,@Nil))) => @NumberToString(N:>Number, R:>Int)
+rule Call(@("NumberToString"),     Undefined, @Cons(N:Val,@Cons(R:Val,@Nil))) => @NumberToString(N, R)
 
 rule Call(@("Print"),              Undefined, @Cons(V:Val,@Nil)) => @PrintNewline(V)
 
