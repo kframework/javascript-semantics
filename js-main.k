@@ -4117,4 +4117,7 @@ syntax KItem ::= "#externalError" "(" String ")"
 syntax KItem /* Exp */ ::= "@Bop" "(" OpNormal "," K /* Val */ "," K /* Val */ ")" [seqstrict(2,3)]
 rule @Bop(OP:OpNormal,V1:Val,V2:Val) => %bop(OP,V1,V2)
 
+syntax KItem /* Vals */ ::= "@MakeCons" "(" K /* Val */ "," K /* Vals */ ")" [seqstrict(1,2)]
+rule @MakeCons(V:Val,Vs:Vals) => @Cons(V,Vs)
+
 endmodule

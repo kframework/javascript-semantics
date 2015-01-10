@@ -229,7 +229,7 @@ rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
        Return Args;
      } else {
        Let $v = Get(ArgArray, ToString(N));
-       Do @Array2ListAux(ArgArray, N -Int 1, @Cons($v:>Val, Args));
+       Do @Array2ListAux(ArgArray, N -Int 1, @MakeCons($v, Args));
      }
      END
 
