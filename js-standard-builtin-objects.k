@@ -168,8 +168,8 @@ syntax KItem /* Oid */ ::= "@CreateFunction" "(" Exps "," Stmt ")"
 rule <k> @CreateFunction(Params:Exps,FunBody:Stmt)
       => BEGIN
          Let $strict = #@IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
-         Do @CheckEarlyErrors($strict:>Bool, FunBody);
-         Do @CreateFunctionObject(Params, FunBody, E, $strict:>Bool);
+         Do @CheckEarlyErrors($strict, FunBody);
+         Do @CreateFunctionObject(Params, FunBody, E, $strict);
          END
      ... </k>
      <ctx>
@@ -217,7 +217,7 @@ syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict(1)]
 rule @Array2List(ArgArray:Oid)
   => BEGIN
      Let $len = Get(ArgArray,"length");
-     Let $n = ToUint32($len:>Val);
+     Let $n = ToUint32($len);
      Do @Array2ListAux(ArgArray, @Bop(%minus, $n, 1), @Nil);
      END
 //
@@ -243,14 +243,14 @@ rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
        Do @Throw(@TypeError("Function.prototype.bind",Func));
      } else {
        Let $f = @CreateObject;
-       Do SetInternalProperty($f:>Oid, "TargetFunction", Func);
-       Do SetInternalProperty($f:>Oid, "BoundThis", ThisArg);
-       Do SetInternalProperty($f:>Oid, "BoundArgs", ArgArray);
-       Do SetInternalProperty($f:>Oid, "Class", "Function");
-       Do SetInternalProperty($f:>Oid, "Prototype", @FunctionProtoOid);
+       Do SetInternalProperty($f, "TargetFunction", Func);
+       Do SetInternalProperty($f, "BoundThis", ThisArg);
+       Do SetInternalProperty($f, "BoundArgs", ArgArray);
+       Do SetInternalProperty($f, "Class", "Function");
+       Do SetInternalProperty($f, "Prototype", @FunctionProtoOid);
        // TODO:STD: step 15-17
-       DoI DefineOwnProperty($f:>Oid, "caller",    @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
-       DoI DefineOwnProperty($f:>Oid, "arguments", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+       DoI DefineOwnProperty($f, "caller",    @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+       DoI DefineOwnProperty($f, "arguments", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
        Return $f;
      }
      END
@@ -273,7 +273,7 @@ rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
      Let $boundThis =             GetInternalProperty(F, "BoundThis");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
      Let $args = @AppendVals($boundArgs, Args);
-     Return Call@Default($target:>Oid, $boundThis:>Val, $args:>Vals);
+     Return Call@Default($target, $boundThis, $args);
      END
 
 // 15.3.4.5.2 [[Construct]]
@@ -285,7 +285,7 @@ rule Construct@BoundFunction(F:Oid, Args:Vals)
      Let $target    =             GetInternalProperty(F, "TargetFunction");
      Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
      Let $args = @AppendVals($boundArgs, Args);
-     Return Construct@Default($target:>Oid, $args:>Vals);
+     Return Construct@Default($target, $args);
      END
 
 // 15.3.4.5.3 [[HasInstance]] (V)
@@ -295,7 +295,7 @@ syntax KItem /* Bool */ ::= "HasInstance@BoundFunction" "(" K /* Oid */ "," K /*
 rule HasInstance@BoundFunction(F:Oid, V:Val)
   => BEGIN
      Let $target = GetInternalProperty(F, "TargetFunction");
-     Return HasInstance@Default($target:>Oid, V);
+     Return HasInstance@Default($target, V);
      END
 
 // 15.3.5 Properties of Function Instances
@@ -319,7 +319,7 @@ rule HasInstance@Default(F:Oid,V:Val)
      If @IsOid(V) = true then {
        Let $o = Get(F,"prototype");
        If @IsOid($o) = true then {
-         Return @IsPrototypeOf($o:>Oid, V:>Oid);
+         Return @IsPrototypeOf($o, V:>Oid);
        } else {
          Do @Throw(@TypeError("HasInstance@Default",F));
        }
@@ -596,11 +596,11 @@ rule GetOwnProperty@String(O:Oid,P:Var)
          Let $str = GetInternalProperty(O,"PrimitiveValue");
          Let $index = ToInteger(P:>Val);
          Let $len = @LengthString($str);
-       //If $len:>Int <=Int $index:>Int = true then {
+       //If $len <=Int $index = true then {
          If @OrBool(@Bop(%lt,$index,0), @Bop(%ge,$index,$len)) = true then {
            Return Undefined;
          } else {
-           Let $resultStr = @CharAt($str:>String, $index:>Number);
+           Let $resultStr = @CharAt($str, $index);
            Return @GenDesc("Value", $resultStr, "Enumerable", true, "Writable", false, "Configurable", false);
          }
        } else {

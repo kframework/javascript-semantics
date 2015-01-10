@@ -347,7 +347,7 @@ syntax KItem /* Val */ ::= "GetPrimitive" "(" K /* Primitive */ "," K /* Var */ 
 rule GetPrimitive(Base:Primitive,P:Var)
   => BEGIN
      Let $o = ToObject(Base);
-     Let $desc = GetProperty($o:>Oid,P);
+     Let $desc = GetProperty($o,P);
      If $desc = Undefined then {
        Return Undefined;
      } else {
@@ -390,14 +390,14 @@ syntax KItem /* Val */ ::= "PutPrimitive" "(" K /* Primitive */ "," K /* Var */ 
 rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
   => BEGIN
      Let $o = ToObject(Base);
-     If CanPut($o:>Oid,P) = false then {
+     If CanPut($o,P) = false then {
        If Throw = true then {
          Do @Throw(@TypeError("PutPrimitive, cannot put",PutPrimitive(Base,P,V,Throw)));
        } else {
          Return;
        }
      } else {
-       Let $ownDesc = GetOwnProperty($o:>Oid,P);
+       Let $ownDesc = GetOwnProperty($o,P);
        If IsDataDescriptor($ownDesc) = true then {
          // NOTE: different from [[Put]]: do not put value
          If Throw = true then {
@@ -406,10 +406,10 @@ rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
            Return;
          }
        } else {
-         Let $desc = GetProperty($o:>Oid,P);
+         Let $desc = GetProperty($o,P);
          If IsAccessorDescriptor($desc) = true then {
            Let $setter = $desc."Set";
-           DoI Call($setter:>Oid,Base,@Cons(V,@Nil)); // NOTE: different from [[Put]]: use 'Base' instead of '$o'
+           DoI Call($setter,Base,@Cons(V,@Nil)); // NOTE: different from [[Put]]: use 'Base' instead of '$o'
          } else {
            // NOTE: different from [[Put]]: do not put value
            If Throw = true then {
@@ -523,12 +523,12 @@ syntax Id ::= "$desc0" | "$desc1" | "$desc2" | "$desc3" | "$desc4" | "$desc5" | 
 rule ToPropertyDescriptor(O:Oid)
   => BEGIN
      Let $desc0 = @desc(.Map);
-     Let $desc1 = ToPropertyDescriptorAux(O,"enumerable",  $desc0:>PropertyDescriptor,"Enumerable");
-     Let $desc2 = ToPropertyDescriptorAux(O,"configurable",$desc1:>PropertyDescriptor,"Configurable");
-     Let $desc3 = ToPropertyDescriptorAux(O,"value",       $desc2:>PropertyDescriptor,"Value");
-     Let $desc4 = ToPropertyDescriptorAux(O,"writable",    $desc3:>PropertyDescriptor,"Writable");
-     Let $desc5 = ToPropertyDescriptorAux(O,"get",         $desc4:>PropertyDescriptor,"Get");
-     Let $desc6 = ToPropertyDescriptorAux(O,"set",         $desc5:>PropertyDescriptor,"Set");
+     Let $desc1 = ToPropertyDescriptorAux(O,"enumerable",  $desc0,"Enumerable");
+     Let $desc2 = ToPropertyDescriptorAux(O,"configurable",$desc1,"Configurable");
+     Let $desc3 = ToPropertyDescriptorAux(O,"value",       $desc2,"Value");
+     Let $desc4 = ToPropertyDescriptorAux(O,"writable",    $desc3,"Writable");
+     Let $desc5 = ToPropertyDescriptorAux(O,"get",         $desc4,"Get");
+     Let $desc6 = ToPropertyDescriptorAux(O,"set",         $desc5,"Set");
      If IsValidDescriptor($desc6) = true then {
        Return $desc6;
      } else {
@@ -777,7 +777,7 @@ rule CanPut(O:Oid,P:Var)
        If $proto = @NullOid then {
          Return GetInternalProperty(O,"Extensible");
        } else {
-         Let $inherited = GetProperty($proto:>Oid,P);
+         Let $inherited = GetProperty($proto,P);
          If $inherited = Undefined then {
            Return GetInternalProperty(O,"Extensible");
          } else {
@@ -826,15 +826,15 @@ rule Put(O:Oid,P:Var,V:Val,Throw:Bool)
        Let $ownDesc = GetOwnProperty(O,P);
        If IsDataDescriptor($ownDesc) = true then {
          Let $valueDesc = @desc("Value" |-> V);
-         DoI DefineOwnProperty(O,P,$valueDesc:>PropertyDescriptor,Throw);
+         DoI DefineOwnProperty(O,P,$valueDesc,Throw);
        } else {
          Let $desc = GetProperty(O,P);
          If IsAccessorDescriptor($desc) = true then {
            Let $setter = $desc."Set";
-           DoI Call($setter:>Oid,O,@Cons(V,@Nil));
+           DoI Call($setter,O,@Cons(V,@Nil));
          } else {
            Let $newDesc = @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true);
-           DoI DefineOwnProperty(O,P,$newDesc:>PropertyDescriptor,Throw);
+           DoI DefineOwnProperty(O,P,$newDesc,Throw);
          }
        }
      }
@@ -1007,7 +1007,7 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
    //Do @LOG(DefineOwnProperty@Default(O,P,Desc,Throw));
      Let $current = GetOwnProperty(O,P);
    //Do @LOG($current);
-   //Do @LOG(IsDataDescriptor($current:>PropertyDescriptor));
+   //Do @LOG(IsDataDescriptor($current));
    //Do @LOG(IsDataDescriptor(Desc));
      Let $extensible = GetInternalProperty(O,"Extensible");
      If $current = Undefined then {
@@ -1026,7 +1026,7 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
          Return true;
        }
      } else {
-       If @SubDesc(Desc,$current:>PropertyDescriptor) = true then {
+       If @SubDesc(Desc,$current) = true then {
          Return true;
        } else {
          If $current."Configurable" = false then {
@@ -1187,9 +1187,9 @@ rule @StringToNumber(S:String)
        If @IsStrNumericLiteral(S) = true then {
          Let $isMinus = @IsMinus(S);
          Let $str = @RemoveLeadingZeros(@RemoveLeadingSign(S));
-         Let $num = @ResolveOverflow(@StringToNumber@Core($str:>String));
+         Let $num = @ResolveOverflow(@StringToNumber@Core($str));
          If $isMinus = true then {
-           Return @Bop(%times, -1, $num:>Number);
+           Return @Bop(%times, -1, $num);
          } else {
            Return $num;
          }
@@ -1208,7 +1208,7 @@ rule @StringToNumber@Core(S:String)
      } else {
        If @IsHexIntegerLiteral(S) = true then {
          Let $s = @SubstrString(S,1,lengthString(S));
-         Return @String2Base($s:>String, 16);
+         Return @String2Base($s, 16);
        } else {
          If @IsFloatLiteral(S) = true then {
            Return @String2Float(S);
@@ -1700,10 +1700,10 @@ syntax Id ::= "$strict"
 rule <k> @EnterEvalCode(Code:Stmt, true)
       => BEGIN
          Let $strict = #@IsStrict(Code) orBool Strict; // 10.1.1 Strict Mode Code, Case 2 (direct call to eval)
-         Do @CheckEarlyErrors($strict:>Bool, Code);
-         Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(E,$strict:>Bool), This);
-         Do @BindDeclarations("function",true,$strict:>Bool,Code);
-         Do @BindDeclarations("variable",true,$strict:>Bool,Code);
+         Do @CheckEarlyErrors($strict, Code);
+         Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(E,$strict), This);
+         Do @BindDeclarations("function",true,$strict,Code);
+         Do @BindDeclarations("variable",true,$strict,Code);
          END
      ... </k>
      <ctx>
@@ -1723,10 +1723,10 @@ rule <k> @EnterEvalCode(Code:Stmt, true)
 rule @EnterEvalCode(Code:Stmt, false)
   => BEGIN
      Let $strict = #@IsStrict(Code); // 10.1.1 Strict Mode Code, Case 2 (NOT direct call to eval)
-     Do @CheckEarlyErrors($strict:>Bool, Code);
-     Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(@GlobalEid,$strict:>Bool), @GlobalOid);
-     Do @BindDeclarations("function",true,$strict:>Bool,Code);
-     Do @BindDeclarations("variable",true,$strict:>Bool,Code);
+     Do @CheckEarlyErrors($strict, Code);
+     Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(@GlobalEid,$strict), @GlobalOid);
+     Do @BindDeclarations("function",true,$strict,Code);
+     Do @BindDeclarations("variable",true,$strict,Code);
      END
 
 syntax KItem /* Eid */ ::= "@NewDeclarativeEnvironmentForEval" "(" K /* Eid */ "," K /* Bool */ /* Strict? */ ")" [seqstrict(1,2)]
@@ -1896,10 +1896,10 @@ rule <k> @BindArgumentsObject(F:Oid,Args:Vals,Strict:Bool)
            Let $argsObj = @CreateArgumentsObject(F,Names,Args,E,Strict);
            If Strict = true then {
              Do CreateImmutableBinding(E,"arguments");
-             Do InitializeImmutableBinding(E,"arguments",$argsObj:>Val);
+             Do InitializeImmutableBinding(E,"arguments",$argsObj);
            } else {
              Do CreateMutableBinding(E,"arguments",false); // TODO: check if the third argument is false or not (not mentioned in the specification)
-             Do SetMutableBinding(E,"arguments",$argsObj:>Val,false);
+             Do SetMutableBinding(E,"arguments",$argsObj,false);
            }
          };
          END
@@ -1928,16 +1928,16 @@ rule @CreateArgumentsObject(Func:Oid, Names:Exps, Args:Vals, Env:Eid, Strict:Boo
   => BEGIN
      Let $len = #@LengthVals(Args);
      Let $obj = @CreateObject;
-     Do SetInternalProperty($obj:>Oid, "Class", "Arguments");
-     Do SetInternalProperty($obj:>Oid, "Strict", Strict); // NOTE: This is not specified in language standard, but added for our own @IsArgumentsObjectNonStrictWithFormalParams
+     Do SetInternalProperty($obj, "Class", "Arguments");
+     Do SetInternalProperty($obj, "Strict", Strict); // NOTE: This is not specified in language standard, but added for our own @IsArgumentsObjectNonStrictWithFormalParams
      DoI DefineOwnProperty($obj, "length", @GenDesc("Value", $len, "Writable", true, "Enumerable", false, "Configurable", true), false);
      Let $map = @CreateObject;
-     Do @BindActualParams($obj:>Oid, Args, 0);
+     Do @BindActualParams($obj, Args, 0);
      If Strict = false then {
-       Do @BindFormalParams($map:>Oid, Names, Args, Env, 0);
+       Do @BindFormalParams($map, Names, Args, Env, 0);
      };
      If #@Length(Names) >Int 0 = true then {
-       Do SetInternalProperty($obj:>Oid, "ParameterMap", $map:>Val);
+       Do SetInternalProperty($obj, "ParameterMap", $map);
      };
      If Strict = true then {
        DoI DefineOwnProperty($obj, "caller", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
@@ -2009,7 +2009,7 @@ rule Get@Arguments(O:Oid,P:Var)
      If $isMapped = Undefined then {
        Return Get@Default(O,P); // TODO: consider step 3.b
      } else {
-       Return Get($map:>Oid,P);
+       Return Get($map,P);
      }
      END
 
@@ -2026,7 +2026,7 @@ rule GetOwnProperty@Arguments(O:Oid,P:Var)
        If $isMapped = Undefined then {
          Return $desc;
        } else {
-         Return @AddDesc("Value", Get($map:>Oid,P), $desc);
+         Return @AddDesc("Value", Get($map,P), $desc);
        }
      }
      END
@@ -2049,13 +2049,13 @@ rule DefineOwnProperty@Arguments(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
          Nop;
        } else {
          If IsAccessorDescriptor(Desc) = true then {
-           DoI Delete($map:>Oid, P, false);
+           DoI Delete($map, P, false);
          } else {
            If @MemDesc(Desc,"Value") = true then {
-             Do Put($map:>Oid, P, Desc."Value", Throw);
+             Do Put($map, P, Desc."Value", Throw);
            };
            If Desc."Writable" = false then {
-             DoI Delete($map:>Oid, P, false);
+             DoI Delete($map, P, false);
            };
          }
        }
@@ -2071,7 +2071,7 @@ rule Delete@Arguments(O:Oid,P:Var,Throw:Bool)
      Let $isMapped = GetOwnProperty($map,P);
      Let $result = Delete@Default(O,P,Throw);
      If @AndBool($result, @NeqVal($isMapped, Undefined)) = true then {
-       DoI Delete($map:>Oid, P, false);
+       DoI Delete($map, P, false);
      };
      Return $result;
      END
@@ -3099,9 +3099,9 @@ rule @ForIn(L:Exp,E:Exp,S:Stmt)
        Return @Normal;
      } else {
        Let $o = ToObject($e);
-       Let $props = @EnumerateAllProperties($o:>Oid, .Map, .Set);
-     //Let $props = @EnumerateAllProperties($o:>Oid, .Set, .Set);
-       Do @ForInAux(L, $o:>Oid, $props, S);
+       Let $props = @EnumerateAllProperties($o, .Map, .Set);
+     //Let $props = @EnumerateAllProperties($o, .Set, .Set);
+       Do @ForInAux(L, $o, $props, S);
      }
      END
 
@@ -3430,9 +3430,9 @@ syntax Id ::= "$catchEnv" | "$result"
 rule <k> @Catch(X:Var,V:Val,Catch:Stmt)
       => BEGIN
          Let $catchEnv = NewDeclarativeEnvironment(E, Strict);
-         Do CreateMutableBinding($catchEnv:>Eid, X, false);
-         Do SetMutableBinding($catchEnv:>Eid, X, V, false);
-         Do @SetRunningCtx($catchEnv:>Eid, This);
+         Do CreateMutableBinding($catchEnv, X, false);
+         Do SetMutableBinding($catchEnv, X, V, false);
+         Do @SetRunningCtx($catchEnv, This);
          Let $result = Catch;
          Do @RestoreRunningCtx;
          Return $result;
@@ -3484,10 +3484,10 @@ syntax Id ::= "$funcEnv" | "$closure"
 rule <k> @FunctionExpressionRecursive(F:Var, Params:Exps, FunBody:Stmt)
       => BEGIN
          Let $strict = #@IsStrict(FunBody) orBool Strict; // 10.1.1 Strict Mode Code, Case 3
-         Let $funcEnv = NewDeclarativeEnvironment(E, $strict:>Bool);
-         Do CreateImmutableBinding($funcEnv:>Eid, F);
-         Let $closure = @CreateFunctionObject(Params, FunBody, $funcEnv:>Eid, $strict:>Bool);
-         Do InitializeImmutableBinding($funcEnv:>Eid, F, $closure:>Val);
+         Let $funcEnv = NewDeclarativeEnvironment(E, $strict);
+         Do CreateImmutableBinding($funcEnv, F);
+         Let $closure = @CreateFunctionObject(Params, FunBody, $funcEnv, $strict);
+         Do InitializeImmutableBinding($funcEnv, F, $closure);
          Return $closure;
          END
      ... </k>
@@ -3847,9 +3847,9 @@ syntax KItem ::= "@SMRFun" "(" K /* Bool */ "," K /* Var */ "," Exps "," Stmt ")
 rule @SMRFun(Strict:Bool, F:Var, Ps:Exps, FB:Stmt)
   => BEGIN
      Let $strict = #@IsStrict(FB) orBool Strict;
-     Do @SMRVar($strict:>Bool,F);
-     Do @SMRVars($strict:>Bool,Ps);
-     Do @SMRParams($strict:>Bool,Ps);
+     Do @SMRVar($strict,F);
+     Do @SMRVars($strict,Ps);
+     Do @SMRParams($strict,Ps);
      END
 //
 syntax KItem ::= "@SMRVars" "(" K /* Bool */ "," Exps ")" [seqstrict(1)]
