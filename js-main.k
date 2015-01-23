@@ -1026,9 +1026,9 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
          Return true;
        }
      } else {
-       If @SubDesc(Desc,$current) = true then {
-         Return true;
-       } else {
+//     If @SubDesc(Desc,$current) = true then { // NOTE: Redundant: It is safe even if it proceeds along the way.
+//       Return true;
+//     } else {
          If $current."Configurable" = false then {
            If Desc."Configurable" = true then {
              Return Reject(Throw,"DefineOwnProperty@Default conflict configurable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
@@ -1083,7 +1083,7 @@ rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
            Do SetOwnProperty(O,P,MakeFullyPopulatedAccessorDescriptor2(Desc,$current2));
          }
          Return true;
-       }
+//     }
      }
      END
 
