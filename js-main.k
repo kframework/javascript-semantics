@@ -2800,8 +2800,10 @@ syntax KItem ::= "@LessThanNumber" "(" K "," K ")" [seqstrict]
 rule @LessThanNumber(@NaN,_) => Undefined
 rule @LessThanNumber(_,@NaN) => Undefined
 //
-rule @LessThanNumber(I:Int,N:Number) => @LessThanNumber(#@Int2Float(I),N)
-rule @LessThanNumber(N:Number,I:Int) => @LessThanNumber(N,#@Int2Float(I))
+rule @LessThanNumber(I1:Int,I2:Int) => I1 <Int I2
+//
+rule @LessThanNumber(I:Int,N:Number) => @LessThanNumber(#@Int2Float(I),N) when notBool(isInt(N))
+rule @LessThanNumber(N:Number,I:Int) => @LessThanNumber(N,#@Int2Float(I)) when notBool(isInt(N))
 //
 rule @LessThanNumber(F1:Float,F2:Float  ) => F1 <Float F2
 rule @LessThanNumber( 0.0    ,@nz       ) => false
