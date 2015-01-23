@@ -2449,7 +2449,8 @@ context %bop(_:OpNormal,_:Val,HOLE)
 
 syntax KItem ::= "@ResolveOverflow" "(" K /* Number */ ")" [seqstrict]
 rule @ResolveOverflow(F:Float) => @ResolveOverflowAux(F,F)
-rule @ResolveOverflow(I:Int)   => @ResolveOverflowAux(I,#@Int2Float(I))
+rule @ResolveOverflow(I:Int)   => @ResolveOverflowAux(I,#@Int2Float(I)) when notBool(I <Int @MAX_INT andBool I >Int @MIN_INT)
+rule @ResolveOverflow(I:Int)   => I                                     when         I <Int @MAX_INT andBool I >Int @MIN_INT
 //
 rule @ResolveOverflow(N:Number) => N when isFloat(N) =/=K true andBool isInt(N) =/=K true
 
@@ -4123,5 +4124,10 @@ rule @Bop(OP:OpNormal,V1:Val,V2:Val) => %bop(OP,V1,V2)
 
 syntax KItem /* Vals */ ::= "@MakeCons" "(" K /* Val */ "," K /* Vals */ ")" [seqstrict]
 rule @MakeCons(V:Val,Vs:Vals) => @Cons(V,Vs)
+
+syntax Int ::= "@MAX_INT"
+             | "@MIN_INT"
+rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
+rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
 
 endmodule
