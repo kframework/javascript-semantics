@@ -33,6 +33,7 @@ syntax Stmt ::= "%fdecl" "(" Var "," Exps "," Stmt ")"
               | "%switch" "(" Exp "," Stmt "," Stmt "," Stmt ")" // switch ( _ ) { _ _ _ }
               | "%case" "(" Exp "," Stmt ")" // case _ : _
               | "%default" "(" Stmt ")" // default : _
+              | "%debugger"
 
 syntax Exp ::= "%con" "(" Const ")"
              | "%var" "(" Var ")"

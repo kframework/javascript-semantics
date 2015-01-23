@@ -113,7 +113,7 @@ rule ^Statement(try { Ss1:Statements } catch ( X:Name ) { Ss2:Statements }      
 rule ^Statement(try { Ss1:Statements }                                     finally { Ss3:Statements }) => %try(^Statements(Ss1),                             ^Statements(Ss3))
 
 // debugger
-// TODO:
+rule ^Statement(debugger ;) => %debugger
 
 // comma expressions
 syntax Exp ::= "^ExpressionS2Comma" "(" ExpressionS ")" [function]

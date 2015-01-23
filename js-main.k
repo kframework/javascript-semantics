@@ -1834,6 +1834,7 @@ rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %emptyStmt)           
 rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %switch(_,S1:Stmt,S2:Stmt,S3:Stmt)) => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2) ~> @BindDeclarations(Mode,CB,Strict,S3)
 rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %case(_,S:Stmt))                    => @BindDeclarations(Mode,CB,Strict,S)
 rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %default(S:Stmt))                   => @BindDeclarations(Mode,CB,Strict,S)
+rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %debugger)                          => .
 
 // 10.5: Step 5: Function Declaration Binding Instantiation
 syntax KItem /* .K */ ::= "@BindFunctionDeclaration" "(" K /* Var */ "," Exps "," Stmt "," K /* Bool */ "," K /* Bool */ ")" [seqstrict(1,4,5)]
@@ -3453,7 +3454,9 @@ rule <k> @Catch(X:Var,V:Val,Catch:Stmt)
      </env>
 
 // 12.15 The debugger statement
-// TODO:
+/* NOTE: Implementing breakpoint as not giving the semantics
+rule %debugger => %emptyStmt
+*/
 
 //////////////////////////////////////////////////////////////////////////////
 // 13 Function Definition
@@ -3730,6 +3733,7 @@ rule @CEE(Strict:Bool, Ls:Set, %emptyStmt)                              => .
 rule @CEE(Strict:Bool, Ls:Set, %switch(E:Exp,S1:Stmt,S2:Stmt,S3:Stmt))  => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2) ~> @CEE(Strict,Ls,S3)
 rule @CEE(Strict:Bool, Ls:Set, %case(E:Exp,S:Stmt))                     => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S)
 rule @CEE(Strict:Bool, Ls:Set, %default(S:Stmt))                        => @CEE(Strict,Ls,S)
+rule @CEE(Strict:Bool, Ls:Set, %debugger)                               => .
 //
 rule @CEE(Strict:Bool, Ls:Set, %con(_:Const))                           => .
 rule @CEE(Strict:Bool, Ls:Set, %var(N:Var))                             => @CheckReserved(Strict,N)
