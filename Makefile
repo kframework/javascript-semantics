@@ -8,6 +8,7 @@ build: prerequisite jsaf test262
 	cat $(wildcard stdlib/*.js) >stdlib.js
 	@echo "Hard-wiring standard built-in objects..."
 	krun stdlib.js >stdlib.out 2>&1
+	test "`sed -n '/<k>/,/<\/k>/{ p }' stdlib.out | tr -d ' \n'`" = "<k>@Normal</k>"
 	{ echo "<objs> ( _ =>"; \
       cat stdlib.out | awk '/<objs>/ {p=1; next} /<\/objs>/ {p=0} p' | sed 's/@o/@oo/g'; \
       echo ") </objs>"; \
