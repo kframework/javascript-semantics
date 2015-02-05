@@ -2,16 +2,25 @@ require "js-trans.k"
 require "js-str-numeric-literal.k"
 require "js-prelude.k"
 
+require "modules/verification_lemmas.k"
+
+//require "verification/patterns/float_set.k"
+//require "verification/patterns/float_tree_pattern.k"
+require "verification/patterns/string_set.k"
+require "verification/patterns/string_tree_pattern.k"
+
 module JS-SYNTAX
 imports JS-ORIG-SYNTAX
 imports JS-STR-NUMERIC-LITERAL
 endmodule
 
-module JS
+module JS-MAIN
 
 imports JS-SYNTAX
 imports JS-TRANS
 imports JS-PRELUDE
+
+imports VERIFICATION_LEMMAS
 
 //////////////////////////////////////////////////////////////////////////////
 // Configuration
@@ -118,14 +127,14 @@ syntax Val  ::= UndefinedType // "Undefined" // 8.1 The Undefined Type
               | Oid
             //| Reference // NOTE: We made it using isVal
 // 8.6 The Object Type
-syntax Oid  ::= "@o" "(" Int ")"
+syntax Oid  ::= "@o" "(" Int ")" [smtlib(smt_pointer_object)]
               | "@NullOid"
 // 8.11 The Lexical Environment and Environment Record Specification Types
 syntax Eid  ::= "@e" "(" Int ")"
               | "@NullEid"
 
 syntax UndefinedType ::= "Undefined" // 8.1 The Undefined Type
-syntax NullType ::= "@NullVal" // 8.2 The Null Type
+syntax NullType ::= "@NullVal" [smtlib(smt_pointer_null)] // 8.2 The Null Type
 
 syntax Primitive ::= Bool // 8.3 The Boolean Type
                    | String // 8.4 The String Type
@@ -4132,4 +4141,13 @@ syntax Int ::= "@MAX_INT"
 rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
 rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
 
+endmodule
+
+
+module JS
+imports JS-MAIN
+//imports FLOAT-TREE-PATTERN
+imports STRING-TREE-PATTERN
+syntax NullableObject ::= Oid | NullType
+syntax Val ::= NullableObject
 endmodule
