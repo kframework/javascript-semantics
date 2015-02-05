@@ -1,4 +1,5 @@
 module FLOAT-SET
+  imports FLOAT-HOOKS
   syntax FloatSet ::= FloatSet "U" FloatSet           [function, left, smtlib(float_set_cup)]
                   | ".FloatSet"                       [function, smtlib(float_set_emp)]
                   | "{" Float "}"                     [function, smtlib(float_set_ele), klabel(float_set_ele)]

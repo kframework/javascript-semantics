@@ -1,4 +1,5 @@
 module STRING-SET
+  imports STRING-HOOKS
   syntax StringSet ::= StringSet "U" StringSet          [function, left, smtlib(string_set_cup)]
                   | ".StringSet"                        [function, smtlib(string_set_emp)]
                   | "{" String "}"                      [function, smtlib(string_set_ele), klabel(string_set_ele)]
