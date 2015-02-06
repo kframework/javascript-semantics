@@ -1,13 +1,13 @@
 SHELL=/bin/bash
 
 ifeq ($(shell test -d ../test262; echo $$?),0)
-TEST262_CORE?=$(shell find ../test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js'; cat stdlib-for-coverage.txt)
+TEST262_CORE_COVERAGE?=$(shell find ../test262/test/suite/ch{08,09,10,11,12,13,14} -name '*.js'; cat stdlib-for-coverage.txt)
 endif
 
-.PHONY: test262-core
-test262-core: $(TEST262_CORE:%=%.run)
+.PHONY: test262-core-coverage
+test262-core-coverage: $(TEST262_CORE_COVERAGE:%=%.coverage)
 
-%.js.run:
+%.js.coverage:
 	$(call krun-test262,$*.js)
 
 define krun-test262
