@@ -32,18 +32,18 @@ rule @Run(Pgm:Stmt) => @EnterGlobalCode(Pgm) ~> Pgm
 configuration
 <T>
   <k> @InitConfig ~> @LoadConfig ~> @Run(^SourceElements($PGM:SourceElements)) </k>
-  <objs>
+  <objs map="">
     // 8.6 The Object Type
     <obj multiplicity="*">
-      <oid> .K </oid> // Oid
+      <oid key=""> .K </oid> // Oid
       <properties> .Map </properties> // Var -> PropertyDescriptor
       <internalProperties> .Map </internalProperties> // Var -> PropertyDescriptor
     </obj>
   </objs>
-  <envs>
+  <envs map="">
     // 10.2 Lexical Environments
     <env multiplicity="*">
-      <eid> .K </eid> // Eid
+      <eid key=""> .K </eid> // Eid
       <outer> .K </outer> // Eid // Reference to an outer Lexical Environment
       <strict> .K </strict> // Bool
       // 10.2.1 Environment Records
