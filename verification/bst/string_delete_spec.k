@@ -14,7 +14,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -64,7 +67,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>

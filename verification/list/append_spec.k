@@ -14,7 +14,10 @@ rule [loop-inv]:
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -69,7 +72,10 @@ rule [func-spec]:
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -100,6 +106,7 @@ rule [func-spec]:
   =>
     ?OP:NullableObject
   ...</k>
+  requires EID =/=K @NullEid
 
 endmodule
 

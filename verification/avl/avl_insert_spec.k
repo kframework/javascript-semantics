@@ -14,7 +14,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -65,7 +68,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -118,7 +124,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -143,22 +152,22 @@ rule
   <log> LOG:List </log>
   <objs>...
     OBJS:Bag
-      <obj>
-        <oid> O </oid>
-        <properties>
-          "value"  |-> @desc("Value" |-> S:String                                                                          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-          "height" |-> @desc("Value" |-> (_:Int => string_tree_height(string_node(S:String, TL:StringTree, TR:StringTree)))    "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-          "left"   |-> @desc("Value" |-> OL:NullableObject                                                         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-          "right"  |-> @desc("Value" |-> OR:NullableObject                                                         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-        </properties>
-        <internalProperties>
-          "Class"      |-> "Object"
-          "Extensible" |-> true
-          "Prototype"  |-> @ObjectProtoOid
-        </internalProperties>
-      </obj>
-      string_htree(OL)(TL:StringTree)
-      string_htree(OR)(TR:StringTree)
+    <obj>
+      <oid> O </oid>
+      <properties>
+        "value"  |-> @desc("Value" |-> S:String                                                                           "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "height" |-> @desc((("Value" |-> _:Int) => ("Value" |-> string_tree_height(string_node(S:String, TL:StringTree, TR:StringTree)))) "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "left"   |-> @desc("Value" |-> OL:NullableObject                                                                  "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "right"  |-> @desc("Value" |-> OR:NullableObject                                                                  "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+      </properties>
+      <internalProperties>
+        "Class"      |-> "Object"
+        "Extensible" |-> true
+        "Prototype"  |-> @ObjectProtoOid
+      </internalProperties>
+    </obj>
+    string_htree(OL)(TL:StringTree)
+    string_htree(OR)(TR:StringTree)
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
@@ -185,7 +194,10 @@ rule
       </running>
     </ctx>
     <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
+    <pseudoCtx>
+      <pseudoStack> _:List </pseudoStack>
+      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
+    </pseudoCtx>
   </ctrl>
   <envs>...
     <env>
@@ -228,6 +240,5 @@ rule
   ensures string_avl(?T2) andBool string_tree_keys(?T2) ==K { V } U string_tree_keys(T1)
     andBool string_tree_height(T1) <=Int  string_tree_height(?T2)
     andBool string_tree_height(?T2) <=Int string_tree_height(T1) +Int 1
-
 endmodule
 
