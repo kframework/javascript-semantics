@@ -2712,7 +2712,17 @@ rule @Addition(@-Infinity,@+Infinity) => @NaN
 rule @Addition(@-Infinity,@-Infinity) => @-Infinity
 
 syntax KItem ::= "@Subtraction" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
-rule @Subtraction(N1:Number,N2:Number) => @Addition(N1,@Minus(N2))
+rule @Subtraction(N1:Number,N2:Number) => @Addition(N1,@ToggleSign(N2))
+
+// NOTE: Different with @Minus for 0
+syntax KItem ::= "@ToggleSign" "(" K /* Number */ ")" [seqstrict]
+rule @ToggleSign(I:Int     ) => 0 -Int I
+rule @ToggleSign(F:Float   ) => F *Float (-1.0) when F =/=Float 0.0
+rule @ToggleSign(0.0       ) => @nz
+rule @ToggleSign(@nz       ) => 0.0
+rule @ToggleSign(@NaN      ) => @NaN
+rule @ToggleSign(@+Infinity) => @-Infinity
+rule @ToggleSign(@-Infinity) => @+Infinity
 
 // 11.7.1 The Left Shift Operator ( << )
 
