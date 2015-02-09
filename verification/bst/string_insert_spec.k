@@ -49,8 +49,9 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(
-      %var("insert"),
+    Call(
+      // %var("insert"),
+      @o(4), Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>
     ?O2:NullableObject

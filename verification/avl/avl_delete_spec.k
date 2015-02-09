@@ -47,8 +47,9 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(
-      %var("max"),
+    Call(
+      // %var("max"),
+      @o(4), Undefined,
       @Cons(X:Int, @Cons(Y:Int, @Nil)))
   =>
     maxInt(X,Y)
@@ -103,8 +104,9 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(
-      %var("height"),
+    Call(
+      // %var("height"),
+      @o(6), Undefined,
       @Cons(O:NullableObject, @Nil))
   =>
     string_tree_height(T)
@@ -171,8 +173,9 @@ rule
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
-    %call(
-      %var("update_height"),
+    Call(
+      // %var("update_height"),
+      @o(8), Undefined,
       @Cons(O:Oid, @Nil))
   =>
     Undefined
@@ -229,7 +232,10 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(%var("find_min"), @Cons(O:Oid, @Nil))
+    Call(
+      // %var("find_min"),
+      @o(10), Undefined,
+      @Cons(O:Oid, @Nil))
   =>
     ?M:String
   ...</k>
@@ -282,8 +288,9 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(
-      %var("remove"),
+    Call(
+      // %var("remove"),
+      @o(22), Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>
     ?O2:NullableObject

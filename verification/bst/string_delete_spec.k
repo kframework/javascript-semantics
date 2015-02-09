@@ -49,7 +49,10 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(%var("find_min"), @Cons(O:Oid, @Nil))
+    Call(
+      // %var("find_min"),
+      @o(2), Undefined,
+      @Cons(O:Oid, @Nil))
   =>
     ?M:String
   ...</k>
@@ -102,8 +105,9 @@ rule
     ?_:Bag
   ...</objs>
   <k>
-    %call(
-      %var("remove"),
+    Call(
+      // %var("remove"),
+      @o(4), Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>
     ?O2:NullableObject

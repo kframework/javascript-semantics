@@ -46,8 +46,9 @@ rule
   (.Bag => ?_:Bag)
   ...</objs>
   <k>
-    %call(
-      %var("find"),
+    Call(
+      // %var("find"),
+      @o(2), Undefined,
       @Cons(V:String, @Cons(O:NullableObject, @Nil)))
   =>
     V inStringSet string_tree_keys(T)
