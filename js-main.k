@@ -1648,32 +1648,10 @@ rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
      <envs>
        (. => <env>
                <eid> @e(!N:Int) </eid>
-               <outer> E' </outer>
-               <strict> Strict </strict>
-               <declEnvRec> Record </declEnvRec>
-             </env>)
-       <env>
-         <eid> E </eid>
-         <outer> E':Eid </outer>
-         <declEnvRec> Record:Map </declEnvRec>
-         _
-       </env>
-       _
-     </envs>
-
-rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
-     <envs>
-       (. => <env>
-               <eid> @e(!N:Int) </eid>
                <outer> E </outer>
                <strict> Strict </strict>
                <declEnvRec> .Map </declEnvRec>
              </env>)
-       <env>
-         <eid> E </eid>
-         <objEnvRec> _ </objEnvRec>
-         _
-       </env>
        _
      </envs>
 
@@ -1784,8 +1762,8 @@ rule <k> @EnterFunctionCode(F:Oid,This:Val,Args:Vals)
      <obj>
        <oid> F </oid>
        <internalProperties>
-         "Scope" |-> E:Eid
-         "Code" |-> Code:Stmt
+         "Scope"  |-> E:Eid
+         "Code"   |-> Code:Stmt
          "Strict" |-> Strict:Bool
          _:Map
        </internalProperties>

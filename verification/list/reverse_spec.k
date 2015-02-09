@@ -23,7 +23,7 @@ rule [loop-inv]:
     <env>
       <eid> EID </eid>
       <outer> _:Eid </outer>
-      <strict> false </strict>
+      <strict> _:Bool </strict>
       <declEnvRec>...
         "x" |-> @ve(OX:NullableObject  => @NullVal,            true, true, false)
         "p" |-> @ve(OP1:NullableObject => ?OP2:NullableObject, true, true, false)
@@ -33,8 +33,8 @@ rule [loop-inv]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    OBJS:Bag
     (list(OX)(B:List) list(OP1)(C:List) => list(?OP2)(rev(B) C))
+    OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
@@ -45,44 +45,23 @@ rule [loop-inv]:
   requires EID =/=K @NullEid
 
 rule [func-spec]:
-  <ctrl>
-    <ctx>
-      <activeStack> ACTIVESTACK:List ...</activeStack>
-      <running>
-        <lexicalEnv> EID:Eid </lexicalEnv>
-        <thisBinding> THISBINDING:Val </thisBinding>
-        <lastNonEmptyValue> LASTNONEMPTYVALUE:Val </lastNonEmptyValue>
-      </running>
-    </ctx>
-    <excStack> EXCSTACK:List </excStack>
-    <pseudoCtx>
-      <pseudoStack> _:List </pseudoStack>
-      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
-    </pseudoCtx>
-  </ctrl>
   <envs>...
-    <env>
-      <eid> @GlobalEid </eid>
-      <outer> @NullEid </outer>
-      <strict> false </strict>
-      <objEnvRec>
-        <bindingObj> @GlobalOid </bindingObj>
-        <provideThis> false </provideThis>
-      </objEnvRec>
-    </env>
+    ENVS:Bag
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    OBJS:Bag
     (list(O1)(A:List) => list(?O2)(rev(A)))
+    OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
-    %call(%var("reverse"), @Cons(O1:NullableObject, @Nil))
+    Call(
+      // %var("reverse"),
+      @o(2),
+      Undefined,
+      @Cons(O1:NullableObject, @Nil))
   =>
     ?O2:NullableObject
   ...</k>
-  requires EID =/=K @NullEid
-
 endmodule
 
