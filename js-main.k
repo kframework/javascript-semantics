@@ -1644,12 +1644,35 @@ rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
      <envs>
        (. => <env>
                <eid> @e(!N:Int) </eid>
+               <outer> E' </outer>
+               <strict> Strict </strict>
+               <declEnvRec> Record </declEnvRec>
+             </env>)
+       <env>
+         <eid> E </eid>
+         <outer> E':Eid </outer>
+         <declEnvRec> Record:Map </declEnvRec>
+         _
+       </env>
+       _
+     </envs>
+
+rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
+     <envs>
+       (. => <env>
+               <eid> @e(!N:Int) </eid>
                <outer> E </outer>
                <strict> Strict </strict>
                <declEnvRec> .Map </declEnvRec>
              </env>)
+       <env>
+         <eid> E </eid>
+         <objEnvRec> _ </objEnvRec>
+         _
+       </env>
        _
      </envs>
+
 
 // 10.2.2.3 NewObjectEnvironment (O, E)
 
@@ -2246,7 +2269,7 @@ rule @IsConstructable(F:Val) => false when notBool(#@IsOid(F))
 
 // 11.2.3 Function Calls
 
-rule %call(F:Exp,Es:Exps) => @CallIfPossible(F, @DetermineThis(F), Es)
+rule %call(F:Exp,Vs:Vals) => @CallIfPossible(F, @DetermineThis(F), Vs)
      when #@IsEval(F) ==K false // TODO: could it be made in uniform way?
   andBool #@IsAPI(F) ==K false
 

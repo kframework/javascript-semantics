@@ -44,7 +44,7 @@ syntax Exp ::= "%con" "(" Const ")"
              | "%set" "(" Var "," Var "," Stmt ")"
              | "%mem" "(" Exp "," Exp ")"
              | "%new" "(" Exp "," Exps ")"
-             | "%call" "(" Exp "," Exps ")"
+             | "%call" "(" Exp "," Exps ")" [strict(2)]
              | "%comma" "(" Exp "," Exp ")"
              | "%pre" "(" Op "," Exp ")"
              | "%post" "(" Exp "," Op ")"
