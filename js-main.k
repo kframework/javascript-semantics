@@ -2273,7 +2273,7 @@ rule @IsConstructable(F:Val) => false when notBool(#@IsOid(F))
 
 // 11.2.3 Function Calls
 
-rule %call(F:Exp,Vs:Vals) => @CallIfPossible(F, @DetermineThis(F), Vs)
+rule %call(F:Exp,Es:Exps) => @CallIfPossible(F, @DetermineThis(F), Es)
      when #@IsEval(F) ==K false // TODO: could it be made in uniform way?
   andBool #@IsAPI(F) ==K false
 
