@@ -62,6 +62,7 @@ For a 'hello-world' example,
 ```
 $ cat hello-world.js
 console.log("hello world!");
+
 $ ./kjs.sh hello-world.js
 hello world!
 ```
@@ -75,9 +76,11 @@ getting stuck at the unsupported library function call: `Date.now()`:
 ```
 $ cat time.js
 console.log(Date.now());
+
 $ ./kjs.sh time.js
 Error: failed to run the program: time.js
 Check the dumped output: /tmp/kjs.bd7uNgkKud.out
+
 $ cat /tmp/kjs.bd7uNgkKud.out
 <T>
     <k>
@@ -89,11 +92,11 @@ $ cat /tmp/kjs.bd7uNgkKud.out
 ### 5. Run ECMAScript conformance test suite([test262](http://test262.ecmascript.org))
 
 You can run the core ECMAScript conformance test suite (2,782 tests in total) as follows:
-(where N is a number of processes to be used)
+(where `N` is a number of parallel processes to be used)
 ```
 $ make -k -j N test262-core
 ```
-Running all the tests takes 2 hours using 4 parallel processes in a machine with
+Running all the tests will take 2 hours using 4 parallel processes in a machine with
 Intel Xeon CPU 3.40GHz and DDR3 RAM 8GB 1600MHz.
 
 You can also selectively run a part of the tests by using the environment variables:
@@ -102,13 +105,13 @@ $ TEST262_CORE_POSITIVE=<list-of-positive-tests> make test262-core-positive
 $ TEST262_CORE_NEGATIVE=<list-of-negative-tests> make test262-core-negative
 ```
 
-Note that there are two types of tests: positive and negative tests. All negative tests are marked by `@negative` in their comments. The negative tests should be failed to run.
-
 
 ## Test Result of test262
 
 We provide a test result of the core test262, [test262-core.out](test262-core.out).
 For each test, it reports `succeed` when passed the test, and `failed` when failed.
+
+Note that there are two types of tests: positive and negative tests. All negative tests are marked by `@negative` in their comments. The negative tests should be failed to run.
 
 ### Invalid Tests
 
@@ -135,7 +138,7 @@ Note that we consider the above tests as negative tests, so that it will report 
 
 ## Built-in Objects Support
 
-Currently, the standard built-in objects are supported as follows:
+Currently, KJS supports the standard built-in objects as follows:
 
 * Fully defined:
   [`Object`](http://es5.github.io/#x15.2), 
@@ -163,10 +166,10 @@ Currently, the standard built-in objects are supported as follows:
  * [js-core-syntax.k](js-core-syntax.k): IR syntax
  * [js-trans.k](js-trans.k): Translation from JavaScript to IR
  * [js-pseudo-code.k](js-pseudo-code.k): Pseudo-code semantics
- * [js-str-numeric-literal.k](js-str-numeric-literal.k): Conversion semantics from strings to numbers
+ * [js-str-numeric-literal.k](js-str-numeric-literal.k): Paring numeric literals
  * [js-init-configuration.k](js-init-configuration.k): Initial configuration
  * [js-prelude.k](js-prelude.k): K built-in modules
- * [js-standard-builtin-objects.k](js-standard-builtin-objects.k): Standard built-in objects's constructor semantics
+ * [js-standard-builtin-objects.k](js-standard-builtin-objects.k): Standard built-in objects' constructor semantics
  * [stdlib/](stdlib/): Standard built-in objects' methods semantics written in JavaScript itself
 
 * Applications
@@ -179,13 +182,13 @@ Currently, the standard built-in objects are supported as follows:
  * [kpp.py](kpp.py): Create a single K file from the multiple files
 
 * Run semantics
- * [kjs.sh](run.sh): Run normal JavaScript programs
+ * [kjs.sh](run.sh): Run JavaScript programs
  * [Makefile.test262](Makefile.test262): Run test262 programs
  * [test262-core.out](test262-core.out): Test result of the core test262
  * [prelude.js](prelude.js): Prelude of test262
  * [jsmassage.sh](jsmassage.sh): Wrapper of SAFE framework
  * [pp.sh](pp.sh): Preprocessor
- * [list-invalid-tests.txt](list-invalid-tests.txt): [Invalid tests](README.md#invalid-tests)
+ * [list-invalid-tests.txt](list-invalid-tests.txt): Invalid tests (See [the above](README.md#invalid-tests))
 
 
 ----
