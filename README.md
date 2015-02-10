@@ -65,8 +65,9 @@ $ ./kjs.sh <your-javascript-program>.js
 
 For a 'hello-world' example,
 ```
-$ cat hello-world.js
+$ cat >hello-world.js <<DELIM
 console.log("hello world!");
+DELIM
 
 $ ./kjs.sh hello-world.js
 hello world!
@@ -79,8 +80,9 @@ For example,
 KJS fails to run the following program,
 getting stuck at the unsupported library function call: `Date.now()`:
 ```
-$ cat time.js
+$ cat >time.js <<DELIM
 console.log(Date.now());
+DELIM
 
 $ ./kjs.sh time.js
 Error: failed to run the program: time.js
