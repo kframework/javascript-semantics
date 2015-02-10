@@ -9,12 +9,9 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
+    (string_tree(O1)(T1:StringTree)(P:Oid) => string_tree(?O2)(?T2:StringTree)(P:Oid))
     OBJS:Bag
-    string_tree(O1)(T1:StringTree)(P:Oid)
-  =>
-    OBJS:Bag
-    string_tree(?O2)(?T2:StringTree)(P:Oid)
-    ?_:Bag
+    (.Bag => ?_:Bag)
   ...</objs>
   <k>
     Call(

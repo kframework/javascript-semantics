@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (string_tree(O)(T:StringTree)(P:Oid) => string_tree(O)(T:StringTree)(P:Oid))
+    string_tree(O)(T:StringTree)(P:Oid)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
