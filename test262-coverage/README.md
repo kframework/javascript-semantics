@@ -11,23 +11,24 @@ The output `trace.txt` shows which parts of the semantics are executed, in the o
 
 In order to measure the semantic coverage of the core test262,
 you will first run all the tests with the `--coverage-file` option:
+(where `N` is a number of parallel processes to be used)
 ```
 $ make -k -j N test262-core-coverage
 ```
-then generate a coverage report from the trace outputs:
+and then generate a coverage report from the trace outputs:
 ```
 $ ./coverage.sh
 ```
 The above command will generate a coverage report `js.k` in the current directory.
 
-In the coverage report [js.k](js.k), each semantic rule is annotated with a number
+In the coverage report [`js.k`](js.k), each semantic rule is annotated with a number
 of how many times it was executed by the test suite.
 The number `0` means that the corresponding semantic rule is not covered by any test.
 
 This way we found that there are 17 semantic rules in the core
 semantics which are not covered by the test suite, each corresponding to the
 language standard as shown in the following:
-(Note that we only consider rules that directly correspond to the core part of the standard, but ignore auxilious rules and standard library rules.)
+(Note that we only consider rules that directly correspond to the core part of the standard, but ignore auxiliary rules and standard library rules.)
 
 Section# - Step# of [Standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf) | Line# of [Formal Semantics](js.k) | Feasible?
 ---------------------------------------------------------------------------------------------------------------------------|-------------------------|-----------------------
