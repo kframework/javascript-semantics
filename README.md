@@ -111,7 +111,7 @@ $ TEST262_CORE_NEGATIVE=<list-of-negative-tests> make test262-core-negative
 We provide a test result of the core test262, [test262-core.out](test262-core.out).
 For each test, it reports `succeed` when passed the test, and `failed` when failed.
 
-Note that there are two types of tests: positive and negative tests. All negative tests are marked by `@negative` in their comments. The negative tests should be failed to run.
+Note that there are two types of tests: positive and negative tests. A negative test is identified by `@negative`  in its preamble. The negative tests should be failed to run.
 
 ### Invalid Tests
 
