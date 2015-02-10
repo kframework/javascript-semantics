@@ -4,24 +4,11 @@ module REVERSE-SPEC
 imports JS
 
 rule [loop-inv]:
-  <ctrl>
-    <ctx>
-      <activeStack>... ACTIVESTACK:List </activeStack>
-      <running>
-        <lexicalEnv> EID:Eid </lexicalEnv>
-        <thisBinding> THISBINDING:Val </thisBinding>
-        <lastNonEmptyValue> LASTNONEMPTYVALUE:Val </lastNonEmptyValue>
-      </running>
-    </ctx>
-    <excStack> EXCSTACK:List </excStack>
-    <pseudoCtx>
-      <pseudoStack> _:List </pseudoStack>
-      <pseudoEnv> PSEUDOENV:Map </pseudoEnv>
-    </pseudoCtx>
-  </ctrl>
+  <lexicalEnv> @e(I:Int) </lexicalEnv>
+  <lastNonEmptyValue> _:Val => ?_:Val </lastNonEmptyValue>
   <envs>...
     <env>
-      <eid> EID </eid>
+      <eid> @e(I) </eid>
       <outer> _:Eid </outer>
       <strict> _:Bool </strict>
       <declEnvRec>...
@@ -42,7 +29,6 @@ rule [loop-inv]:
   =>
     @Normal
   ...</k>
-  requires EID =/=K @NullEid
 
 rule [func-spec]:
   <envs>...

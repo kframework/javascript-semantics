@@ -4150,6 +4150,7 @@ module JS
 imports JS-MAIN
 //imports FLOAT-TREE-PATTERN
 imports STRING-TREE-PATTERN
+//imports LIST-PATTERN
 syntax NullableObject ::= Oid | NullType
 syntax Val ::= NullableObject
 endmodule
