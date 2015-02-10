@@ -160,12 +160,14 @@ Currently, the standard built-in objects are supported as follows:
 
 * Semantics
  * [js-main.k](js-main.k): Core semantics
- * [js-orig-syntax.k](js-orig-syntax.k), [js-orig-syntax-util.k](js-orig-syntax-util.k): JavaScript syntax
+ * [js-orig-syntax.k](js-orig-syntax.k): JavaScript syntax
+ * [js-orig-syntax-util.k](js-orig-syntax-util.k): JavaScript syntax preprocessor
  * [js-core-syntax.k](js-core-syntax.k): IR syntax
  * [js-trans.k](js-trans.k): Translation from JavaScript to IR
  * [js-pseudo-code.k](js-pseudo-code.k): Pseudo-code semantics
  * [js-str-numeric-literal.k](js-str-numeric-literal.k): Conversion semantics from strings to numbers
  * [js-init-configuration.k](js-init-configuration.k): Initial configuration
+ * [js-prelude.k](js-prelude.k): K built-in modules
  * [js-standard-builtin-objects.k](js-standard-builtin-objects.k): Standard built-in objects's constructor semantics
  * [stdlib/](stdlib/): Standard built-in objects' methods semantics written in JavaScript itself
 
@@ -184,6 +186,7 @@ Currently, the standard built-in objects are supported as follows:
  * [prelude.js](prelude.js): Prelude of test262
  * [jsmassage.sh](jsmassage.sh): Wrapper of SAFE framework
  * [pp.sh](pp.sh): Preprocessor
+ * [list-invalid-tests.txt](list-invalid-tests.txt): [Invalid tests](README.md#invalid-tests)
 
 
 ----
