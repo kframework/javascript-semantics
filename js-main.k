@@ -1618,21 +1618,17 @@ rule <k> InitializeImmutableBinding(E:Eid,N:Var,V:Val) => . ... </k>
 
 // 10.2.2.1 GetIdentifierReference (lex, name, strict)
 
-syntax KItem /* Reference */ ::= "GetIdentifierReference"    "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
-                               | "GetIdentifierReferenceAux" "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
+syntax KItem /* Reference */ ::= "GetIdentifierReference" "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
 
-rule GetIdentifierReference(E:Eid,N:Var,Strict:Bool) => GetIdentifierReferenceAux(E,N,Strict)
-     when E ==K  @GlobalEid
-rule GetIdentifierReference(E:Eid,N:Var,Strict:Bool) => GetIdentifierReferenceAux(E,N,Strict)
-     when E =/=K @GlobalEid
-
-rule GetIdentifierReferenceAux(@NullEid,N:Var,Strict:Bool) => @Ref(Undefined,N,Strict)
-rule <k> GetIdentifierReferenceAux(E:Eid,N:Var,Strict:Bool)
-      => If HasBinding(E,N) = true then {
+rule GetIdentifierReference(@NullEid,N:Var,Strict:Bool) => @Ref(Undefined,N,Strict)
+rule <k> GetIdentifierReference(E:Eid,N:Var,Strict:Bool)
+      => BEGIN
+         If HasBinding(E,N) = true then {
            Return @Ref(E,N,Strict);
          } else {
            Return GetIdentifierReference(E',N,Strict);
          }
+         END
      ... </k>
      <env>
        <eid> E </eid>
