@@ -182,7 +182,7 @@ Currently, KJS supports the standard built-in objects as follows:
  * [kpp.py](kpp.py): Create a single K file from the multiple files
 
 * Run semantics
- * [kjs.sh](run.sh): Run JavaScript programs
+ * [kjs.sh](kjs.sh): Run JavaScript programs
  * [Makefile.test262](Makefile.test262): Run test262 programs
  * [test262-core.out](test262-core.out): Test result of the core test262
  * [prelude.js](prelude.js): Prelude of test262
