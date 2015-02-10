@@ -1,16 +1,16 @@
-## Test Coverage of ECMAScript Conformance Test Suite
+## Semantic Coverage of ECMAScript Conformance Test Suite
 
 We measured the semantic coverage (i.e., the set of semantic rules it exercises)
 of [ECMAScript Conformance Test Suite](http://test262.ecmascript.org).
 
-Using the `--coverage-file` option, you can measure the semantic coverage of a given test `test.js`:
+You can measure the semantic coverage of a given test using the `--coverage-file` option:
 ```
 $ krun --coverage-file trace.txt test.js
 ```
-The `trace.txt` output file shows which parts of the semantics are executed, in the order of the execution.
+The `trace.txt` output shows which parts of the semantics are executed, in the order of the execution.
 
 In order to measure the semantic coverage of the core test262,
-first run all the tests with the `--coverage-file` option:
+you will first run all the tests with the `--coverage-file` option:
 ```
 $ make -k -j N test262-core-coverage
 ```
@@ -18,15 +18,16 @@ then generate a coverage report from the trace outputs:
 ```
 $ ./coverage.sh
 ```
-It will generate a coverage report `js.k` in the current directory.
+The above command will generate a coverage report `js.k` in the current directory.
 
-In [the coverage report](js.k), each semantic rule is annotated with a number
+In the coverage report [js.k](js.k), each semantic rule is annotated with a number
 of how many times it was executed by the test suite.
 The number `0` means that the corresponding semantic rule is not covered by any test.
 
 This way we found that there are 17 semantic rules in the core
 semantics which are not covered by the test suite, each corresponding to the
 language standard as shown in the following:
+(Note that we only consider rules that directly correspond to the core part of the standard, but ignore auxilious rules and standard library rules.)
 
 Section# - Step# of [Standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf) | Line# of [Formal Semantics](js.k) | Feasible?
 ---------------------------------------------------------------------------------------------------------------------------|-------------------------|-----------------------
