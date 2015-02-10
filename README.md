@@ -22,7 +22,7 @@ and finding known security vulnerabilities
 
 ## How to Run Semantics
 
-The following instructions are for Debian/Ubuntu.
+The following instructions are for standard Debian/Ubuntu distributions.
 
 ### 1. Install K
 
