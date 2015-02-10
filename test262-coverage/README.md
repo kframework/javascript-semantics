@@ -7,7 +7,7 @@ You can measure the semantic coverage of a given test using the `--coverage-file
 ```
 $ krun --coverage-file trace.txt test.js
 ```
-The `trace.txt` output shows which parts of the semantics are executed, in the order of the execution.
+The output `trace.txt` shows which parts of the semantics are executed, in the order of the execution.
 
 In order to measure the semantic coverage of the core test262,
 you will first run all the tests with the `--coverage-file` option:
