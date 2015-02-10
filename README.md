@@ -26,9 +26,14 @@ The following instructions are for standard Debian/Ubuntu distributions.
 
 ### 1. Install K
 
-This semantics is compatible with the latest version of the K framework.
-See https://github.com/kframework/k/blob/master/src/README.md
-for download and installation details.
+This semantics is compatible with a customized version of the lastest K framework.
+You can install the version of K as follows:
+```
+$ git clone https://github.com/kframework/k.git
+$ cd k
+$ git checkout -b kjs origin/kjs
+$ mvn package
+```
 
 Ensure `kompile` and `krun` are included in your `$PATH`:
 ```
