@@ -2718,7 +2718,7 @@ rule @Addition(@-Infinity,@-Infinity) => @-Infinity
 
 syntax KItem ::= "@Subtraction" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
 rule @Subtraction(I1:Int,I2:Int) => I1 -Int I2
-rule @Subtraction(N1:Number,N2:Number) => @Addition(N1,@Minus(N2)) when notBool(isInt(N1)) andBool notBool(isInt(N2))
+rule @Subtraction(N1:Number,N2:Number) => @Addition(N1,@Minus(N2)) when notBool(isInt(N1)) orBool notBool(isInt(N2))
 
 // 11.7.1 The Left Shift Operator ( << )
 
