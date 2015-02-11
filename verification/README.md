@@ -1,11 +1,35 @@
 ## JavaScript Program Verification
 
-### Directory Structure
+You can verify a JavaScript program by using the semantics and the K verifier.
 
- * [patterns](patterns) - definitions of the abstractions used in the specifications (list, tree, etc) given in K syntax
- * [list](list)     - the source code and specifications for the list examples
- * [bst](bst)      - the source code and specifications for the bst example
- * [avl](avl)      - the source code and specifications for the avl example
+All you need to do is to write a specification and run `krun` with `--prove` option:
+```
+$ krun --prove <specification.k> <program.js>
+```
+The specification `<specification.k>` essentially describes a pre-/post-condition,
+and it should be given as a reachability rule written in K.
+
+You can prove all the example programs by using `prover.sh`:
+```
+$ ./prover.sh
+```
+
+### Programs to be verified
+
+We have the following example programs to be verified:
+
+| Programs     | Source Codes                         | Specifications                                       |
+|--------------|--------------------------------------|------------------------------------------------------|
+| List reverse | [list/reverse.js](list/reverse.js)   | [list/reverse_spec.k](list/reverse_spec.k)           |
+| List append  | [list/append.js](list/append.js)     | [list/append_spec.k](list/append_spec.k)             |
+| BST find     | [bst/find.js](bst/find.js)           | [bst/string_find_spec.k](bst/string_find_spec.k)     |
+| BST insert   | [bst/insert.js](bst/insert.js)       | [bst/string_insert_spec.k](bst/string_insert_spec.k) |
+| BST delete   | [bst/delete.js](bst/delete.js)       | [bst/string_delete_spec.k](bst/string_delete_spec.k) |
+| AVL find     | [avl/avl.js:find](avl/avl.js#L90)    | [avl/avl_find_spec.k](avl/avl_find_spec.k)           |
+| AVL insert   | [avl/avl.js:insert](avl/avl.js#L102) | [avl/avl_insert_spec.k](avl/avl_insert_spec.k)       |
+| AVL delete   | [avl/avl.js:delete](avl/avl.js#L120) | [avl/avl_delete_spec.k](avl/avl_delete_spec.k)       |
+
+
 
 ### Specifications
 
@@ -131,3 +155,11 @@ The following bash command verifies the avl insert example:
 ```
 $ krun --prove verification/avl/insert_spec.k verification/avl/insert.js --smt_prelude=<k_root>/include/z3/string.smt2
 ```
+
+
+### Directory Structure
+
+ * [patterns](patterns) - definitions of the abstractions used in the specifications (list, tree, etc) given in K syntax
+ * [list](list)     - the source code and specifications for the list examples
+ * [bst](bst)      - the source code and specifications for the bst example
+ * [avl](avl)      - the source code and specifications for the avl example
