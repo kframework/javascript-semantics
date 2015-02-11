@@ -1,7 +1,5 @@
-require "../patterns/tree_string/js-verifier.k"
 
 module BST-SPEC
-imports JS-VERIFIER
 
 rule
   <envs>...

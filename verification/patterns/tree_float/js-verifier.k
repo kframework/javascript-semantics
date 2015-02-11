@@ -9,7 +9,4 @@ module JS-VERIFIER
   imports VERIFICATION_LEMMAS
   imports FLOAT-TREE-PATTERN
 
-  syntax NullableObject ::= Oid | NullType
-  syntax Val ::= NullableObject
-
 endmodule

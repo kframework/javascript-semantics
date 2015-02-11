@@ -7,7 +7,7 @@ imports JS-ORIG-SYNTAX
 imports JS-STR-NUMERIC-LITERAL
 endmodule
 
-module JS
+module JS-MAIN
 
 imports JS-SYNTAX
 imports JS-TRANS
@@ -4133,4 +4133,10 @@ syntax Int ::= "@MAX_INT"
 rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
 rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
 
+endmodule
+
+module JS
+imports JS-MAIN
+syntax NullableObject ::= Oid | NullType
+syntax Val ::= NullableObject
 endmodule

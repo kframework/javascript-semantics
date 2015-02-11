@@ -1,7 +1,5 @@
-require "../patterns/tree_string/js-verifier.k"
 
 module AVL-SPEC
-imports JS-VERIFIER
 
 rule
   <envs>...
@@ -15,7 +13,7 @@ rule
   <k>
     Call(
       // %var("max"),
-      @o(4),
+      @o(3),
       Undefined,
       @Cons(X:Int, @Cons(Y:Int, @Nil)))
   =>
@@ -36,7 +34,7 @@ rule
   <k>
     Call(
       // %var("height"),
-      @o(6),
+      @o(5),
       Undefined,
       @Cons(O:NullableObject, @Nil))
   =>
@@ -72,7 +70,7 @@ rule
   <k>
     Call(
       // %var("update_height"),
-      @o(8),
+      @o(7),
       Undefined,
       @Cons(O:Oid, @Nil))
   =>
@@ -98,7 +96,7 @@ rule
   <k>
     Call(
       // %var("insert"),
-      @o(20),
+      @o(19),
       Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>

@@ -1,7 +1,5 @@
-require "../patterns/tree_string/js-verifier.k"
 
 module AVL-SPEC
-imports JS-VERIFIER
 
 rule
   <envs>...
@@ -16,7 +14,7 @@ rule
   <k>
     Call(
       // %var("find"),
-      @o(18),
+      @o(17),
       Undefined,
       @Cons(V:String, @Cons(O:NullableObject, @Nil)))
   =>

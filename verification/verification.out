@@ -37,3 +37,4 @@ krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string
 true
 []
 true
+

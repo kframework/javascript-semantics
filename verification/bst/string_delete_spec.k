@@ -1,7 +1,5 @@
-require "../patterns/tree_string/js-verifier.k"
 
 module BST-SPEC
-imports JS-VERIFIER
 
 rule
   <envs>...
@@ -16,7 +14,7 @@ rule
   <k>
     Call(
       // %var("find_min"),
-      @o(2),
+      @o(1),
       Undefined,
       @Cons(O:Oid, @Nil))
   =>
@@ -38,7 +36,7 @@ rule
   <k>
     Call(
       // %var("remove"),
-      @o(4),
+      @o(3),
       Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>

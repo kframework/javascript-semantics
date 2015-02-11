@@ -1,0 +1,10672 @@
+           require "js-trans.k"
+           require "js-str-numeric-literal.k"
+           require "js-prelude.k"
+           
+           module JS-SYNTAX
+           imports JS-ORIG-SYNTAX
+           imports JS-STR-NUMERIC-LITERAL
+           endmodule
+           
+           module JS
+           
+           imports JS-SYNTAX
+           imports JS-TRANS
+           imports JS-PRELUDE
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Configuration
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax KItem ::= "@Run" "(" Stmt ")"
+     5488  rule @Run(Pgm:Stmt) => @EnterGlobalCode(Pgm) ~> Pgm
+           
+           configuration
+           <T>
+     8232    <k> @InitConfig ~> @LoadConfig ~> @Run(^SourceElements($PGM:SourceElements)) </k>
+             <objs map="">
+               // 8.6 The Object Type
+               <obj multiplicity="*">
+                 <oid key=""> .K </oid> // Oid
+                 <properties> .Map </properties> // Var -> PropertyDescriptor
+                 <internalProperties> .Map </internalProperties> // Var -> PropertyDescriptor
+               </obj>
+             </objs>
+             <envs map="">
+               // 10.2 Lexical Environments
+               <env multiplicity="*">
+                 <eid key=""> .K </eid> // Eid
+                 <outer> .K </outer> // Eid // Reference to an outer Lexical Environment
+                 <strict> .K </strict> // Bool
+                 // 10.2.1 Environment Records
+                 // Either declarative or object environment record
+                   // 10.2.1.1 Declarative Environment Records
+                   <declEnvRec multiplicity="?"> .Map </declEnvRec> // Var -> ValEnv
+                   // 10.2.1.2 Object Environment Records
+                   <objEnvRec multiplicity="?">
+                     <bindingObj> .K </bindingObj> // Oid
+                     <provideThis> .K </provideThis> // Bool
+                   </objEnvRec>
+               </env>
+             </envs>
+             <ctrl>
+               // 10.3 Execution Contexts
+               <ctx>
+                 // Active Execution Contexts
+                 <activeStack> .List </activeStack>
+                 // Running Execution Context
+                 <running>
+                   // Table 19 Execution Context State Components
+                   <lexicalEnv> .K </lexicalEnv> // Eid
+                   <thisBinding> .K </thisBinding> // Oid + Undefined
+                   <lastNonEmptyValue> .K </lastNonEmptyValue> // Val // last non-empty stmt value to be used by eval
+                 </running>
+               </ctx>
+               <excStack> .List </excStack>
+               <pseudoCtx>
+                 <pseudoStack> .List </pseudoStack>
+                 <pseudoEnv> .Map </pseudoEnv>
+               </pseudoCtx>
+             </ctrl>
+             <in stream="stdin"> .List </in>
+             <out stream="stdout"> .List </out>
+             <log> .List </log>
+           </T>
+           
+           // <properties>
+           // 8.6.1 Property Attribute
+           // 8.10 The Property Descriptor and Property Identifier Specification Types
+           syntax PropertyDescriptor ::= "@desc" "(" Map ")"
+           syntax Val ::= PropertyDescriptor
+           
+           // <declEnvRec>
+           syntax Val ::= "@ve" "(" Val "," Bool "," Bool "," Bool ")" // ValEnv = Value * Initialized * Mutable * Deletable
+           
+           // <activeStack>
+           syntax KItem ::= "@active" "(" RunningCellFragment ")"
+           
+           // <excStack>
+           syntax KItem ::= "@excTC"  "(" Var "," Stmt ","          K "," CtrlCellFragment ")"
+                             | "@excTF"  "("                  Stmt "," K "," CtrlCellFragment ")"
+                             | "@excTCF" "(" Var "," Stmt "," Stmt "," K "," CtrlCellFragment ")"
+           
+           // <pseudoStack>
+           syntax KItem ::= "@pseudo" "(" K "," Map ")"
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Values
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // KResult            8    Types
+           // Undefined         8.1  The Undefined Type
+           // @NullVal           8.2  The Null Type
+           // Bool               8.3  The Boolean Type
+           // String             8.4  The String Type
+           // Number             8.5  The Number Type
+           // Oid                8.6  The Object Type
+           // Reference          8.7  The Reference Specification Type
+           // Vals               8.8  The List Specification Type
+           // CompletionType     8.9  The Completion Specification Type
+           // PropertyDescriptor 8.10 The Property Descriptor and Property Identifier Specification Types
+           // Eid                8.11 The Lexical Environment and Environment Record Specification Types
+           
+           // 8.8 The List Specification Type
+           syntax Vals ::= "@Cons" "(" Val "," Vals ")"
+                         | "@Nil"
+           syntax Val  ::= UndefinedType // "Undefined" // 8.1 The Undefined Type
+                         | NullType // "@NullVal" // 8.2 The Null Type
+                         | Primitive
+                         | Oid
+                       //| Reference // NOTE: We made it using isVal
+           // 8.6 The Object Type
+           syntax Oid  ::= "@o" "(" Int ")" [smtlib(smt_pointer_object)]
+                         | "@NullOid"
+           // 8.11 The Lexical Environment and Environment Record Specification Types
+           syntax Eid  ::= "@e" "(" Int ")"
+                         | "@NullEid"
+           
+           syntax UndefinedType ::= "Undefined" // 8.1 The Undefined Type
+           syntax NullType ::= "@NullVal" [smtlib(smt_pointer_null)] // 8.2 The Null Type
+           
+           syntax Primitive ::= Bool // 8.3 The Boolean Type
+                              | String // 8.4 The String Type
+                              | Number
+           // 8.5 The Number Type
+           syntax Number    ::= Int
+                              | Float
+                              | "@nz" // negative zero: -0 // TODO: make it systematically using artifical number type with explicit sign
+                              | "@NaN"
+                              | "@+Infinity"
+                              | "@-Infinity"
+           
+           syntax Float ::= "@MAX_VALUE"
+        0  rule @MAX_VALUE => 1.7976931348623157e308 [macro]
+           //
+           syntax Float ::= "@MIN_VALUE"
+        0  rule @MIN_VALUE => 4.9e-324 [macro]
+           
+           // Subsorts information
+           syntax Exps    ::= Vals
+           syntax Exp     ::= Val
+           syntax KResult ::= Vals
+                            | Val
+           
+           // TODO: Check if it is correct
+           syntax KResult ::= Var
+                            | Eid
+           
+           // 8.9 The Completion Specification Type
+           
+           syntax CompletionType ::= CompletionTypeNormal
+                                   | CompletionTypeAbrupt
+           
+           syntax CompletionTypeNormal ::= "@Normal"
+           
+           syntax CompletionTypeAbrupt ::= CompletionTypeGoto
+                                         | CompletionTypeReturn
+           syntax CompletionTypeGoto   ::= "@Break"    "(" Var ")"
+                                         | "@Continue" "(" Var ")"
+           syntax CompletionTypeReturn ::= "@Return"   "(" Val ")"
+      156  syntax KItem                    ::= "@Throw"    "(" K /* Val */ ")" [seqstrict] // NOTE: @Throw is no longer a completion type. Rather, we use another exception handling mechanism.
+           
+           syntax KResult ::= CompletionType
+           syntax Stmt    ::= CompletionType
+           
+           // TODO: check if we can describe without following
+           syntax KResult ::= "@m" "(" Map ")"
+           syntax KResult ::= "@s" "(" Set ")"
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Initializing Configuration
+           //////////////////////////////////////////////////////////////////////////////
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Initializing Configuration
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 10.2.3 The Global Environment
+           syntax Eid  ::= "@GlobalEid"
+           
+           // 15 Standard Built-in ECMAScript Objects
+           syntax Oid  ::= "@GlobalOid"
+                         | "@ObjectOid"   | "@ObjectProtoOid"
+                         | "@FunctionOid" | "@FunctionProtoOid"
+                         | "@ArrayOid"    | "@ArrayProtoOid"
+                         | "@StringOid"   | "@StringProtoOid"
+                         | "@BooleanOid"  | "@BooleanProtoOid"
+                         | "@NumberOid"   | "@NumberProtoOid"
+                         | "@MathOid"
+                         | "@DateOid"     | "@DateProtoOid"
+                         | "@RegExpOid"   | "@RegExpProtoOid"
+                         | "@ErrorOid"    | "@ErrorProtoOid"
+                         //
+                         | "@EvalErrorOid"      | "@EvalErrorProtoOid"
+                         | "@RangeErrorOid"     | "@RangeErrorProtoOid"
+                         | "@ReferenceErrorOid" | "@ReferenceErrorProtoOid"
+                         | "@SyntaxErrorOid"    | "@SyntaxErrorProtoOid"
+                         | "@TypeErrorOid"      | "@TypeErrorProtoOid"
+                         | "@URIErrorOid"       | "@URIErrorProtoOid"
+                         //
+                         | "@JSONOid"
+           
+           // NOTE: All of '@(...)'s are place-holders. They will be eventually replaced with actual standard built-in methods written in self-hosting javascript programs.
+           
+           syntax KItem /* .K */ ::= "@InitConfig"
+           // TODO: More initializations
+     2744  rule <k> @InitConfig => . ... </k>
+                // 15 Standard Built-in ECMAScript Objects
+                <objs>
+                  // 15.1 The Global Object
+                  (. => <obj>
+                          <oid> @GlobalOid </oid>
+                          <properties>
+                          //"window"              |-> @desc("Value" |-> @GlobalOid               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1 The Global Object
+                            // 15.1.1 Value Properties of the Global Object
+                            "NaN"                 |-> @desc("Value" |-> @NaN                     "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.1.1.1 NaN
+                            "Infinity"            |-> @desc("Value" |-> @+Infinity               "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.1.1.2 Infinity
+                            "undefined"           |-> @desc("Value" |-> Undefined               "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.1.1.3 undefined
+                            // 15.1.2 Function Properties of the Global Object
+                            "eval"                |-> @desc("Value" |-> @("eval_i")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.2.1 eval (x)
+                            "parseInt"            |-> @desc("Value" |-> @("parseInt"  )          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.2.2 parseInt (string , radix)
+                            "parseFloat"          |-> @desc("Value" |-> @("parseFloat")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.2.3 parseFloat (string)
+                            "isNaN"               |-> @desc("Value" |-> @("isNaN"     )          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.2.4 isNaN (number)
+                            "isFinite"            |-> @desc("Value" |-> @("isFinite"  )          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.2.5 isFinite (number)
+                            // 15.1.3 URI Handling Function Properties
+                            "decodeURI"           |-> @desc("Value" |-> @("decodeURI"         )  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.3.1 decodeURI (encodedURI)
+                            "decodeURIComponent"  |-> @desc("Value" |-> @("decodeURIComponent")  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.3.2 decodeURIComponent (encodedURIComponent)
+                            "encodeURI"           |-> @desc("Value" |-> @("encodeURI"         )  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.3.3 encodeURI (uri)
+                            "encodeURIComponent"  |-> @desc("Value" |-> @("encodeURIComponent")  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.3.4 encodeURIComponent (uriComponent)
+                            // 15.1.4 Constructor Properties of the Global Object
+                            "Object"              |-> @desc("Value" |-> @ObjectOid               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.1 Object ( . . . )
+                            "Function"            |-> @desc("Value" |-> @FunctionOid             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.2 Function ( . . . )
+                            "Array"               |-> @desc("Value" |-> @ArrayOid                "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.3 Array ( . . . )
+                            "String"              |-> @desc("Value" |-> @StringOid               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.4 String ( . . . )
+                            "Boolean"             |-> @desc("Value" |-> @BooleanOid              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.5 Boolean ( . . . )
+                            "Number"              |-> @desc("Value" |-> @NumberOid               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.6 Number ( . . . )
+                            "Date"                |-> @desc("Value" |-> @DateOid                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.7 Date ( . . . )
+                            "RegExp"              |-> @desc("Value" |-> @RegExpOid               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.8 RegExp ( . . . )
+                            "Error"               |-> @desc("Value" |-> @ErrorOid                "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.9 Error ( . . . ) 
+                            "EvalError"           |-> @desc("Value" |-> @EvalErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.10 EvalError ( . . . )
+                            "RangeError"          |-> @desc("Value" |-> @RangeErrorOid           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.11 RangeError ( . . . )
+                            "ReferenceError"      |-> @desc("Value" |-> @ReferenceErrorOid       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.12 ReferenceError ( . . . )
+                            "SyntaxError"         |-> @desc("Value" |-> @SyntaxErrorOid          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.13 SyntaxError ( . . . )
+                            "TypeError"           |-> @desc("Value" |-> @TypeErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.14 TypeError ( . . . )
+                            "URIError"            |-> @desc("Value" |-> @URIErrorOid             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.4.15 URIError ( . . . )
+                            // 15.1.5 Other Properties of the Global Object
+                            "Math"                |-> @desc("Value" |-> @MathOid                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.5.1 Math
+                            "JSON"                |-> @desc("Value" |-> @JSONOid                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.1.5.2 JSON
+                          </properties>
+                          <internalProperties>
+                            // 15.1 The Global Object
+                            // The values of the [[Prototype]] and [[Class]] internal properties of the global object are implementation-dependent.
+                            "Prototype"  |-> @ObjectProtoOid
+                            "Class"      |-> "Object"
+                            "Extensible" |-> true // TODO: check if it is correct?
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.2 Object Objects
+                  (. => <obj>
+                          <oid> @ObjectOid </oid>
+                          // 15.2.3 Properties of the Object Constructor
+                          <properties>
+                            "length"                   |-> @desc("Value" |-> 1                                    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.2.3 Properties of the Object Constructor
+                            "prototype"                |-> @desc("Value" |-> @ObjectProtoOid                      "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.2.3.1 Object.prototype
+                            "getPrototypeOf"           |-> @desc("Value" |-> @("Object.getPrototypeOf")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.2 Object.getPrototypeOf ( O )
+                            "getOwnPropertyDescriptor" |-> @desc("Value" |-> @("Object.getOwnPropertyDescriptor") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.3 Object.getOwnPropertyDescriptor ( O, P )
+                            "getOwnPropertyNames"      |-> @desc("Value" |-> @("Object.getOwnPropertyNames")      "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.4 Object.getOwnPropertyNames ( O )
+                            "create"                   |-> @desc("Value" |-> @("Object.create")                   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.5 Object.create ( O [, Properties] )
+                            "defineProperty"           |-> @desc("Value" |-> @("Object.defineProperty")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.6 Object.defineProperty ( O, P, Attributes )
+                            "defineProperties"         |-> @desc("Value" |-> @("Object.defineProperties")         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.7 Object.defineProperties ( O, Properties )
+                            "seal"                     |-> @desc("Value" |-> @("Object.seal")                     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.8 Object.seal ( O )
+                            "freeze"                   |-> @desc("Value" |-> @("Object.freeze")                   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.9 Object.freeze ( O )
+                            "preventExtensions"        |-> @desc("Value" |-> @("Object.preventExtensions")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.10 Object.preventExtensions ( O )
+                            "isSealed"                 |-> @desc("Value" |-> @("Object.isSealed")                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.11 Object.isSealed ( O )
+                            "isFrozen"                 |-> @desc("Value" |-> @("Object.isFrozen")                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.12 Object.isFrozen ( O )
+                            "isExtensible"             |-> @desc("Value" |-> @("Object.isExtensible")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.13 Object.isExtensible ( O )
+                            "keys"                     |-> @desc("Value" |-> @("Object.keys")                     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.2.3.14 Object.keys ( O )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.2.4 Properties of the Object Prototype Object
+                  (. => <obj>
+                          <oid> @ObjectProtoOid </oid>
+                          <properties>
+                            "constructor"          |-> @desc("Value" |-> @ObjectOid                                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.1 Object.prototype.constructor
+                            "toString"             |-> @desc("Value" |-> @("Object.prototype.toString")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.2 Object.prototype.toString ( ) 
+                            "toLocaleString"       |-> @desc("Value" |-> @("Object.prototype.toLocaleString")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.3 Object.prototype.toLocaleString ( )
+                            "valueOf"              |-> @desc("Value" |-> @("Object.prototype.valueOf")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.4 Object.prototype.valueOf ( )
+                            "hasOwnProperty"       |-> @desc("Value" |-> @("Object.prototype.hasOwnProperty")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.5 Object.prototype.hasOwnProperty (V)
+                            "isPrototypeOf"        |-> @desc("Value" |-> @("Object.prototype.isPrototypeOf")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.6 Object.prototype.isPrototypeOf (V)
+                            "propertyIsEnumerable" |-> @desc("Value" |-> @("Object.prototype.propertyIsEnumerable") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.2.4.7 Object.prototype.propertyIsEnumerable (V
+                          </properties>
+                          <internalProperties>
+                            "Prototype"  |-> @NullOid
+                            "Class"      |-> "Object"
+                            "Extensible" |-> true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.3 Function Objects
+                  (. => <obj>
+                          <oid> @FunctionOid </oid>
+                          // 15.3.3 Properties of the Function Constructor
+                          <properties>
+                            "length"           |-> @desc("Value" |-> 1                 "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.3.3.2 Function.length
+                            "prototype"        |-> @desc("Value" |-> @FunctionProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.3.3.1 Function.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.3.4 Properties of the Function Prototype Object
+                  (. => <obj>
+                          <oid> @FunctionProtoOid </oid>
+                          <properties>
+                            "length"      |-> @desc("Value" |-> 0                                "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.3.4 Properties of the Function Prototype Object
+                            "constructor" |-> @desc("Value" |-> @FunctionOid                     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.3.4.1 Function.prototype.constructor
+                            "toString"    |-> @desc("Value" |-> @("Function.prototype.toString") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.3.4.2 Function.prototype.toString // TODO:
+                            "apply"       |-> @desc("Value" |-> @("Function.prototype.apply")    "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.3.4.3 Function.prototype.apply // TODO:
+                            "call"        |-> @desc("Value" |-> @("Function.prototype.call")     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.3.4.4 Function.prototype.call // TODO:
+                            "bind"        |-> @desc("Value" |-> @("Function.prototype.bind")     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.3.4.5 Function.prototype.bind // TODO:
+                          </properties>
+                          <internalProperties>
+                            "Prototype"  |-> @ObjectProtoOid
+                            "Class"      |-> "Function"
+                            "Extensible" |->  true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.4 Array Objects
+                  // 15.4.5 Properties of Array Instances // TODO:
+                  (. => <obj>
+                          <oid> @ArrayOid </oid>
+                          // 15.4.3 Properties of the Array Constructor
+                          <properties>
+                            "length"           |-> @desc("Value" |-> 1                  "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.4.3 Properties of the Array Constructor
+                            "prototype"        |-> @desc("Value" |-> @ArrayProtoOid     "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.4.3.1 Array.prototype
+                            "isArray"          |-> @desc("Value" |-> @("Array.isArray") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.3.2 Array.isArray ( arg )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.4.4 Properties of the Array Prototype Object
+                  (. => <obj>
+                          <oid> @ArrayProtoOid </oid>
+                          <properties>
+                            "length"           |-> @desc("Value" |-> 0                                   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false) // 15.4.5.2 length
+                            "constructor"      |-> @desc("Value" |-> @ArrayOid                           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.1 Array.prototype.constructor
+                            "toString"         |-> @desc("Value" |-> @("Array.prototype.toString"      ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.2 Array.prototype.toString ( )
+                            "toLocaleString"   |-> @desc("Value" |-> @("Array.prototype.toLocaleString") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.3 Array.prototype.toLocaleString ( )
+                            "concat"           |-> @desc("Value" |-> @("Array.prototype.concat"        ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.4 Array.prototype.concat ( [ item1 [ , item2 [ , ... ] ] ] )
+                            "join"             |-> @desc("Value" |-> @("Array.prototype.join"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.5 Array.prototype.join (separator)
+                            "pop"              |-> @desc("Value" |-> @("Array.prototype.pop"           ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.6 Array.prototype.pop ( )
+                            "push"             |-> @desc("Value" |-> @("Array.prototype.push"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.7 Array.prototype.push ( [ item1 [ , item2 [ , ... ] ] ] )
+                            "reverse"          |-> @desc("Value" |-> @("Array.prototype.reverse"       ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.8 Array.prototype.reverse ( )
+                            "shift"            |-> @desc("Value" |-> @("Array.prototype.shift"         ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.9 Array.prototype.shift ( )
+                            "slice"            |-> @desc("Value" |-> @("Array.prototype.slice"         ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.10 Array.prototype.slice (start, end)
+                            "sort"             |-> @desc("Value" |-> @("Array.prototype.sort"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.11 Array.prototype.sort (comparefn)
+                            "splice"           |-> @desc("Value" |-> @("Array.prototype.splice"        ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.12 Array.prototype.splice (start, deleteCount [ , item1 [ , item2 [ , ... ] ] ] )
+                            "unshift"          |-> @desc("Value" |-> @("Array.prototype.unshift"       ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.13 Array.prototype.unshift ( [ item1 [ , item2 [ , ... ] ] ] )
+                            "indexOf"          |-> @desc("Value" |-> @("Array.prototype.indexOf"       ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.14 Array.prototype.indexOf ( searchElement [ , fromIndex ] )
+                            "lastIndexOf"      |-> @desc("Value" |-> @("Array.prototype.lastIndexOf"   ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.15 Array.prototype.lastIndexOf ( searchElement [ , fromIndex ] )
+                            "every"            |-> @desc("Value" |-> @("Array.prototype.every"         ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.16 Array.prototype.every ( callbackfn [ , thisArg ] )
+                            "some"             |-> @desc("Value" |-> @("Array.prototype.some"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.17 Array.prototype.some ( callbackfn [ , thisArg ] )
+                            "forEach"          |-> @desc("Value" |-> @("Array.prototype.forEach"       ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.18 Array.prototype.forEach ( callbackfn [ , thisArg ] )
+                            "map"              |-> @desc("Value" |-> @("Array.prototype.map"           ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.19 Array.prototype.map ( callbackfn [ , thisArg ] )
+                            "filter"           |-> @desc("Value" |-> @("Array.prototype.filter"        ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.20 Array.prototype.filter ( callbackfn [ , thisArg ] )
+                            "reduce"           |-> @desc("Value" |-> @("Array.prototype.reduce"        ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.21 Array.prototype.reduce ( callbackfn [ , initialValue ] )
+                            "reduceRight"      |-> @desc("Value" |-> @("Array.prototype.reduceRight"   ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.4.4.22 Array.prototype.reduceRight ( callbackfn [ , initialValue ] )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "Array"
+                            "Extensible"     |->  true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.5 String Objects
+                  (. => <obj>
+                          <oid> @StringOid </oid>
+                          // 15.5.3 Properties of the String Constructor
+                          <properties>
+                            "length"           |-> @desc("Value" |-> 1                        "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.5.3 Properties of the String Constructor
+                            "prototype"        |-> @desc("Value" |-> @StringProtoOid          "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.5.3.1 String.prototype
+                            "fromCharCode"     |-> @desc("Value" |-> @("String.fromCharCode") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.3.2 String.fromCharCode ( [ char0 [ , char1 [ , ... ] ] ] )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.5.4 Properties of the String Prototype Object
+                  (. => <obj>
+                          <oid> @StringProtoOid </oid>
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 0                                       "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "constructor"       |-> @desc("Value" |-> @StringOid                              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.1 String.prototype.constructor
+                            "toString"          |-> @desc("Value" |-> @("String.prototype.toString"         ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.2 String.prototype.toString ( )
+                            "valueOf"           |-> @desc("Value" |-> @("String.prototype.valueOf"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.3 String.prototype.valueOf ( )
+                            "charAt"            |-> @desc("Value" |-> @("String.prototype.charAt"           ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.4 String.prototype.charAt (pos)
+                            "charCodeAt"        |-> @desc("Value" |-> @("String.prototype.charCodeAt"       ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.5 String.prototype.charCodeAt (pos)
+                            "concat"            |-> @desc("Value" |-> @("String.prototype.concat"           ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.6 String.prototype.concat ( [ string1 [ , string2 [ , ... ] ] ] )
+                            "indexOf"           |-> @desc("Value" |-> @("String.prototype.indexOf"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.7 String.prototype.indexOf (searchString, position)
+                            "lastIndexOf"       |-> @desc("Value" |-> @("String.prototype.lastIndexOf"      ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.8 String.prototype.lastIndexOf (searchString, position)
+                            "localeCompare"     |-> @desc("Value" |-> @("String.prototype.localeCompare"    ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.9 String.prototype.localeCompare (that)
+                            "match"             |-> @desc("Value" |-> @("String.prototype.match"            ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.10 String.prototype.match (regexp)
+                            "replace"           |-> @desc("Value" |-> @("String.prototype.replace"          ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.11 String.prototype.replace (searchValue, replaceValue)
+                            "search"            |-> @desc("Value" |-> @("String.prototype.search"           ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.12 String.prototype.search (regexp)
+                            "slice"             |-> @desc("Value" |-> @("String.prototype.slice"            ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.13 String.prototype.slice (start, end)
+                            "split"             |-> @desc("Value" |-> @("String.prototype.split"            ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.14 String.prototype.split (separator, limit)
+                            "substring"         |-> @desc("Value" |-> @("String.prototype.substring"        ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.15 String.prototype.substring (start, end)
+                            "toLowerCase"       |-> @desc("Value" |-> @("String.prototype.toLowerCase"      ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.16 String.prototype.toLowerCase ( )
+                            "toLocaleLowerCase" |-> @desc("Value" |-> @("String.prototype.toLocaleLowerCase") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.17 String.prototype.toLocaleLowerCase ( )
+                            "toUpperCase"       |-> @desc("Value" |-> @("String.prototype.toUpperCase"      ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.18 String.prototype.toUpperCase ( )
+                            "toLocaleUpperCase" |-> @desc("Value" |-> @("String.prototype.toLocaleUpperCase") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.19 String.prototype.toLocaleUpperCase ( )
+                            "trim"              |-> @desc("Value" |-> @("String.prototype.trim"             ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.5.4.20 String.prototype.trim ( )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "String"
+                            "Extensible"     |->  true
+                            "PrimitiveValue" |-> ""
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.6 Boolean Objects
+                  (. => <obj>
+                          <oid> @BooleanOid </oid>
+                          // 15.6.3 Properties of the Boolean Constructor
+                          <properties>
+                            "length"           |-> @desc("Value" |-> 1                "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"        |-> @desc("Value" |-> @BooleanProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.6.3.1 Boolean.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.6.4 Properties of the Boolean Prototype Object
+                  (. => <obj>
+                          <oid> @BooleanProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @BooleanOid                     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.6.4.1 Boolean.prototype.constructor
+                            "toString"         |-> @desc("Value" |-> @("Boolean.prototype.toString") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.6.4.2 Boolean.prototype.toString ( )
+                            "valueOf"          |-> @desc("Value" |-> @("Boolean.prototype.valueOf")  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.6.4.3 Boolean.prototype.valueOf ( )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "Boolean"
+                            "Extensible"     |->  true
+                            "PrimitiveValue" |-> false
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.7 Number Objects
+                  (. => <obj>
+                          <oid> @NumberOid </oid>
+                          // 15.7.3 Properties of the Number Constructor
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                      "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @NumberProtoOid        "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.1 Number.prototype
+                            "MAX_VALUE"         |-> @desc("Value" |-> @MAX_VALUE             "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.2 Number.MAX_VALUE
+                            "MIN_VALUE"         |-> @desc("Value" |-> @MIN_VALUE             "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.3 Number.MIN_VALUE
+                            "NaN"               |-> @desc("Value" |-> @NaN                   "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.4 Number.NaN
+                            "NEGATIVE_INFINITY" |-> @desc("Value" |-> @-Infinity             "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.5 Number.NEGATIVE_INFINITY
+                            "POSITIVE_INFINITY" |-> @desc("Value" |-> @+Infinity             "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.7.3.6 Number.POSITIVE_INFINITY
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.7.4 Properties of the Number Prototype Object
+                  (. => <obj>
+                          <oid> @NumberProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @NumberOid                           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.1 Number.prototype.constructor
+                            "toString"         |-> @desc("Value" |-> @("Number.prototype.toString")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.2 Number.prototype.toString ( [ radix ] )
+                            "toLocaleString"   |-> @desc("Value" |-> @("Number.prototype.toLocaleString") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.3 Number.prototype.toLocaleString()
+                            "valueOf"          |-> @desc("Value" |-> @("Number.prototype.valueOf")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.4 Number.prototype.valueOf ( )
+                            "toFixed"          |-> @desc("Value" |-> @("Number.prototype.toFixed")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.5 Number.prototype.toFixed (fractionDigits)
+                            "toExponential"    |-> @desc("Value" |-> @("Number.prototype.toExponential")  "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.6 Number.prototype.toExponential (fractionDigits)
+                            "toPrecision"      |-> @desc("Value" |-> @("Number.prototype.toPrecision")    "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.7.4.7 Number.prototype.toPrecision (precision)
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "Number"
+                            "Extensible"     |->  true
+                            "PrimitiveValue" |-> 0
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.8 The Math Object
+                  (. => <obj>
+                          <oid> @MathOid </oid>
+                          <properties>
+                            // 15.8.1 Value Properties of the Math Object
+                            "E"       |-> @desc("Value" |-> 2.7182818284590452354 "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.1 E
+                            "LN10"    |-> @desc("Value" |-> 2.302585092994046     "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.2 LN10
+                            "LN2"     |-> @desc("Value" |-> 0.6931471805599453    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.3 LN2
+                            "LOG2E"   |-> @desc("Value" |-> 1.4426950408889634    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.4 LOG2E
+                            "LOG10E"  |-> @desc("Value" |-> 0.4342944819032518    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.5 LOG10E
+                            "PI"      |-> @desc("Value" |-> 3.1415926535897932    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.6 PI
+                            "SQRT1_2" |-> @desc("Value" |-> 0.7071067811865476    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.7 SQRT1_2
+                            "SQRT2"   |-> @desc("Value" |-> 1.4142135623730951    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.8.1.8 SQRT2
+                            // 15.8.2 Function Properties of the Math Object
+                            "abs"     |-> @desc("Value" |-> @("abs"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.1 abs (x)
+                            "acos"    |-> @desc("Value" |-> @("acos"  )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.2 acos (x)
+                            "asin"    |-> @desc("Value" |-> @("asin"  )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.3 asin (x)
+                            "atan"    |-> @desc("Value" |-> @("atan"  )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.4 atan (x)
+                            "atan2"   |-> @desc("Value" |-> @("atan2" )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.5 atan2 (y, x)
+                            "ceil"    |-> @desc("Value" |-> @("ceil"  )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.6 ceil (x)
+                            "cos"     |-> @desc("Value" |-> @("cos"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.7 cos (x)
+                            "exp"     |-> @desc("Value" |-> @("exp"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.8 exp (x)
+                            "floor"   |-> @desc("Value" |-> @("floor" )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.9 floor (x)
+                            "log"     |-> @desc("Value" |-> @("log"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.10 log (x)
+                            "max"     |-> @desc("Value" |-> @("max"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.11 max ( [ value1 [ , value2 [ , ... ] ] ] )
+                            "min"     |-> @desc("Value" |-> @("min"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.12 min ( [ value1 [ , value2 [ , ... ] ] ] )
+                            "pow"     |-> @desc("Value" |-> @("pow"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.13 pow (x, y)
+                            "random"  |-> @desc("Value" |-> @("random")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.14 random ( )
+                            "round"   |-> @desc("Value" |-> @("round" )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.15 round (x)
+                            "sin"     |-> @desc("Value" |-> @("sin"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.16 sin (x)
+                            "sqrt"    |-> @desc("Value" |-> @("sqrt"  )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.17 sqrt (x)
+                            "tan"     |-> @desc("Value" |-> @("tan"   )           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.8.2.18 tan (x)
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @ObjectProtoOid
+                            "Class"            |-> "Math"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.9 Date Objects
+                  (. => <obj>
+                          <oid> @DateOid </oid>
+                          // 15.9.4 Properties of the Date Constructor
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 7                      "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @DateProtoOid          "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.9.4.1 Date.prototype
+                            "parse"             |-> @desc("Value" |-> @("Date.parse")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.9.4.2 Date.parse (string)
+                            "UTC"               |-> @desc("Value" |-> @("Date.UTC"  )        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.9.4.3 Date.UTC (year, month [, date [, hours [, minutes [, seconds [, ms ] ] ] ] ] )
+                            "now"               |-> @desc("Value" |-> @("Date.now"  )        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.9.4.4 Date.now ( )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.9.5 Properties of the Date Prototype Object
+                  (. => <obj>
+                          <oid> @DateProtoOid </oid>
+                          <properties>
+                            "constructor"         |-> @desc("Value" |-> @DateOid                                 "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.1 Date.prototype.constructor
+                            "toString"            |-> @desc("Value" |-> @("Date.prototype.toString")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.2 Date.prototype.toString ( )
+                            "toDateString"        |-> @desc("Value" |-> @("Date.prototype.toDateString")         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.3 Date.prototype.toDateString ( )
+                            "toTimeString"        |-> @desc("Value" |-> @("Date.prototype.toTimeString")         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.4 Date.prototype.toTimeString ( )
+                            "toLocaleString"      |-> @desc("Value" |-> @("Date.prototype.toLocaleString")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.5 Date.prototype.toLocaleString ( )
+                            "toLocaleDateString"  |-> @desc("Value" |-> @("Date.prototype.toLocaleDateString")   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.6 Date.prototype.toLocaleDateString ( )
+                            "toLocaleTimeString"  |-> @desc("Value" |-> @("Date.prototype.toLocaleTimeString")   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.7 Date.prototype.toLocaleTimeString ( )
+                            "valueOf"             |-> @desc("Value" |-> @("Date.prototype.valueOf")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.8 Date.prototype.valueOf ( )
+                            "getTime"             |-> @desc("Value" |-> @("Date.prototype.getTime")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.9 Date.prototype.getTime ( )
+                            "getFullYear"         |-> @desc("Value" |-> @("Date.prototype.getFullYear")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.10 Date.prototype.getFullYear ( )
+                            "getUTCFullYear"      |-> @desc("Value" |-> @("Date.prototype.getUTCFullYear")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.11 Date.prototype.getUTCFullYear ( )
+                            "getMonth"            |-> @desc("Value" |-> @("Date.prototype.getMonth")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.12 Date.prototype.getMonth ( )
+                            "getUTCMonth"         |-> @desc("Value" |-> @("Date.prototype.getUTCMonth")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.13 Date.prototype.getUTCMonth ( )
+                            "getDate"             |-> @desc("Value" |-> @("Date.prototype.getDate")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.14 Date.prototype.getDate ( )
+                            "getUTCDate"          |-> @desc("Value" |-> @("Date.prototype.getUTCDate")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.15 Date.prototype.getUTCDate ( )
+                            "getDay"              |-> @desc("Value" |-> @("Date.prototype.getDay")               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.16 Date.prototype.getDay ( )
+                            "getUTCDay"           |-> @desc("Value" |-> @("Date.prototype.getUTCDay")            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.17 Date.prototype.getUTCDay ( )
+                            "getHours"            |-> @desc("Value" |-> @("Date.prototype.getHours")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.18 Date.prototype.getHours ( )
+                            "getUTCHours"         |-> @desc("Value" |-> @("Date.prototype.getUTCHours")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.19 Date.prototype.getUTCHours ( )
+                            "getMinutes"          |-> @desc("Value" |-> @("Date.prototype.getMinutes")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.20 Date.prototype.getMinutes ( )
+                            "getUTCMinutes"       |-> @desc("Value" |-> @("Date.prototype.getUTCMinutes")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.21 Date.prototype.getUTCMinutes ( )
+                            "getSeconds"          |-> @desc("Value" |-> @("Date.prototype.getSeconds")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.22 Date.prototype.getSeconds ( )
+                            "getUTCSeconds"       |-> @desc("Value" |-> @("Date.prototype.getUTCSeconds")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.23 Date.prototype.getUTCSeconds ( )
+                            "getMilliseconds"     |-> @desc("Value" |-> @("Date.prototype.getMilliseconds")      "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.24 Date.prototype.getMilliseconds ( )
+                            "getUTCMilliseconds"  |-> @desc("Value" |-> @("Date.prototype.getUTCMilliseconds")   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.25 Date.prototype.getUTCMilliseconds ( )
+                            "getTimezoneOffset"   |-> @desc("Value" |-> @("Date.prototype.getTimezoneOffset")    "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.26 Date.prototype.getTimezoneOffset ( )
+                            "setTime"             |-> @desc("Value" |-> @("Date.prototype.setTime")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.27 Date.prototype.setTime (time)
+                            "setMilliseconds"     |-> @desc("Value" |-> @("Date.prototype.setMilliseconds")      "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.28 Date.prototype.setMilliseconds (ms)
+                            "setUTCMilliseconds"  |-> @desc("Value" |-> @("Date.prototype.setUTCMilliseconds")   "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.29 Date.prototype.setUTCMilliseconds (ms)
+                            "setSeconds"          |-> @desc("Value" |-> @("Date.prototype.setSeconds")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.30 Date.prototype.setSeconds (sec [, ms ] )
+                            "setUTCSeconds"       |-> @desc("Value" |-> @("Date.prototype.setUTCSeconds")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.31 Date.prototype.setUTCSeconds (sec [, ms ] )
+                            "setMinutes"          |-> @desc("Value" |-> @("Date.prototype.setMinutes")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.32 Date.prototype.setMinutes (min [, sec [, ms ] ] )
+                            "setUTCMinutes"       |-> @desc("Value" |-> @("Date.prototype.setUTCMinutes")        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.33 Date.prototype.setUTCMinutes (min [, sec [, ms ] ] )
+                            "setHours"            |-> @desc("Value" |-> @("Date.prototype.setHours")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.34 Date.prototype.setHours (hour [, min [, sec [, ms ] ] ] )
+                            "setUTCHours"         |-> @desc("Value" |-> @("Date.prototype.setUTCHours")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.35 Date.prototype.setUTCHours (hour [, min [, sec [, ms ] ] ] )
+                            "setDate"             |-> @desc("Value" |-> @("Date.prototype.setDate")              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.36 Date.prototype.setDate (date)
+                            "setUTCDate"          |-> @desc("Value" |-> @("Date.prototype.setUTCDate")           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.37 Date.prototype.setUTCDate (date)
+                            "setMonth"            |-> @desc("Value" |-> @("Date.prototype.setMonth")             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.38 Date.prototype.setMonth (month [, date ] )
+                            "setUTCMonth"         |-> @desc("Value" |-> @("Date.prototype.setUTCMonth")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.39 Date.prototype.setUTCMonth (month [, date ] )
+                            "setFullYear"         |-> @desc("Value" |-> @("Date.prototype.setFullYear")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.40 Date.prototype.setFullYear (year [, month [, date ] ] )
+                            "setUTCFullYear"      |-> @desc("Value" |-> @("Date.prototype.setUTCFullYear")       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.41 Date.prototype.setUTCFullYear (year [, month [, date ] ] )
+                            "toUTCString"         |-> @desc("Value" |-> @("Date.prototype.toUTCString")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.42 Date.prototype.toUTCString ( )
+                            "toISOString"         |-> @desc("Value" |-> @("Date.prototype.toISOString")          "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.43 Date.prototype.toISOString ( )
+                            "toJSON"              |-> @desc("Value" |-> @("Date.prototype.toJSON")               "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.9.5.44 Date.prototype.toJSON ( key )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "Date"
+                            "Extensible"     |->  true
+                            "PrimitiveValue" |-> @NaN
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.10 RegExp (Regular Expression) Objects
+                  (. => <obj>
+                          <oid> @RegExpOid </oid>
+                          // 15.10.5 Properties of the RegExp Constructor
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 2                      "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @RegExpProtoOid        "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.10.5.1 RegExp.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.10.6 Properties of the RegExp Prototype Object
+                  (. => <obj>
+                          <oid> @RegExpProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @RegExpOid                             "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.10.6.1 RegExp.prototype.constructor
+                            "exec"             |-> @desc("Value" |-> @("RegExp.prototype.exec"    )         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.10.6.2 RegExp.prototype.exec(string)
+                            "test"             |-> @desc("Value" |-> @("RegExp.prototype.test"    )         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.10.6.3 RegExp.prototype.test(string)
+                            "toString"         |-> @desc("Value" |-> @("RegExp.prototype.toString")         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.10.6.4 RegExp.prototype.toString()
+                            // 15.10.7 Properties of RegExp Instances
+                            "source"      |-> @desc("Value" |-> ""    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.10.7.1 source
+                            "global"      |-> @desc("Value" |-> false "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.10.7.2 global
+                            "ignoreCase"  |-> @desc("Value" |-> false "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.10.7.3 ignoreCase
+                            "multiline"   |-> @desc("Value" |-> false "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.10.7.4 multiline
+                            "lastIndex"   |-> @desc("Value" |-> 0     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false) // 15.10.7.5 lastIndex
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "RegExp"
+                            "Extensible"     |->  true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.11 ErrorObjects
+                  (. => <obj>
+                          <oid> @ErrorOid </oid>
+                          // 15.11.3 Properties of the Error Constructor
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1              "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @ErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.3.1 Error.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.11.4 Properties of the Error Prototype Object
+                  (. => <obj>
+                          <oid> @ErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @ErrorOid                     "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.4.1 Error.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "Error"                       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.4.2 Error.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.4.3 Error.prototype.message
+                            "toString"         |-> @desc("Value" |-> @("Error.prototype.toString") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.4.4 Error.prototype.toString ( )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ObjectProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.11.7 NativeError Object Structure
+                  // 15.11.7.11 Properties of NativeError Instances
+                  (. => <obj>
+                          <oid> @EvalErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                  "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @EvalErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @RangeErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                   "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @RangeErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @ReferenceErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                       "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @ReferenceErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @SyntaxErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                    "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @SyntaxErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @TypeErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                  "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @TypeErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @URIErrorOid </oid>
+                          // 15.11.7.5 Properties of the NativeError Constructors
+                          <properties>
+                            "length"            |-> @desc("Value" |-> 1                 "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+                            "prototype"         |-> @desc("Value" |-> @URIErrorProtoOid "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.11.7.6 NativeError.prototype
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  // 15.11.7.7 Properties of the NativeError Prototype Objects
+                  (. => <obj>
+                          <oid> @EvalErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @EvalErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "EvalError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @RangeErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @RangeErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "RangeError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                        "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @ReferenceErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @ReferenceErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "ReferenceError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @SyntaxErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @SyntaxErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "SyntaxError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                         "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @TypeErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @TypeErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "TypeError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                       "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @URIErrorProtoOid </oid>
+                          <properties>
+                            "constructor"      |-> @desc("Value" |-> @URIErrorOid            "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.8 NativeError.prototype.constructor
+                            "name"             |-> @desc("Value" |-> "URIError"              "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.9 NativeError.prototype.name
+                            "message"          |-> @desc("Value" |-> ""                      "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true) // 15.11.7.10 NativeError.prototype.message
+                          </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @ErrorProtoOid
+                            "Class"          |-> "Error"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+           
+                  // 15.12 The JSON Object
+                  (. => <obj>
+                          <oid> @JSONOid </oid>
+                          <properties>
+                            "parse"     |-> @desc("Value" |-> @("parse"    ) "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.12.2 parse ( text [ , reviver ] )
+                            "stringify" |-> @desc("Value" |-> @("stringify") "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true ) // 15.12.3 stringify ( value [ , replacer [ , space ] ] )
+                          </properties>
+                          <internalProperties>
+                            "Prototype"        |-> @ObjectProtoOid
+                            "Class"            |-> "JSON"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+           
+                </objs>
+           
+           syntax KItem /* .K */ ::= "@LoadConfig"
+     2744  rule <k> @LoadConfig => . ... </k>
+           <objs> ( _ =>
+                   <obj>
+                       <oid>
+                           @ArrayOid
+                       </oid>
+                       <properties>
+       81                  "isArray" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       36                      "Value" |-> @oo ( 67 )
+                               "Writable" |-> true )
+       18                  "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+      423                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      242                      "Value" |-> @ArrayProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ArrayProtoOid
+                       </oid>
+                       <properties>
+       44                  "concat" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       16                      "Value" |-> @oo ( 73 )
+                               "Writable" |-> true )
+       29                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       12                      "Value" |-> @ArrayOid
+                               "Writable" |-> true )
+                           "every" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 97 )
+                               "Writable" |-> true )
+                           "filter" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 105 )
+                               "Writable" |-> true )
+                           "forEach" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 101 )
+                               "Writable" |-> true )
+                           "indexOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 93 )
+                               "Writable" |-> true )
+       84                  "join" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      110                      "Value" |-> @oo ( 75 )
+                               "Writable" |-> true )
+                           "lastIndexOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 95 )
+                               "Writable" |-> true )
+       53                  "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> true )
+                           "map" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 103 )
+                               "Writable" |-> true )
+                           "pop" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 77 )
+                               "Writable" |-> true )
+      638                  "push" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      232                      "Value" |-> @oo ( 79 )
+                               "Writable" |-> true )
+       31                  "reduce" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       15                      "Value" |-> @oo ( 107 )
+                               "Writable" |-> true )
+                           "reduceRight" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 109 )
+                               "Writable" |-> true )
+       18                  "reverse" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 81 )
+                               "Writable" |-> true )
+                           "shift" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 83 )
+                               "Writable" |-> true )
+                           "slice" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 85 )
+                               "Writable" |-> true )
+                           "some" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 99 )
+                               "Writable" |-> true )
+       29                  "sort" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       12                      "Value" |-> @oo ( 87 )
+                               "Writable" |-> true )
+                           "splice" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 89 )
+                               "Writable" |-> true )
+                           "toLocaleString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 71 )
+                               "Writable" |-> true )
+      304                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      128                      "Value" |-> @oo ( 69 )
+                               "Writable" |-> true )
+                           "unshift" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 91 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Array"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @BooleanOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+      207                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+       94                      "Value" |-> @BooleanProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @BooleanProtoOid
+                       </oid>
+                       <properties>
+       22                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @BooleanOid
+                               "Writable" |-> true )
+       84                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       34                      "Value" |-> @oo ( 151 )
+                               "Writable" |-> true )
+     5142                  "valueOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     2842                      "Value" |-> @oo ( 153 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Boolean"
+                           "Extensible" |-> true
+                           "PrimitiveValue" |-> false
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @DateOid
+                       </oid>
+                       <properties>
+       18                  "UTC" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.UTC" )
+                               "Writable" |-> true )
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 7
+                               "Writable" |-> false )
+                           "now" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.now" )
+                               "Writable" |-> true )
+       18                  "parse" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.parse" )
+                               "Writable" |-> true )
+      684                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      304                      "Value" |-> @DateProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @DateProtoOid
+                       </oid>
+                       <properties>
+       18                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @DateOid
+                               "Writable" |-> true )
+       18                  "getDate" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getDate" )
+                               "Writable" |-> true )
+       18                  "getDay" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getDay" )
+                               "Writable" |-> true )
+       18                  "getFullYear" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getFullYear" )
+                               "Writable" |-> true )
+       18                  "getHours" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getHours" )
+                               "Writable" |-> true )
+       18                  "getMilliseconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getMilliseconds" )
+                               "Writable" |-> true )
+       18                  "getMinutes" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getMinutes" )
+                               "Writable" |-> true )
+       18                  "getMonth" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getMonth" )
+                               "Writable" |-> true )
+       18                  "getSeconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getSeconds" )
+                               "Writable" |-> true )
+       18                  "getTime" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getTime" )
+                               "Writable" |-> true )
+                           "getTimezoneOffset" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.getTimezoneOffset" )
+                               "Writable" |-> true )
+       18                  "getUTCDate" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCDate" )
+                               "Writable" |-> true )
+       18                  "getUTCDay" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCDay" )
+                               "Writable" |-> true )
+       18                  "getUTCFullYear" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCFullYear" )
+                               "Writable" |-> true )
+       18                  "getUTCHours" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCHours" )
+                               "Writable" |-> true )
+       18                  "getUTCMilliseconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCMilliseconds" )
+                               "Writable" |-> true )
+       18                  "getUTCMinutes" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCMinutes" )
+                               "Writable" |-> true )
+       18                  "getUTCMonth" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCMonth" )
+                               "Writable" |-> true )
+       18                  "getUTCSeconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.getUTCSeconds" )
+                               "Writable" |-> true )
+       18                  "setDate" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setDate" )
+                               "Writable" |-> true )
+       18                  "setFullYear" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setFullYear" )
+                               "Writable" |-> true )
+       18                  "setHours" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setHours" )
+                               "Writable" |-> true )
+       18                  "setMilliseconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setMilliseconds" )
+                               "Writable" |-> true )
+       18                  "setMinutes" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setMinutes" )
+                               "Writable" |-> true )
+       18                  "setMonth" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setMonth" )
+                               "Writable" |-> true )
+       18                  "setSeconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setSeconds" )
+                               "Writable" |-> true )
+       18                  "setTime" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setTime" )
+                               "Writable" |-> true )
+       18                  "setUTCDate" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCDate" )
+                               "Writable" |-> true )
+       18                  "setUTCFullYear" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCFullYear" )
+                               "Writable" |-> true )
+       18                  "setUTCHours" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCHours" )
+                               "Writable" |-> true )
+       18                  "setUTCMilliseconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCMilliseconds" )
+                               "Writable" |-> true )
+       18                  "setUTCMinutes" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCMinutes" )
+                               "Writable" |-> true )
+       18                  "setUTCMonth" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCMonth" )
+                               "Writable" |-> true )
+       18                  "setUTCSeconds" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.setUTCSeconds" )
+                               "Writable" |-> true )
+                           "toDateString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toDateString" )
+                               "Writable" |-> true )
+                           "toISOString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toISOString" )
+                               "Writable" |-> true )
+                           "toJSON" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toJSON" )
+                               "Writable" |-> true )
+                           "toLocaleDateString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toLocaleDateString" )
+                               "Writable" |-> true )
+       18                  "toLocaleString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.toLocaleString" )
+                               "Writable" |-> true )
+                           "toLocaleTimeString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toLocaleTimeString" )
+                               "Writable" |-> true )
+      139                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       62                      "Value" |-> @oo ( 203 )
+                               "Writable" |-> true )
+                           "toTimeString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "Date.prototype.toTimeString" )
+                               "Writable" |-> true )
+       18                  "toUTCString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @ ( "Date.prototype.toUTCString" )
+                               "Writable" |-> true )
+      205                  "valueOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       76                      "Value" |-> @oo ( 205 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Date"
+                           "Extensible" |-> true
+                           "PrimitiveValue" |-> @NaN
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+       63                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+       42                      "Value" |-> @ErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+       88                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "Error"
+                               "Writable" |-> true )
+      213                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       68                      "Value" |-> @oo ( 209 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+       11                  "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @EvalErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                           "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> @EvalErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @EvalErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @EvalErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+       44                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "EvalError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @FunctionOid
+                       </oid>
+                       <properties>
+        5                  "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+      230                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      137                      "Value" |-> @FunctionProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @FunctionProtoOid
+                       </oid>
+                       <properties>
+     3102                  "apply" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1128                      "Value" |-> @oo ( 61 )
+                               "Writable" |-> true )
+      242                  "bind" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       88                      "Value" |-> @oo ( 65 )
+                               "Writable" |-> true )
+     2860                  "call" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1040                      "Value" |-> @oo ( 63 )
+                               "Writable" |-> true )
+       77                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       28                      "Value" |-> @FunctionOid
+                               "Writable" |-> true )
+       18                  "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+     1132                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      550                      "Value" |-> @oo ( 59 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+        2                  "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @GlobalOid
+                       </oid>
+                       <properties>
+     2634                  "Array" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      770                      "Value" |-> @ArrayOid
+                               "Writable" |-> true )
+    13080                  "Boolean" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     3668                      "Value" |-> @BooleanOid
+                               "Writable" |-> true )
+     2424                  "Date" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      692                      "Value" |-> @DateOid
+                               "Writable" |-> true )
+    57401                  "Error" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+    16389                      "Value" |-> @ErrorOid
+                               "Writable" |-> true )
+      117                  "EvalError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       30                      "Value" |-> @EvalErrorOid
+                               "Writable" |-> true )
+    75297                  "Function" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+    16836                      "Value" |-> @FunctionOid
+                               "Writable" |-> true )
+    13502                  "Infinity" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     5862                      "Value" |-> @+Infinity
+                               "Writable" |-> false )
+      132                  "JSON" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       49                      "Value" |-> @JSONOid
+                               "Writable" |-> true )
+    26652                  "Math" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     8803                      "Value" |-> @MathOid
+                               "Writable" |-> true )
+     1030                  "NaN" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      716                      "Value" |-> @NaN
+                               "Writable" |-> false )
+    46907                  "Number" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+    12900                      "Value" |-> @NumberOid
+                               "Writable" |-> true )
+    25379                  "Object" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     8038                      "Value" |-> @ObjectOid
+                               "Writable" |-> true )
+      117                  "RangeError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       30                      "Value" |-> @RangeErrorOid
+                               "Writable" |-> true )
+     3267                  "ReferenceError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      930                      "Value" |-> @ReferenceErrorOid
+                               "Writable" |-> true )
+      297                  "RegExp" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       84                      "Value" |-> @RegExpOid
+                               "Writable" |-> true )
+    24483                  "String" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     6750                      "Value" |-> @StringOid
+                               "Writable" |-> true )
+     4347                  "SyntaxError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1242                      "Value" |-> @SyntaxErrorOid
+                               "Writable" |-> true )
+     4470                  "TypeError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1272                      "Value" |-> @TypeErrorOid
+                               "Writable" |-> true )
+      117                  "URIError" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       30                      "Value" |-> @URIErrorOid
+                               "Writable" |-> true )
+      570                  "console" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> true
+                               "Value" |-> @oo ( 1 )
+                               "Writable" |-> true )
+       63                  "decodeURI" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 13 )
+                               "Writable" |-> true )
+       63                  "decodeURIComponent" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 15 )
+                               "Writable" |-> true )
+       63                  "encodeURI" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 17 )
+                               "Writable" |-> true )
+       63                  "encodeURIComponent" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 19 )
+                               "Writable" |-> true )
+     1937                  "eval" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      623                      "Value" |-> @ ( "eval_i" )
+                               "Writable" |-> true )
+     1107                  "isFinite" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      329                      "Value" |-> @oo ( 11 )
+                               "Writable" |-> true )
+    41301                  "isNaN" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     9281                      "Value" |-> @oo ( 9 )
+                               "Writable" |-> true )
+      837                  "parseFloat" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      269                      "Value" |-> @oo ( 7 )
+                               "Writable" |-> true )
+      879                  "parseInt" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      293                      "Value" |-> @oo ( 5 )
+                               "Writable" |-> true )
+   157854                  "undefined" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+    62267                      "Value" |-> Undefined
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Object"
+                           "Extensible" |-> true
+     2250                  "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @JSONOid
+                       </oid>
+                       <properties>
+                           "parse" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "parse" )
+                               "Writable" |-> true )
+       11                  "stringify" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       10                      "Value" |-> @ ( "stringify" )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "JSON"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @MathOid
+                       </oid>
+                       <properties>
+       91                  "E" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2.7182818284590451e+00
+                               "Writable" |-> false )
+       27                  "LN2" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 6.9314718055994529e-01
+                               "Writable" |-> false )
+       18                  "LN10" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2.3025850929940459e+00
+                               "Writable" |-> false )
+       18                  "LOG2E" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1.4426950408889634e+00
+                               "Writable" |-> false )
+       18                  "LOG10E" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 4.3429448190325182e-01
+                               "Writable" |-> false )
+       86                  "PI" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 3.1415926535897931e+00
+                               "Writable" |-> false )
+       18                  "SQRT1_2" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 7.0710678118654757e-01
+                               "Writable" |-> false )
+       18                  "SQRT2" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1.4142135623730951e+00
+                               "Writable" |-> false )
+       27                  "abs" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       12                      "Value" |-> @oo ( 167 )
+                               "Writable" |-> true )
+       18                  "acos" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 169 )
+                               "Writable" |-> true )
+       18                  "asin" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 171 )
+                               "Writable" |-> true )
+       18                  "atan2" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 175 )
+                               "Writable" |-> true )
+       18                  "atan" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 173 )
+                               "Writable" |-> true )
+       54                  "ceil" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       24                      "Value" |-> @oo ( 177 )
+                               "Writable" |-> true )
+       18                  "cos" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 179 )
+                               "Writable" |-> true )
+       27                  "exp" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       12                      "Value" |-> @oo ( 181 )
+                               "Writable" |-> true )
+      126                  "floor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       56                      "Value" |-> @oo ( 183 )
+                               "Writable" |-> true )
+       18                  "log" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 185 )
+                               "Writable" |-> true )
+     2394                  "max" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1064                      "Value" |-> @oo ( 187 )
+                               "Writable" |-> true )
+     2394                  "min" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1064                      "Value" |-> @oo ( 189 )
+                               "Writable" |-> true )
+      396                  "pow" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      176                      "Value" |-> @oo ( 191 )
+                               "Writable" |-> true )
+       18                  "random" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 193 )
+                               "Writable" |-> true )
+       18                  "round" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 195 )
+                               "Writable" |-> true )
+       72                  "sin" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       39                      "Value" |-> @oo ( 197 )
+                               "Writable" |-> true )
+       18                  "sqrt" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 199 )
+                               "Writable" |-> true )
+       18                  "tan" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 201 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Math"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @NumberOid
+                       </oid>
+                       <properties>
+     1592                  "MAX_VALUE" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1.7976931348623157e+308
+                               "Writable" |-> false )
+     1197                  "MIN_VALUE" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 4.9406564584124654e-324
+                               "Writable" |-> false )
+     2223                  "NEGATIVE_INFINITY" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1308                      "Value" |-> @-Infinity
+                               "Writable" |-> false )
+     2264                  "NaN" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1391                      "Value" |-> @NaN
+                               "Writable" |-> false )
+     3231                  "POSITIVE_INFINITY" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1772                      "Value" |-> @+Infinity
+                               "Writable" |-> false )
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+      468                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      220                      "Value" |-> @NumberProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @NumberProtoOid
+                       </oid>
+                       <properties>
+      150                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       56                      "Value" |-> @NumberOid
+                               "Writable" |-> true )
+                           "toExponential" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 163 )
+                               "Writable" |-> true )
+       33                  "toFixed" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       10                      "Value" |-> @oo ( 161 )
+                               "Writable" |-> true )
+                           "toLocaleString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 157 )
+                               "Writable" |-> true )
+                           "toPrecision" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 165 )
+                               "Writable" |-> true )
+      128                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       60                      "Value" |-> @oo ( 155 )
+                               "Writable" |-> true )
+     5797                  "valueOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     3208                      "Value" |-> @oo ( 159 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Number"
+                           "Extensible" |-> true
+                           "PrimitiveValue" |-> 0
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ObjectOid
+                       </oid>
+                       <properties>
+      261                  "create" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      116                      "Value" |-> @oo ( 27 )
+                               "Writable" |-> true )
+       36                  "defineProperties" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       16                      "Value" |-> @oo ( 31 )
+                               "Writable" |-> true )
+     1530                  "defineProperty" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      680                      "Value" |-> @oo ( 29 )
+                               "Writable" |-> true )
+        9                  "freeze" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        4                      "Value" |-> @oo ( 35 )
+                               "Writable" |-> true )
+     1683                  "getOwnPropertyDescriptor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      748                      "Value" |-> @oo ( 23 )
+                               "Writable" |-> true )
+       27                  "getOwnPropertyNames" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       12                      "Value" |-> @oo ( 25 )
+                               "Writable" |-> true )
+      207                  "getPrototypeOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       92                      "Value" |-> @oo ( 21 )
+                               "Writable" |-> true )
+       18                  "isExtensible" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 43 )
+                               "Writable" |-> true )
+        9                  "isFrozen" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        4                      "Value" |-> @oo ( 41 )
+                               "Writable" |-> true )
+                           "isSealed" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 39 )
+                               "Writable" |-> true )
+                           "keys" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 45 )
+                               "Writable" |-> true )
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+      189                  "preventExtensions" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       84                      "Value" |-> @oo ( 37 )
+                               "Writable" |-> true )
+      585                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      428                      "Value" |-> @ObjectProtoOid
+                               "Writable" |-> false )
+                           "seal" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 33 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ObjectProtoOid
+                       </oid>
+                       <properties>
+      119                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       45                      "Value" |-> @ObjectOid
+                               "Writable" |-> true )
+     1524                  "hasOwnProperty" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      547                      "Value" |-> @oo ( 53 )
+                               "Writable" |-> true )
+      148                  "isPrototypeOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       56                      "Value" |-> @oo ( 55 )
+                               "Writable" |-> true )
+                           "propertyIsEnumerable" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 57 )
+                               "Writable" |-> true )
+       66                  "toLocaleString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       24                      "Value" |-> @oo ( 49 )
+                               "Writable" |-> true )
+    50087                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      668                      "Value" |-> @oo ( 47 )
+                               "Writable" |-> true )
+     2475                  "valueOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1210                      "Value" |-> @oo ( 51 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Object"
+                           "Extensible" |-> true
+       23                  "Prototype" |-> @NullOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @RangeErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                           "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> @RangeErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @RangeErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @RangeErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+       44                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "RangeError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ReferenceErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+     1350                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+      900                      "Value" |-> @ReferenceErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @ReferenceErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ReferenceErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+      110                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "ReferenceError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+        7                  "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @RegExpOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                           "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> @RegExpProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @RegExpProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @RegExpOid
+                               "Writable" |-> true )
+       11                  "exec" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        4                      "Value" |-> @oo ( 207 )
+                               "Writable" |-> true )
+                           "global" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> false
+                               "Writable" |-> false )
+                           "ignoreCase" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> false
+                               "Writable" |-> false )
+                           "lastIndex" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> true )
+                           "multiline" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> false
+                               "Writable" |-> false )
+                           "source" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> false )
+                           "test" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "RegExp.prototype.test" )
+                               "Writable" |-> true )
+                           "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @ ( "RegExp.prototype.toString" )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "RegExp"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @StringOid
+                       </oid>
+                       <properties>
+       90                  "fromCharCode" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       40                      "Value" |-> @oo ( 111 )
+                               "Writable" |-> true )
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+     3726                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1660                      "Value" |-> @StringProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @StringProtoOid
+                       </oid>
+                       <properties>
+      131                  "charAt" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       30                      "Value" |-> @oo ( 117 )
+                               "Writable" |-> true )
+       86                  "charCodeAt" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       20                      "Value" |-> @oo ( 119 )
+                               "Writable" |-> true )
+       90                  "concat" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 121 )
+                               "Writable" |-> true )
+      236                  "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       59                      "Value" |-> @StringOid
+                               "Writable" |-> true )
+     1646                  "indexOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      368                      "Value" |-> @oo ( 123 )
+                               "Writable" |-> true )
+       26                  "lastIndexOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 125 )
+                               "Writable" |-> true )
+       26                  "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                           "localeCompare" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 127 )
+                               "Writable" |-> true )
+                           "match" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 129 )
+                               "Writable" |-> true )
+       90                  "replace" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       18                      "Value" |-> @oo ( 131 )
+                               "Writable" |-> true )
+                           "search" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 133 )
+                               "Writable" |-> true )
+                           "slice" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 135 )
+                               "Writable" |-> true )
+      326                  "split" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+       68                      "Value" |-> @oo ( 137 )
+                               "Writable" |-> true )
+      878                  "substring" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+      220                      "Value" |-> @oo ( 139 )
+                               "Writable" |-> true )
+                           "toLocaleLowerCase" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 143 )
+                               "Writable" |-> true )
+                           "toLocaleUpperCase" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 147 )
+                               "Writable" |-> true )
+       26                  "toLowerCase" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 141 )
+                               "Writable" |-> true )
+     2861                  "toString" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     1118                      "Value" |-> @oo ( 113 )
+                               "Writable" |-> true )
+       26                  "toUpperCase" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+        8                      "Value" |-> @oo ( 145 )
+                               "Writable" |-> true )
+                           "trim" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 149 )
+                               "Writable" |-> true )
+    11690                  "valueOf" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+     5913                      "Value" |-> @oo ( 115 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "String"
+                           "Extensible" |-> true
+                           "PrimitiveValue" |-> ""
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @SyntaxErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+     1836                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1224                      "Value" |-> @SyntaxErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @SyntaxErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @SyntaxErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+                           "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "SyntaxError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @TypeErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+     1845                  "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+     1230                      "Value" |-> @TypeErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @TypeErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @TypeErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+       44                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "TypeError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+        4                  "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @URIErrorOid
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                           "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> @URIErrorProtoOid
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Extensible" |-> true
+                           "Prototype" |-> @FunctionProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @URIErrorProtoOid
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @URIErrorOid
+                               "Writable" |-> true )
+                           "message" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> ""
+                               "Writable" |-> true )
+       44                  "name" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> "URIError"
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Error"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ErrorProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 1 )
+                       </oid>
+                       <properties>
+                           "log" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> true
+                               "Value" |-> @oo ( 3 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Object"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 2 )
+                       </oid>
+                       <properties>
+                           "constructor" |-> @desc ( 
+                               "Configurable" |-> true
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 3 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Object"
+                           "Extensible" |-> true
+                           "Prototype" |-> @ObjectProtoOid
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 3 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                           "prototype" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> @oo ( 2 )
+                               "Writable" |-> true )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %exp ( %call ( %var ( "@Print" ) , %cons ( %call 
+                             ( %var ( "@ToString" ) , %cons ( %var ( "v" ) , %nil ) ) ,
+                              %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "v" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 5 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: parseInt" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "string" ) , %cons ( 
+                             %var ( "radix" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 7 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: parseFloat" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "string" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 9 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     4482                  "Code" |-> %return ( %call ( %var ( "@IsNaN" ) , %cons ( 
+     4482                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "number" ) ,
+     2988                     %nil ) ) , %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "number" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 11 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       50                  "Code" |-> %seq ( %seq ( %vdecl ( "n" ) , %exp ( %bop ( 
+       10                    %assign , %var ( "n" ) , %call ( %var ( "@ToNumber" ) , 
+       40                    %cons ( %var ( "number" ) , %nil ) ) ) ) ) , %return ( 
+       40                    %pre ( %bang , %bop ( %or , %bop ( %or , %call ( %var ( 
+       40                    "@IsNaN" ) , %cons ( %var ( "n" ) , %nil ) ) , %bop ( %eqs
+       30                     , %var ( "n" ) , %pre ( %plus , %var ( "Infinity" ) ) ) )
+       40                     , %bop ( %eqs , %var ( "n" ) , %pre ( %minus , %var ( 
+                             "Infinity" ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "number" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 13 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: decodeURI" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "encodedURI" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 15 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: decodeURIComponent" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "encodedURIComponent" 
+                             ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 17 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: encodeURI" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "uri" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 19 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: encodeURIComponent" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "uriComponent" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 21 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       92                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       69                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.getPrototypeOf" ) , %nil ) ) ) 
+       69                    , %emptyStmt ) , %return ( %call ( %var ( 
+       69                    "@GetInternalProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+       46                    %con ( "Prototype" ) , %nil ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 23 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      748                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+      561                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.getOwnPropertyDescriptor" ) , 
+      561                    %nil ) ) ) , %emptyStmt ) , %return ( %call ( %var ( 
+      374                    "@FromPropertyDescriptor" ) , %cons ( %call ( %var ( 
+      748                    "@GetOwnProperty" ) , %cons ( %var ( "O" ) , %cons ( %call
+      561                     ( %var ( "@ToString" ) , %cons ( %var ( "P" ) , %nil ) ) 
+      374                    , %nil ) ) ) , %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %cons ( %var (
+                              "P" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 25 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       12                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+        9                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.getOwnPropertyNames" ) , %nil )
+        9                     ) ) , %emptyStmt ) , %return ( %call ( %var ( 
+        6                    "@ObjectGetOwnPropertyNames" ) , %cons ( %var ( "O" ) , 
+        3                    %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 27 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      145                  "Code" |-> %seq ( %if ( %pre ( %bang , %bop ( %or , %call ( 
+       87                    %var ( "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) , 
+        3                    %bop ( %eqs , %var ( "O" ) , %con ( %null ) ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.create" ) , %nil ) ) ) , 
+      145                    %emptyStmt ) , %seq ( %seq ( %vdecl ( "obj" ) , %exp ( 
+       87                    %bop ( %assign , %var ( "obj" ) , %new ( %var ( "Object" )
+      116                     , %nil ) ) ) ) , %seq ( %exp ( %call ( %var ( 
+       87                    "@SetInternalProperty" ) , %cons ( %var ( "obj" ) , %cons 
+      116                    ( %con ( "Prototype" ) , %cons ( %var ( "O" ) , %nil ) ) )
+      116                     ) ) , %seq ( %if ( %bop ( %neqs , %var ( "Properties" ) ,
+       49                     %var ( "undefined" ) ) , %exp ( %call ( %mem ( %var ( 
+       16                    "Object" ) , %con ( "defineProperties" ) ) , %cons ( %var 
+       12                    ( "obj" ) , %cons ( %var ( "Properties" ) , %nil ) ) ) ) ,
+       77                     %emptyStmt ) , %return ( %var ( "obj" ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %cons ( %var (
+                              "Properties" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 29 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 3
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      680                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+      510                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.defineProperty" ) , %nil ) ) ) 
+      680                    , %emptyStmt ) , %seq ( %exp ( %call ( %var ( 
+      510                    "@DefineOwnProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+      680                    %call ( %var ( "@ToString" ) , %cons ( %var ( "P" ) , %nil
+      340                     ) ) , %cons ( %call ( %var ( "@ToPropertyDescriptor" ) , 
+      844                    %cons ( %var ( "Attributes" ) , %nil ) ) , %cons ( %con ( 
+      475                    true ) , %nil ) ) ) ) ) ) , %return ( %var ( "O" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %cons ( %var (
+                              "P" ) , %cons ( %var ( "Attributes" ) , %nil ) ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 31 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       16                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       12                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.defineProperties" ) , %nil ) ) 
+       16                    ) , %emptyStmt ) , %seq ( %label ( "" , %forin ( %vdecl ( 
+        8                    "name" ) , %var ( "name" ) , %var ( "Properties" ) , %if (
+       24                     %call ( %mem ( %var ( "Properties" ) , %con ( 
+       12                    "hasOwnProperty" ) ) , %cons ( %var ( "name" ) , %nil ) ) 
+       28                    , %exp ( %call ( %mem ( %var ( "Object" ) , %con ( 
+       16                    "defineProperty" ) ) , %cons ( %var ( "O" ) , %cons ( %var
+       16                     ( "name" ) , %cons ( %mem ( %var ( "Properties" ) , %var 
+        5                    ( "name" ) ) , %nil ) ) ) ) ) , %emptyStmt ) ) ) , %return
+        1                     ( %var ( "O" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %cons ( %var (
+                              "Properties" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 33 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+                             "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.seal" ) , %nil ) ) ) , 
+                             %emptyStmt ) , %seq ( %seq ( %vdecl ( "names" ) , %exp ( 
+                             %bop ( %assign , %var ( "names" ) , %call ( %mem ( %var ( 
+                             "Object" ) , %con ( "getOwnPropertyNames" ) ) , %cons ( 
+                             %var ( "O" ) , %nil ) ) ) ) ) , %seq ( %label ( "" , %for 
+                             ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( 
+                             "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , 
+                             %mem ( %var ( "names" ) , %con ( "length" ) ) ) , %pre ( 
+                             %inc , %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "desc" ) , 
+                             %exp ( %bop ( %assign , %var ( "desc" ) , %call ( %mem ( 
+                             %var ( "Object" ) , %con ( "getOwnPropertyDescriptor" ) ) 
+                             , %cons ( %var ( "O" ) , %cons ( %mem ( %var ( "names" ) ,
+                              %var ( "i" ) ) , %nil ) ) ) ) ) ) , %seq ( %exp ( %bop ( 
+                             %assign , %mem ( %var ( "desc" ) , %con ( "configurable" )
+                              ) , %con ( false ) ) ) , %exp ( %call ( %mem ( %var ( 
+                             "Object" ) , %con ( "defineProperty" ) ) , %cons ( %var ( 
+                             "O" ) , %cons ( %mem ( %var ( "names" ) , %var ( "i" ) ) ,
+                              %cons ( %var ( "desc" ) , %nil ) ) ) ) ) ) ) ) ) , %seq (
+                              %exp ( %call ( %var ( "@SetInternalProperty" ) , %cons ( 
+                             %var ( "O" ) , %cons ( %con ( "Extensible" ) , %cons ( 
+                             %con ( false ) , %nil ) ) ) ) ) , %return ( %var ( "O" ) )
+                              ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 35 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        4                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+        3                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.freeze" ) , %nil ) ) ) , 
+        5                    %emptyStmt ) , %seq ( %seq ( %vdecl ( "names" ) , %exp ( 
+        5                    %bop ( %assign , %var ( "names" ) , %call ( %mem ( %var ( 
+        3                    "Object" ) , %con ( "getOwnPropertyNames" ) ) , %cons ( 
+        4                    %var ( "O" ) , %nil ) ) ) ) ) , %seq ( %label ( "" , %for 
+        4                    ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( 
+       11                    "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , 
+       19                    %mem ( %var ( "names" ) , %con ( "length" ) ) ) , %pre ( 
+       12                    %inc , %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "desc" ) , 
+       16                    %exp ( %bop ( %assign , %var ( "desc" ) , %call ( %mem ( 
+       16                    %var ( "Object" ) , %con ( "getOwnPropertyDescriptor" ) ) 
+       20                    , %cons ( %var ( "O" ) , %cons ( %mem ( %var ( "names" ) ,
+       20                     %var ( "i" ) ) , %nil ) ) ) ) ) ) , %seq ( %if ( %bop ( 
+       24                    %or , %call ( %mem ( %var ( "desc" ) , %con ( 
+       12                    "hasOwnProperty" ) ) , %cons ( %con ( "value" ) , %nil ) )
+                              , %call ( %mem ( %var ( "desc" ) , %con ( 
+                             "hasOwnProperty" ) ) , %cons ( %con ( "writable" ) , %nil 
+       12                    ) ) ) , %exp ( %bop ( %assign , %mem ( %var ( "desc" ) , 
+        8                    %con ( "writable" ) ) , %con ( false ) ) ) , %emptyStmt ) 
+       16                    , %seq ( %exp ( %bop ( %assign , %mem ( %var ( "desc" ) , 
+       12                    %con ( "configurable" ) ) , %con ( false ) ) ) , %exp ( 
+       24                    %call ( %mem ( %var ( "Object" ) , %con ( "defineProperty"
+       20                     ) ) , %cons ( %var ( "O" ) , %cons ( %mem ( %var ( 
+       12                    "names" ) , %var ( "i" ) ) , %cons ( %var ( "desc" ) , 
+        7                    %nil ) ) ) ) ) ) ) ) ) ) , %seq ( %exp ( %call ( %var ( 
+        3                    "@SetInternalProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+        4                    %con ( "Extensible" ) , %cons ( %con ( false ) , %nil ) ) 
+        2                    ) ) ) , %return ( %var ( "O" ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 37 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       84                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       63                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.preventExtensions" ) , %nil ) )
+       84                     ) , %emptyStmt ) , %seq ( %exp ( %call ( %var ( 
+       63                    "@SetInternalProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+       84                    %con ( "Extensible" ) , %cons ( %con ( false ) , %nil ) ) 
+       42                    ) ) ) , %return ( %var ( "O" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 39 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+                             "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.isSealed" ) , %nil ) ) ) , 
+                             %emptyStmt ) , %seq ( %seq ( %vdecl ( "names" ) , %exp ( 
+                             %bop ( %assign , %var ( "names" ) , %call ( %mem ( %var ( 
+                             "Object" ) , %con ( "getOwnPropertyNames" ) ) , %cons ( 
+                             %var ( "O" ) , %nil ) ) ) ) ) , %seq ( %label ( "" , %for 
+                             ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( 
+                             "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , 
+                             %mem ( %var ( "names" ) , %con ( "length" ) ) ) , %pre ( 
+                             %inc , %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "desc" ) , 
+                             %exp ( %bop ( %assign , %var ( "desc" ) , %call ( %mem ( 
+                             %var ( "Object" ) , %con ( "getOwnPropertyDescriptor" ) ) 
+                             , %cons ( %var ( "O" ) , %cons ( %mem ( %var ( "names" ) ,
+                              %var ( "i" ) ) , %nil ) ) ) ) ) ) , %if ( %mem ( %var ( 
+                             "desc" ) , %con ( "configurable" ) ) , %return ( %con ( 
+                             false ) ) , %emptyStmt ) ) ) ) , %seq ( %if ( %call ( %var
+                              ( "@GetInternalProperty" ) , %cons ( %var ( "O" ) , %cons
+                              ( %con ( "Extensible" ) , %nil ) ) ) , %return ( %con ( 
+                             false ) ) , %emptyStmt ) , %return ( %con ( true ) ) ) ) )
+                              )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 41 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        4                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+        3                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.isFrozen" ) , %nil ) ) ) , 
+        5                    %emptyStmt ) , %seq ( %seq ( %vdecl ( "names" ) , %exp ( 
+        5                    %bop ( %assign , %var ( "names" ) , %call ( %mem ( %var ( 
+        3                    "Object" ) , %con ( "getOwnPropertyNames" ) ) , %cons ( 
+        4                    %var ( "O" ) , %nil ) ) ) ) ) , %seq ( %label ( "" , %for 
+        4                    ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( 
+       11                    "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , 
+       19                    %mem ( %var ( "names" ) , %con ( "length" ) ) ) , %pre ( 
+       12                    %inc , %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "desc" ) , 
+       16                    %exp ( %bop ( %assign , %var ( "desc" ) , %call ( %mem ( 
+       16                    %var ( "Object" ) , %con ( "getOwnPropertyDescriptor" ) ) 
+       20                    , %cons ( %var ( "O" ) , %cons ( %mem ( %var ( "names" ) ,
+       20                     %var ( "i" ) ) , %nil ) ) ) ) ) ) , %seq ( %if ( %bop ( 
+       24                    %or , %call ( %mem ( %var ( "desc" ) , %con ( 
+       12                    "hasOwnProperty" ) ) , %cons ( %con ( "value" ) , %nil ) )
+                              , %call ( %mem ( %var ( "desc" ) , %con ( 
+                             "hasOwnProperty" ) ) , %cons ( %con ( "writable" ) , %nil 
+       16                    ) ) ) , %if ( %mem ( %var ( "desc" ) , %con ( "writable" )
+        4                     ) , %return ( %con ( false ) ) , %emptyStmt ) , 
+       16                    %emptyStmt ) , %if ( %mem ( %var ( "desc" ) , %con ( 
+                             "configurable" ) ) , %return ( %con ( false ) ) , 
+        7                    %emptyStmt ) ) ) ) ) , %seq ( %if ( %call ( %var ( 
+        3                    "@GetInternalProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+        2                    %con ( "Extensible" ) , %nil ) ) ) , %return ( %con ( 
+        3                    false ) ) , %emptyStmt ) , %return ( %con ( true ) ) ) ) )
+                              )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 43 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        8                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+        6                    "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.isExtensible" ) , %nil ) ) ) , 
+        6                    %emptyStmt ) , %return ( %call ( %var ( 
+        6                    "@GetInternalProperty" ) , %cons ( %var ( "O" ) , %cons ( 
+        4                    %con ( "Extensible" ) , %nil ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 45 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+                             "@IsObject" ) , %cons ( %var ( "O" ) , %nil ) ) ) , %throw
+                              ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Object.keys" ) , %nil ) ) ) , 
+                             %emptyStmt ) , %seq ( %seq ( %vdecl ( "names" ) , %exp ( 
+                             %bop ( %assign , %var ( "names" ) , %new ( %var ( "Array" 
+                             ) , %nil ) ) ) ) , %seq ( %label ( "" , %forin ( %vdecl ( 
+                             "name" ) , %var ( "name" ) , %var ( "O" ) , %if ( %call ( 
+                             %mem ( %var ( "O" ) , %con ( "hasOwnProperty" ) ) , %cons 
+                             ( %var ( "name" ) , %nil ) ) , %exp ( %call ( %mem ( %var 
+                             ( "names" ) , %con ( "push" ) ) , %cons ( %var ( "name" ) 
+                             , %nil ) ) ) , %emptyStmt ) ) ) , %return ( %var ( "names"
+                              ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "O" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 47 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      357                  "Code" |-> %label ( "" , %switch ( %con ( %this ) , %seq ( 
+      119                    %case ( %var ( "undefined" ) , %return ( %con ( 
+      119                    "[object Undefined]" ) ) ) , %seq ( %case ( %con ( %null )
+                              , %return ( %con ( "[object Null]" ) ) ) , %emptyStmt ) )
+      476                     , %default ( %return ( %bop ( %plus , %bop ( %plus , %con
+      119                     ( "[object " ) , %call ( %var ( "@GetInternalProperty" ) 
+      476                    , %cons ( %call ( %var ( "@ToObject" ) , %cons ( %con ( 
+      476                    %this ) , %nil ) ) , %cons ( %con ( "Class" ) , %nil ) ) )
+      119                     ) , %con ( "]" ) ) ) ) , %emptyStmt ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 49 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %return ( %call ( %mem ( %call ( %var ( 
+       48                    "@ToObject" ) , %cons ( %con ( %this ) , %nil ) ) , %con (
+        6                     "toString" ) ) , %nil ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 51 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      597                  "Code" |-> %return ( %call ( %var ( "@ToObject" ) , %cons ( 
+      398                    %con ( %this ) , %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 53 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      645                  "Code" |-> %seq ( %seq ( %vdecl ( "desc" ) , %exp ( %bop ( 
+      516                    %assign , %var ( "desc" ) , %call ( %mem ( %var ( "Object"
+      516                     ) , %con ( "getOwnPropertyDescriptor" ) ) , %cons ( %call
+      387                     ( %var ( "@ToObject" ) , %cons ( %con ( %this ) , %nil ) 
+      516                    ) , %cons ( %call ( %var ( "@ToString" ) , %cons ( %var ( 
+      645                    "V" ) , %nil ) ) , %nil ) ) ) ) ) ) , %seq ( %if ( %bop ( 
+      305                    %eqs , %var ( "desc" ) , %var ( "undefined" ) ) , %return 
+      293                    ( %con ( false ) ) , %emptyStmt ) , %return ( %con ( true 
+                             ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "V" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 55 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       56                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       42                    "@IsObject" ) , %cons ( %var ( "V" ) , %nil ) ) ) , 
+       42                    %return ( %con ( false ) ) , %emptyStmt ) , %seq ( %seq ( 
+       42                    %vdecl ( "o" ) , %exp ( %bop ( %assign , %var ( "o" ) , 
+       42                    %call ( %var ( "@ToObject" ) , %cons ( %con ( %this ) , 
+       48                    %nil ) ) ) ) ) , %label ( "" , %while ( %con ( true ) , 
+      100                    %seq ( %exp ( %bop ( %assign , %var ( "V" ) , %call ( %mem
+      100                     ( %var ( "Object" ) , %con ( "getPrototypeOf" ) ) , %cons
+      100                     ( %var ( "V" ) , %nil ) ) ) ) , %seq ( %if ( %bop ( %eqs 
+       44                    , %var ( "V" ) , %con ( %null ) ) , %return ( %con ( false
+       72                     ) ) , %emptyStmt ) , %if ( %bop ( %eqs , %var ( "V" ) , 
+       48                    %var ( "o" ) ) , %return ( %con ( true ) ) , %emptyStmt ) 
+                             ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "V" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 57 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %seq ( %seq ( %vdecl ( "desc" ) , %exp ( %bop ( 
+                             %assign , %var ( "desc" ) , %call ( %mem ( %var ( "Object"
+                              ) , %con ( "getOwnPropertyDescriptor" ) ) , %cons ( %call
+                              ( %var ( "@ToObject" ) , %cons ( %con ( %this ) , %nil ) 
+                             ) , %cons ( %call ( %var ( "@ToString" ) , %cons ( %var ( 
+                             "V" ) , %nil ) ) , %nil ) ) ) ) ) ) , %seq ( %if ( %bop ( 
+                             %eqs , %var ( "desc" ) , %var ( "undefined" ) ) , %return 
+                             ( %con ( false ) ) , %emptyStmt ) , %return ( %mem ( %var 
+                             ( "desc" ) , %con ( "enumerable" ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "V" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 59 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      384                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+      288                    "@IsFunction" ) , %cons ( %con ( %this ) , %nil ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Function.prototype.toString" ) , %nil 
+      288                    ) ) ) , %emptyStmt ) , %return ( %call ( %var ( 
+      192                    "@FunctionPrototypeToString" ) , %cons ( %con ( %this ) , 
+       96                    %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 61 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     1128                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+      846                    "@IsFunction" ) , %cons ( %con ( %this ) , %nil ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Function.prototype.apply" ) , %nil ) )
+      846                     ) , %emptyStmt ) , %return ( %call ( %var ( 
+      564                    "@FunctionPrototypeApply" ) , %cons ( %con ( %this ) , 
+     1128                    %cons ( %var ( "thisArg" ) , %cons ( %var ( "argArray" ) ,
+      282                     %nil ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "thisArg" ) , %cons ( 
+                             %var ( "argArray" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 63 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     1040                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+      780                    "@IsFunction" ) , %cons ( %con ( %this ) , %nil ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Function.prototype.call" ) , %nil ) ) 
+     1040                    ) , %emptyStmt ) , %seq ( %seq ( %vdecl ( "argArray" ) , 
+      780                    %exp ( %bop ( %assign , %var ( "argArray" ) , %arr ( %nil 
+     1040                    ) ) ) ) , %seq ( %label ( "" , %for ( %seq ( %vdecl ( "i" 
+      780                    ) , %exp ( %bop ( %assign , %var ( "i" ) , %con ( 1 ) ) ) 
+     1052                    ) , %bop ( %lt , %var ( "i" ) , %mem ( %var ( "arguments" 
+      266                    ) , %con ( "length" ) ) ) , %pre ( %inc , %var ( "i" ) ) ,
+       21                     %exp ( %call ( %mem ( %var ( "argArray" ) , %con ( "push"
+       12                     ) ) , %cons ( %mem ( %var ( "arguments" ) , %var ( "i" ) 
+     1303                    ) , %nil ) ) ) ) ) , %return ( %call ( %mem ( %con ( %this
+     1040                     ) , %con ( "apply" ) ) , %cons ( %var ( "thisArg" ) , 
+      780                    %cons ( %var ( "argArray" ) , %nil ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "thisArg" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 65 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       88                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       66                    "@IsFunction" ) , %cons ( %con ( %this ) , %nil ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Function.prototype.bind" ) , %nil ) ) 
+       88                    ) , %emptyStmt ) , %seq ( %seq ( %vdecl ( "argArray" ) , 
+       66                    %exp ( %bop ( %assign , %var ( "argArray" ) , %arr ( %nil 
+       88                    ) ) ) ) , %seq ( %label ( "" , %for ( %seq ( %vdecl ( "i" 
+       66                    ) , %exp ( %bop ( %assign , %var ( "i" ) , %con ( 1 ) ) ) 
+       88                    ) , %bop ( %lt , %var ( "i" ) , %mem ( %var ( "arguments" 
+       22                    ) , %con ( "length" ) ) ) , %pre ( %inc , %var ( "i" ) ) ,
+                              %exp ( %call ( %mem ( %var ( "argArray" ) , %con ( "push"
+                              ) ) , %cons ( %mem ( %var ( "arguments" ) , %var ( "i" ) 
+       44                    ) , %nil ) ) ) ) ) , %return ( %call ( %var ( 
+       44                    "@FunctionPrototypeBind" ) , %cons ( %con ( %this ) , 
+       88                    %cons ( %var ( "thisArg" ) , %cons ( %var ( "argArray" ) ,
+       22                     %nil ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "thisArg" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 67 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       36                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       27                    "@IsObject" ) , %cons ( %var ( "arg" ) , %nil ) ) ) , 
+       27                    %return ( %con ( false ) ) , %emptyStmt ) , %return ( %bop
+       18                     ( %eqs , %call ( %var ( "@GetInternalProperty" ) , %cons 
+       36                    ( %var ( "arg" ) , %cons ( %con ( "Class" ) , %nil ) ) ) ,
+        9                     %con ( "Array" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "arg" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 69 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %seq ( %seq ( %vdecl ( "array" ) , %exp ( %bop ( 
+        6                    %assign , %var ( "array" ) , %call ( %var ( "@ToObject" ) 
+       30                    , %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       18                    %vdecl ( "func" ) , %exp ( %bop ( %assign , %var ( "func" 
+       18                    ) , %mem ( %var ( "array" ) , %con ( "join" ) ) ) ) ) , 
+       24                    %seq ( %if ( %pre ( %bang , %call ( %var ( "@IsCallable" )
+       18                     , %cons ( %var ( "func" ) , %nil ) ) ) , %exp ( %bop ( 
+                             %assign , %var ( "func" ) , %mem ( %mem ( %var ( "Object" 
+                             ) , %con ( "prototype" ) ) , %con ( "toString" ) ) ) ) , 
+       36                    %emptyStmt ) , %return ( %call ( %mem ( %var ( "func" ) , 
+       30                    %con ( "call" ) ) , %cons ( %var ( "array" ) , %nil ) ) ) 
+                             ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 71 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.toLocaleString" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 73 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       20                  "Code" |-> %seq ( %seq ( %vdecl ( "o" ) , %exp ( %bop ( 
+        4                    %assign , %var ( "o" ) , %call ( %var ( "@ToObject" ) , 
+       20                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       12                    %vdecl ( "a" ) , %exp ( %bop ( %assign , %var ( "a" ) , 
+       20                    %new ( %var ( "Array" ) , %nil ) ) ) ) , %seq ( %exp ( 
+       20                    %call ( %var ( "merge" ) , %cons ( %var ( "a" ) , %cons ( 
+       16                    %var ( "o" ) , %nil ) ) ) ) , %seq ( %label ( "" , %for ( 
+       16                    %seq ( %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( "i"
+       28                     ) , %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , %mem (
+       20                     %var ( "arguments" ) , %con ( "length" ) ) ) , %pre ( 
+       12                    %inc , %var ( "i" ) ) , %exp ( %call ( %var ( "merge" ) , 
+       20                    %cons ( %var ( "a" ) , %cons ( %mem ( %var ( "arguments" )
+       16                     , %var ( "i" ) ) , %nil ) ) ) ) ) ) , %seq ( %fdecl ( 
+                             "merge" , %cons ( %var ( "arr" ) , %cons ( %var ( "elem" )
+       56                     , %nil ) ) , %if ( %call ( %mem ( %var ( "Array" ) , %con
+       24                     ( "isArray" ) ) , %cons ( %var ( "elem" ) , %nil ) ) , 
+       40                    %label ( "" , %for ( %seq ( %vdecl ( "k" ) , %exp ( %bop (
+       40                     %assign , %var ( "k" ) , %con ( 0 ) ) ) ) , %bop ( %lt , 
+      128                    %var ( "k" ) , %mem ( %var ( "elem" ) , %con ( "length" ) 
+       96                    ) ) , %pre ( %inc , %var ( "k" ) ) , %exp ( %call ( %mem (
+      168                     %var ( "arr" ) , %con ( "push" ) ) , %cons ( %mem ( %var 
+       48                    ( "elem" ) , %var ( "k" ) ) , %nil ) ) ) ) ) , %exp ( 
+                             %call ( %mem ( %var ( "arr" ) , %con ( "push" ) ) , %cons 
+        8                    ( %var ( "elem" ) , %nil ) ) ) ) ) , %return ( %var ( "a" 
+                             ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "_" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 75 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %seq ( %seq ( %vdecl ( "o" ) , %exp ( %bop ( 
+        6                    %assign , %var ( "o" ) , %call ( %var ( "@ToObject" ) , 
+       30                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       18                    %vdecl ( "len" ) , %exp ( %bop ( %assign , %var ( "len" ) 
+       24                    , %call ( %var ( "@ToUint32" ) , %cons ( %mem ( %var ( "o"
+       24                     ) , %con ( "length" ) ) , %nil ) ) ) ) ) , %seq ( %if ( 
+       18                    %bop ( %eqs , %var ( "separator" ) , %var ( "undefined" ) 
+       18                    ) , %exp ( %bop ( %assign , %var ( "separator" ) , %con ( 
+                             "," ) ) ) , %exp ( %bop ( %assign , %var ( "separator" ) ,
+                              %call ( %var ( "@ToString" ) , %cons ( %var ( "separator"
+       24                     ) , %nil ) ) ) ) ) , %seq ( %if ( %bop ( %eqs , %var ( 
+        6                    "len" ) , %con ( 0 ) ) , %return ( %con ( "" ) ) , 
+       36                    %emptyStmt ) , %seq ( %seq ( %vdecl ( "r" ) , %exp ( %bop 
+       18                    ( %assign , %var ( "r" ) , %call ( %var ( "get" ) , %cons 
+       24                    ( %var ( "o" ) , %cons ( %con ( 0 ) , %nil ) ) ) ) ) ) , 
+       30                    %seq ( %label ( "" , %for ( %seq ( %vdecl ( "i" ) , %exp (
+       56                     %bop ( %assign , %var ( "i" ) , %con ( 1 ) ) ) ) , %bop (
+      126                     %lt , %var ( "i" ) , %var ( "len" ) ) , %pre ( %inc , 
+       76                    %var ( "i" ) ) , %exp ( %bopassign ( %plus , %var ( "r" ) 
+      152                    , %bop ( %plus , %var ( "separator" ) , %call ( %var ( 
+      152                    "get" ) , %cons ( %var ( "o" ) , %cons ( %var ( "i" ) , 
+       50                    %nil ) ) ) ) ) ) ) ) , %seq ( %fdecl ( "get" , %cons ( 
+       44                    %var ( "o" ) , %cons ( %var ( "i" ) , %nil ) ) , %return (
+      220                     %cond ( %bop ( %or , %bop ( %eqs , %mem ( %var ( "o" ) , 
+      132                    %var ( "i" ) ) , %var ( "undefined" ) ) , %bop ( %eqs , 
+      176                    %mem ( %var ( "o" ) , %var ( "i" ) ) , %con ( %null ) ) ) 
+       88                    , %con ( "" ) , %call ( %var ( "@ToString" ) , %cons ( 
+      176                    %mem ( %var ( "o" ) , %var ( "i" ) ) , %nil ) ) ) ) ) , 
+       12                    %return ( %var ( "r" ) ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "separator" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 77 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.pop" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 79 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      290                  "Code" |-> %seq ( %seq ( %vdecl ( "o" ) , %exp ( %bop ( 
+       58                    %assign , %var ( "o" ) , %call ( %var ( "@ToObject" ) , 
+      290                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+      174                    %vdecl ( "len" ) , %exp ( %bop ( %assign , %var ( "len" ) 
+      232                    , %call ( %var ( "@ToUint32" ) , %cons ( %mem ( %var ( "o"
+      232                     ) , %con ( "length" ) ) , %nil ) ) ) ) ) , %seq ( %label 
+      232                    ( "" , %for ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( 
+      174                    %assign , %var ( "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , 
+      464                    %var ( "i" ) , %mem ( %var ( "arguments" ) , %con ( 
+      116                    "length" ) ) ) , %pre ( %inc , %var ( "i" ) ) , %exp ( 
+      232                    %bop ( %assign , %mem ( %var ( "o" ) , %bop ( %plus , %var
+      174                     ( "len" ) , %var ( "i" ) ) ) , %mem ( %var ( "arguments" 
+      232                    ) , %var ( "i" ) ) ) ) ) ) , %return ( %mem ( %var ( "o" )
+       58                     , %con ( "length" ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "_" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 81 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.reverse" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 83 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.shift" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 85 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.slice" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "start" ) , %cons ( 
+                             %var ( "end" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 87 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        5                  "Code" |-> %seq ( %seq ( %vdecl ( "o" ) , %exp ( %bop ( 
+        1                    %assign , %var ( "o" ) , %call ( %var ( "@ToObject" ) , 
+        5                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+        3                    %vdecl ( "len" ) , %exp ( %bop ( %assign , %var ( "len" ) 
+        4                    , %mem ( %var ( "o" ) , %con ( "length" ) ) ) ) ) , %seq (
+        4                     %if ( %bop ( %eqs , %var ( "comparefn" ) , %var ( 
+                             "undefined" ) ) , %exp ( %bop ( %assign , %var ( 
+                             "comparefn" ) , %fun ( %cons ( %var ( "x" ) , %cons ( %var
+                              ( "y" ) , %nil ) ) , %if ( %bop ( %gt , %call ( %var ( 
+                             "String" ) , %cons ( %var ( "x" ) , %nil ) ) , %call ( 
+                             %var ( "String" ) , %cons ( %var ( "y" ) , %nil ) ) ) , 
+                             %return ( %con ( 1 ) ) , %return ( %con ( -1 ) ) ) ) ) ) ,
+        5                     %emptyStmt ) , %seq ( %if ( %bop ( %ge , %var ( "len" ) ,
+        5                     %con ( 2 ) ) , %seq ( %label ( "" , %for ( %seq ( %vdecl 
+        2                    ( "start" ) , %exp ( %bop ( %assign , %var ( "start" ) , 
+        4                    %bop ( %lshift , %bop ( %rshift , %bop ( %minus , %var ( 
+        3                    "len" ) , %con ( 2 ) ) , %con ( 1 ) ) , %con ( 1 ) ) ) ) )
+       21                     , %bop ( %ge , %var ( "start" ) , %con ( 0 ) ) , 
+       12                    %bopassign ( %minus , %var ( "start" ) , %con ( 2 ) ) , 
+       30                    %if ( %bop ( %gt , %call ( %var ( "comparefn" ) , %cons ( 
+       30                    %mem ( %var ( "o" ) , %var ( "start" ) ) , %cons ( %mem ( 
+       24                    %var ( "o" ) , %bop ( %plus , %var ( "start" ) , %con ( 1 
+       12                    ) ) ) , %nil ) ) ) , %con ( 0 ) ) , %seq ( %seq ( %vdecl (
+                              "tmp" ) , %exp ( %bop ( %assign , %var ( "tmp" ) , %mem (
+                              %var ( "o" ) , %var ( "start" ) ) ) ) ) , %seq ( %exp ( 
+                             %bop ( %assign , %mem ( %var ( "o" ) , %var ( "start" ) ) 
+                             , %mem ( %var ( "o" ) , %bop ( %plus , %var ( "start" ) , 
+                             %con ( 1 ) ) ) ) ) , %exp ( %bop ( %assign , %mem ( %var (
+                              "o" ) , %bop ( %plus , %var ( "start" ) , %con ( 1 ) ) ) 
+        8                    , %var ( "tmp" ) ) ) ) ) , %emptyStmt ) ) ) , %if ( %bop (
+        4                     %gt , %var ( "len" ) , %con ( 2 ) ) , %seq ( %seq ( 
+        3                    %vdecl ( "a1" ) , %exp ( %bop ( %assign , %var ( "a1" ) , 
+        5                    %var ( "o" ) ) ) ) , %seq ( %seq ( %vdecl ( "a2" ) , %exp 
+        3                    ( %bop ( %assign , %var ( "a2" ) , %new ( %var ( "Array" )
+        5                     , %cons ( %var ( "len" ) , %nil ) ) ) ) ) , %seq ( %seq (
+        3                     %vdecl ( "k" ) , %exp ( %bop ( %assign , %var ( "k" ) , 
+        5                    %con ( 1 ) ) ) ) , %seq ( %seq ( %vdecl ( "size" ) , %exp 
+        2                    ( %bop ( %assign , %var ( "size" ) , %con ( 2 ) ) ) ) , 
+       11                    %seq ( %label ( "" , %do ( %seq ( %seq ( %vdecl ( "start" 
+        9                    ) , %exp ( %bop ( %assign , %var ( "start" ) , %bop ( 
+        9                    %lshift , %bop ( %rshift , %bop ( %minus , %var ( "len" ) 
+       12                    , %con ( 1 ) ) , %bop ( %plus , %var ( "k" ) , %con ( 1 ) 
+        9                    ) ) , %bop ( %plus , %var ( "k" ) , %con ( 1 ) ) ) ) ) ) ,
+       15                     %seq ( %seq ( %vdecl ( "j_end" ) , %exp ( %bop ( %assign 
+        9                    , %var ( "j_end" ) , %var ( "len" ) ) ) ) , %seq ( %seq ( 
+        9                    %vdecl ( "i_end" ) , %exp ( %bop ( %assign , %var ( 
+        9                    "i_end" ) , %bop ( %plus , %var ( "start" ) , %var ( 
+       12                    "size" ) ) ) ) ) , %seq ( %if ( %bop ( %gt , %var ( 
+        3                    "i_end" ) , %var ( "len" ) ) , %exp ( %bop ( %assign , 
+        3                    %var ( "i_end" ) , %var ( "len" ) ) ) , %emptyStmt ) , 
+       24                    %seq ( %label ( "" , %while ( %bop ( %ge , %var ( "start" 
+       33                    ) , %con ( 0 ) ) , %seq ( %seq ( %vdecl ( "i" ) , %exp ( 
+       12                    %bop ( %assign , %var ( "i" ) , %var ( "start" ) ) ) ) , 
+       30                    %seq ( %seq ( %vdecl ( "j" ) , %exp ( %bop ( %assign , 
+       18                    %var ( "j" ) , %var ( "i_end" ) ) ) ) , %seq ( %seq ( 
+       18                    %vdecl ( "x" ) , %exp ( %bop ( %assign , %var ( "x" ) , 
+       24                    %var ( "start" ) ) ) ) , %seq ( %label ( "" , %for ( %exp 
+       90                    ( %emptyExp ) , %emptyExp , %emptyExp , %if ( %bop ( %lt ,
+      110                     %var ( "i" ) , %var ( "i_end" ) ) , %if ( %bop ( %lt , 
+       98                    %var ( "j" ) , %var ( "j_end" ) ) , %if ( %bop ( %gt , 
+      120                    %call ( %var ( "comparefn" ) , %cons ( %mem ( %var ( "a1" 
+      120                    ) , %var ( "i" ) ) , %cons ( %mem ( %var ( "a1" ) , %var (
+       60                     "j" ) ) , %nil ) ) ) , %con ( 0 ) ) , %exp ( %bop ( 
+       12                    %assign , %mem ( %var ( "a2" ) , %post ( %var ( "x" ) , 
+       18                    %inc ) ) , %mem ( %var ( "a1" ) , %post ( %var ( "j" ) , 
+       54                    %inc ) ) ) ) , %exp ( %bop ( %assign , %mem ( %var ( "a2" 
+       54                    ) , %post ( %var ( "x" ) , %inc ) ) , %mem ( %var ( "a1" )
+       20                     , %post ( %var ( "i" ) , %inc ) ) ) ) ) , %seq ( %label (
+       15                     "" , %while ( %bop ( %lt , %var ( "i" ) , %var ( "i_end" 
+       16                    ) ) , %exp ( %bop ( %assign , %mem ( %var ( "a2" ) , %post
+       12                     ( %var ( "x" ) , %inc ) ) , %mem ( %var ( "a1" ) , %post 
+        1                    ( %var ( "i" ) , %inc ) ) ) ) ) ) , %break ( "" ) ) ) , 
+       36                    %seq ( %label ( "" , %while ( %bop ( %lt , %var ( "j" ) , 
+       37                    %var ( "j_end" ) ) , %exp ( %bop ( %assign , %mem ( %var (
+       24                     "a2" ) , %post ( %var ( "x" ) , %inc ) ) , %mem ( %var ( 
+       13                    "a1" ) , %post ( %var ( "j" ) , %inc ) ) ) ) ) ) , %break 
+       18                    ( "" ) ) ) ) ) , %seq ( %exp ( %bop ( %assign , %var ( 
+       18                    "j_end" ) , %var ( "start" ) ) ) , %seq ( %exp ( 
+       12                    %bopassign ( %minus , %var ( "start" ) , %bop ( %times , 
+       24                    %con ( 2 ) , %var ( "size" ) ) ) ) , %exp ( %bop ( %assign
+       12                     , %var ( "i_end" ) , %bop ( %plus , %var ( "start" ) , 
+       12                    %var ( "size" ) ) ) ) ) ) ) ) ) ) ) ) , %seq ( %seq ( 
+        9                    %vdecl ( "t" ) , %exp ( %bop ( %assign , %var ( "t" ) , 
+       12                    %var ( "a1" ) ) ) ) , %seq ( %exp ( %bop ( %assign , %var 
+       12                    ( "a1" ) , %var ( "a2" ) ) ) , %seq ( %exp ( %bop ( 
+        9                    %assign , %var ( "a2" ) , %var ( "t" ) ) ) , %seq ( %exp (
+        9                     %post ( %var ( "k" ) , %inc ) ) , %exp ( %bopassign ( 
+        3                    %times , %var ( "size" ) , %con ( 2 ) ) ) ) ) ) ) ) ) ) ) 
+        9                    ) , %bop ( %gt , %var ( "len" ) , %var ( "size" ) ) ) ) , 
+        5                    %if ( %bop ( %eqs , %bop ( %amp , %var ( "k" ) , %con ( 1 
+        4                    ) ) , %con ( 0 ) ) , %label ( "" , %for ( %seq ( %vdecl ( 
+        3                    "i" ) , %exp ( %bop ( %assign , %var ( "i" ) , %bop ( 
+       15                    %minus , %var ( "len" ) , %con ( 1 ) ) ) ) ) , %bop ( %ge 
+       38                    , %var ( "i" ) , %con ( 0 ) ) , %post ( %var ( "i" ) , 
+       36                    %dec ) , %exp ( %bop ( %assign , %mem ( %var ( "o" ) , 
+       48                    %var ( "i" ) ) , %mem ( %var ( "a1" ) , %var ( "i" ) ) ) )
+                              ) ) , %emptyStmt ) ) ) ) ) ) , %emptyStmt ) ) , 
+        2                    %emptyStmt ) , %return ( %var ( "o" ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "comparefn" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 89 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.splice" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "start" ) , %cons ( 
+                             %var ( "deleteCount" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 91 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.unshift" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "_" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 93 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.indexOf" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "searchElement" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 95 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.lastIndexOf" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "searchElement" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 97 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.every" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 99 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.some" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 101 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.forEach" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 103 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.map" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 105 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.filter" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 107 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.reduce" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 109 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Array.prototype.reduceRight" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "callbackfn" ) , %nil 
+                             )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 111 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       40                  "Code" |-> %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+       24                    %assign , %var ( "s" ) , %con ( "" ) ) ) ) , %seq ( %label
+       32                     ( "" , %for ( %seq ( %vdecl ( "i" ) , %exp ( %bop ( 
+       24                    %assign , %var ( "i" ) , %con ( 0 ) ) ) ) , %bop ( %lt , 
+       64                    %var ( "i" ) , %mem ( %var ( "arguments" ) , %con ( 
+       16                    "length" ) ) ) , %pre ( %inc , %var ( "i" ) ) , %exp ( 
+       16                    %bopassign ( %plus , %var ( "s" ) , %call ( %var ( 
+       16                    "@Int2Char" ) , %cons ( %call ( %var ( "@ToUint16" ) , 
+       32                    %cons ( %mem ( %var ( "arguments" ) , %var ( "i" ) ) , 
+       32                    %nil ) ) , %nil ) ) ) ) ) ) , %return ( %var ( "s" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "_" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 113 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     1701                  "Code" |-> %return ( %call ( %mem ( %mem ( %mem ( %var ( 
+      756                    "String" ) , %con ( "prototype" ) ) , %con ( "valueOf" ) )
+      945                     , %con ( "call" ) ) , %cons ( %con ( %this ) , %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 115 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     2556                  "Code" |-> %if ( %bop ( %eqs , %pre ( %typeof , %con ( %this
+      639                     ) ) , %con ( "string" ) ) , %return ( %con ( %this ) ) , 
+     2556                    %if ( %bop ( %and , %call ( %var ( "@IsObject" ) , %cons (
+     2556                     %con ( %this ) , %nil ) ) , %bop ( %eqs , %call ( %var ( 
+     1917                    "@GetInternalProperty" ) , %cons ( %con ( %this ) , %cons 
+     1917                    ( %con ( "Class" ) , %nil ) ) ) , %con ( "String" ) ) ) , 
+     1917                    %return ( %call ( %var ( "@GetInternalProperty" ) , %cons 
+     1917                    ( %con ( %this ) , %cons ( %con ( "PrimitiveValue" ) , 
+      639                    %nil ) ) ) ) , %throw ( %call ( %var ( "TypeError" ) , 
+                             %cons ( %con ( 
+                             "Invalid arguments: String.prototype.valueOf" ) , %nil ) )
+                              ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 117 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       21                  "Code" |-> %seq ( %exp ( %call ( %var ( 
+       21                    "@CheckObjectCoercible" ) , %cons ( %con ( %this ) , %nil 
+       35                    ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+        7                    %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) , 
+       35                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       21                    %vdecl ( "position" ) , %exp ( %bop ( %assign , %var ( 
+       14                    "position" ) , %call ( %var ( "@ToInteger" ) , %cons ( 
+       35                    %var ( "pos" ) , %nil ) ) ) ) ) , %seq ( %seq ( %vdecl ( 
+       21                    "size" ) , %exp ( %bop ( %assign , %var ( "size" ) , %call
+       21                     ( %var ( "@LengthString" ) , %cons ( %var ( "s" ) , %nil 
+       28                    ) ) ) ) ) , %if ( %bop ( %or , %bop ( %lt , %var ( 
+       21                    "position" ) , %con ( 0 ) ) , %bop ( %ge , %var ( 
+        7                    "position" ) , %var ( "size" ) ) ) , %return ( %con ( "" )
+       28                     ) , %return ( %call ( %var ( "@CharAt" ) , %cons ( %var (
+       21                     "s" ) , %cons ( %var ( "position" ) , %nil ) ) ) ) ) ) ) 
+                             ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "pos" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 119 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       12                  "Code" |-> %seq ( %exp ( %call ( %var ( 
+       12                    "@CheckObjectCoercible" ) , %cons ( %con ( %this ) , %nil 
+       20                    ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+        4                    %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) , 
+       20                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       12                    %vdecl ( "position" ) , %exp ( %bop ( %assign , %var ( 
+        8                    "position" ) , %call ( %var ( "@ToInteger" ) , %cons ( 
+       20                    %var ( "pos" ) , %nil ) ) ) ) ) , %seq ( %seq ( %vdecl ( 
+       12                    "size" ) , %exp ( %bop ( %assign , %var ( "size" ) , %call
+       12                     ( %var ( "@LengthString" ) , %cons ( %var ( "s" ) , %nil 
+       16                    ) ) ) ) ) , %if ( %bop ( %or , %bop ( %lt , %var ( 
+       12                    "position" ) , %con ( 0 ) ) , %bop ( %ge , %var ( 
+        4                    "position" ) , %var ( "size" ) ) ) , %return ( %var ( 
+       12                    "NaN" ) ) , %return ( %call ( %var ( "@Char2Int" ) , %cons
+       12                     ( %call ( %var ( "@CharAt" ) , %cons ( %var ( "s" ) , 
+       16                    %cons ( %var ( "position" ) , %nil ) ) ) , %nil ) ) ) ) ) 
+                             ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "pos" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 121 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       18                  "Code" |-> %seq ( %exp ( %call ( %var ( 
+       18                    "@CheckObjectCoercible" ) , %cons ( %con ( %this ) , %nil 
+       30                    ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+        6                    %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) , 
+       30                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+       18                    %vdecl ( "r" ) , %exp ( %bop ( %assign , %var ( "r" ) , 
+       24                    %var ( "s" ) ) ) ) , %seq ( %label ( "" , %for ( %seq ( 
+       18                    %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( "i" ) , 
+       78                    %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , %mem ( %var
+       30                     ( "arguments" ) , %con ( "length" ) ) ) , %pre ( %inc , 
+       24                    %var ( "i" ) ) , %exp ( %bopassign ( %plus , %var ( "r" ) 
+       48                    , %call ( %var ( "@ToString" ) , %cons ( %mem ( %var ( 
+       24                    "arguments" ) , %var ( "i" ) ) , %nil ) ) ) ) ) ) , 
+       12                    %return ( %var ( "r" ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "_" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 123 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      540                  "Code" |-> %seq ( %seq ( %vdecl ( "position" ) , %exp ( %bop
+      216                     ( %assign , %var ( "position" ) , %mem ( %var ( 
+      432                    "arguments" ) , %con ( 1 ) ) ) ) ) , %seq ( %exp ( %call (
+      216                     %var ( "@CheckObjectCoercible" ) , %cons ( %con ( %this )
+      648                     , %nil ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop
+      108                     ( %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) ,
+      540                     %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+      324                    %vdecl ( "searchStr" ) , %exp ( %bop ( %assign , %var ( 
+      216                    "searchStr" ) , %call ( %var ( "@ToString" ) , %cons ( 
+      432                    %var ( "searchString" ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+      324                    %vdecl ( "pos" ) , %exp ( %bop ( %assign , %var ( "pos" ) 
+      432                    , %cond ( %bop ( %eqs , %var ( "position" ) , %var ( 
+      108                    "undefined" ) ) , %con ( 0 ) , %call ( %var ( "@ToInteger"
+      138                     ) , %cons ( %var ( "position" ) , %nil ) ) ) ) ) ) , %seq
+      432                     ( %seq ( %vdecl ( "len" ) , %exp ( %bop ( %assign , %var 
+      216                    ( "len" ) , %call ( %var ( "@LengthString" ) , %cons ( 
+      540                    %var ( "s" ) , %nil ) ) ) ) ) , %seq ( %seq ( %vdecl ( 
+      216                    "start" ) , %exp ( %bop ( %assign , %var ( "start" ) , 
+      756                    %call ( %mem ( %var ( "Math" ) , %con ( "min" ) ) , %cons 
+      648                    ( %call ( %mem ( %var ( "Math" ) , %con ( "max" ) ) , 
+      540                    %cons ( %var ( "pos" ) , %cons ( %con ( 0 ) , %nil ) ) ) ,
+      432                     %cons ( %var ( "len" ) , %nil ) ) ) ) ) ) , %return ( 
+      324                    %call ( %var ( "@FindString" ) , %cons ( %var ( "s" ) , 
+      432                    %cons ( %var ( "searchStr" ) , %cons ( %var ( "start" ) , 
+      108                    %nil ) ) ) ) ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "searchString" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 125 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.lastIndexOf" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "searchString" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 127 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.localeCompare" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "that" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 129 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.match" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "regexp" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 131 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %seq ( %if ( %bop ( %eqs , %pre ( %typeof , %var 
+       18                    ( "searchValue" ) ) , %con ( "string" ) ) , %seq ( %seq ( 
+       18                    %vdecl ( "pos" ) , %exp ( %bop ( %assign , %var ( "pos" ) 
+       36                    , %call ( %mem ( %con ( %this ) , %con ( "indexOf" ) ) , 
+       24                    %cons ( %var ( "searchValue" ) , %nil ) ) ) ) ) , %if ( 
+       18                    %bop ( %eqs , %pre ( %typeof , %var ( "replaceValue" ) ) ,
+       24                     %con ( "function" ) ) , %seq ( %seq ( %vdecl ( "ret" ) , 
+       24                    %exp ( %bop ( %assign , %var ( "ret" ) , %call ( %var ( 
+       18                    "replaceValue" ) , %cons ( %var ( "searchValue" ) , %cons 
+       36                    ( %var ( "pos" ) , %cons ( %call ( %mem ( %con ( %this ) ,
+       24                     %con ( "toString" ) ) , %nil ) , %nil ) ) ) ) ) ) ) , 
+       66                    %return ( %call ( %mem ( %call ( %mem ( %con ( %this ) , 
+       72                    %con ( "substring" ) ) , %cons ( %con ( 0 ) , %cons ( %var
+       30                     ( "pos" ) , %nil ) ) ) , %con ( "concat" ) ) , %cons ( 
+       60                    %call ( %mem ( %new ( %var ( "String" ) , %cons ( %var ( 
+       30                    "ret" ) , %nil ) ) , %con ( "toString" ) ) , %nil ) , 
+       42                    %cons ( %call ( %mem ( %con ( %this ) , %con ( "substring"
+       24                     ) ) , %cons ( %bop ( %plus , %var ( "pos" ) , %call ( 
+       12                    %var ( "@LengthString" ) , %cons ( %var ( "searchValue" ) 
+       18                    , %nil ) ) ) , %nil ) ) , %nil ) ) ) ) ) , %return ( %call
+                              ( %mem ( %call ( %mem ( %con ( %this ) , %con ( 
+                             "substring" ) ) , %cons ( %con ( 0 ) , %cons ( %var ( 
+                             "pos" ) , %nil ) ) ) , %con ( "concat" ) ) , %cons ( %call
+                              ( %mem ( %var ( "replaceValue" ) , %con ( "toString" ) ) 
+                             , %nil ) , %cons ( %call ( %mem ( %con ( %this ) , %con ( 
+                             "substring" ) ) , %cons ( %bop ( %plus , %var ( "pos" ) , 
+                             %call ( %var ( "@LengthString" ) , %cons ( %var ( 
+                             "searchValue" ) , %nil ) ) ) , %nil ) ) , %nil ) ) ) ) ) )
+                              , %if ( %bop ( %instanceof , %var ( "searchValue" ) , 
+                             %var ( "RegExp" ) ) , %throw ( %con ( 
+                             "NotImplemented: String.prototype.replace" ) ) , 
+                             %emptyStmt ) ) , %return ( %call ( %mem ( %con ( %this ) ,
+                              %con ( "toString" ) ) , %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "searchValue" ) , 
+                             %cons ( %var ( "replaceValue" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 133 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.search" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "regexp" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 135 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.slice" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "start" ) , %cons ( 
+                             %var ( "end" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 137 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      100                  "Code" |-> %seq ( %seq ( %vdecl ( "res" ) , %exp ( %bop ( 
+       60                    %assign , %var ( "res" ) , %new ( %var ( "Array" ) , %nil 
+       80                    ) ) ) ) , %seq ( %if ( %bop ( %eqs , %var ( "limit" ) , 
+       40                    %con ( 0 ) ) , %return ( %var ( "res" ) ) , %emptyStmt ) ,
+      100                     %seq ( %seq ( %vdecl ( "len" ) , %exp ( %bop ( %assign , 
+       60                    %var ( "len" ) , %mem ( %con ( %this ) , %con ( "length" )
+       80                     ) ) ) ) , %seq ( %if ( %bop ( %eqs , %var ( "len" ) , 
+       40                    %con ( 0 ) ) , %return ( %var ( "res" ) ) , %emptyStmt ) ,
+      100                     %seq ( %if ( %bop ( %eqs , %var ( "separator" ) , %var ( 
+                             "undefined" ) ) , %return ( %arr ( %cons ( %con ( %this ) 
+       80                    , %nil ) ) ) , %emptyStmt ) , %seq ( %seq ( %vdecl ( "pos"
+       80                     ) , %exp ( %bop ( %assign , %var ( "pos" ) , %call ( %mem
+      120                     ( %con ( %this ) , %con ( "indexOf" ) ) , %cons ( %var ( 
+       80                    "separator" ) , %nil ) ) ) ) ) , %seq ( %seq ( %vdecl ( 
+       40                    "start" ) , %exp ( %bop ( %assign , %var ( "start" ) , 
+       80                    %con ( 0 ) ) ) ) , %seq ( %seq ( %vdecl ( "sepLen" ) , 
+       80                    %exp ( %bop ( %assign , %var ( "sepLen" ) , %mem ( %var ( 
+       60                    "separator" ) , %con ( "length" ) ) ) ) ) , %seq ( %label 
+       90                    ( "" , %while ( %bop ( %ge , %var ( "pos" ) , %con ( 0 ) )
+       80                     , %seq ( %exp ( %call ( %mem ( %var ( "res" ) , %con ( 
+       70                    "push" ) ) , %cons ( %call ( %mem ( %con ( %this ) , %con 
+       30                    ( "substring" ) ) , %cons ( %var ( "start" ) , %cons ( 
+       50                    %var ( "pos" ) , %nil ) ) ) , %nil ) ) ) , %seq ( %if ( 
+       40                    %bop ( %eqs , %mem ( %var ( "res" ) , %con ( "length" ) ) 
+       10                    , %var ( "limit" ) ) , %return ( %var ( "res" ) ) , 
+       40                    %emptyStmt ) , %seq ( %exp ( %bop ( %assign , %var ( 
+       30                    "start" ) , %bop ( %plus , %var ( "pos" ) , %var ( 
+       20                    "sepLen" ) ) ) ) , %exp ( %bop ( %assign , %var ( "pos" ) 
+       60                    , %call ( %mem ( %con ( %this ) , %con ( "indexOf" ) ) , 
+       50                    %cons ( %var ( "separator" ) , %cons ( %bop ( %plus , %var
+       20                     ( "pos" ) , %var ( "sepLen" ) ) , %nil ) ) ) ) ) ) ) ) ) 
+      100                    ) , %seq ( %if ( %bop ( %le , %var ( "start" ) , %var ( 
+      140                    "len" ) ) , %exp ( %call ( %mem ( %var ( "res" ) , %con ( 
+      140                    "push" ) ) , %cons ( %call ( %mem ( %con ( %this ) , %con 
+       60                    ( "substring" ) ) , %cons ( %var ( "start" ) , %nil ) ) , 
+       60                    %nil ) ) ) , %emptyStmt ) , %return ( %var ( "res" ) ) ) )
+                              ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "separator" ) , %cons 
+                             ( %var ( "limit" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 139 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      156                  "Code" |-> %seq ( %exp ( %call ( %var ( 
+      156                    "@CheckObjectCoercible" ) , %cons ( %con ( %this ) , %nil 
+      260                    ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+       52                    %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) , 
+      260                    %cons ( %con ( %this ) , %nil ) ) ) ) ) , %seq ( %seq ( 
+      156                    %vdecl ( "len" ) , %exp ( %bop ( %assign , %var ( "len" ) 
+      156                    , %call ( %var ( "@LengthString" ) , %cons ( %var ( "s" ) 
+      208                    , %nil ) ) ) ) ) , %seq ( %seq ( %vdecl ( "intStart" ) , 
+      156                    %exp ( %bop ( %assign , %var ( "intStart" ) , %call ( %var
+      156                     ( "@ToInteger" ) , %cons ( %var ( "start" ) , %nil ) ) ) 
+      260                    ) ) , %seq ( %seq ( %vdecl ( "intEnd" ) , %exp ( %bop ( 
+      156                    %assign , %var ( "intEnd" ) , %cond ( %bop ( %eqs , %var (
+      104                     "end" ) , %var ( "undefined" ) ) , %var ( "len" ) , %call
+       78                     ( %var ( "@ToInteger" ) , %cons ( %var ( "end" ) , %nil )
+      208                     ) ) ) ) ) , %seq ( %seq ( %vdecl ( "finalStart" ) , %exp 
+      156                    ( %bop ( %assign , %var ( "finalStart" ) , %call ( %mem ( 
+      364                    %var ( "Math" ) , %con ( "min" ) ) , %cons ( %call ( %mem 
+      312                    ( %var ( "Math" ) , %con ( "max" ) ) , %cons ( %var ( 
+      208                    "intStart" ) , %cons ( %con ( 0 ) , %nil ) ) ) , %cons ( 
+      260                    %var ( "len" ) , %nil ) ) ) ) ) ) , %seq ( %seq ( %vdecl (
+      104                     "finalEnd" ) , %exp ( %bop ( %assign , %var ( "finalEnd" 
+      312                    ) , %call ( %mem ( %var ( "Math" ) , %con ( "min" ) ) , 
+      364                    %cons ( %call ( %mem ( %var ( "Math" ) , %con ( "max" ) ) 
+      260                    , %cons ( %var ( "intEnd" ) , %cons ( %con ( 0 ) , %nil ) 
+      208                    ) ) , %cons ( %var ( "len" ) , %nil ) ) ) ) ) ) , %seq ( 
+      208                    %seq ( %vdecl ( "from" ) , %exp ( %bop ( %assign , %var ( 
+      312                    "from" ) , %call ( %mem ( %var ( "Math" ) , %con ( "min" )
+      208                     ) , %cons ( %var ( "finalStart" ) , %cons ( %var ( 
+      208                    "finalEnd" ) , %nil ) ) ) ) ) ) , %seq ( %seq ( %vdecl ( 
+      156                    "to" ) , %exp ( %bop ( %assign , %var ( "to" ) , %call ( 
+      364                    %mem ( %var ( "Math" ) , %con ( "max" ) ) , %cons ( %var (
+      156                     "finalStart" ) , %cons ( %var ( "finalEnd" ) , %nil ) ) )
+      104                     ) ) ) , %return ( %call ( %var ( "@SubstrString" ) , 
+      260                    %cons ( %var ( "s" ) , %cons ( %var ( "from" ) , %cons ( 
+      104                    %var ( "to" ) , %nil ) ) ) ) ) ) ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "start" ) , %cons ( 
+                             %var ( "end" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 141 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.toLowerCase" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 143 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.toLocaleLowerCase" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 145 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.toUpperCase" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 147 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: String.prototype.toLocaleUpperCase" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 149 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %seq ( %exp ( %call ( %var ( 
+                             "@CheckObjectCoercible" ) , %cons ( %con ( %this ) , %nil 
+                             ) ) ) , %seq ( %seq ( %vdecl ( "s" ) , %exp ( %bop ( 
+                             %assign , %var ( "s" ) , %call ( %var ( "@ToString" ) , 
+                             %cons ( %con ( %this ) , %nil ) ) ) ) ) , %return ( %call 
+                             ( %var ( "@Trim" ) , %cons ( %var ( "s" ) , %nil ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 151 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %seq ( %seq ( %vdecl ( "b" ) , %exp ( %bop ( 
+       48                    %assign , %var ( "b" ) , %call ( %mem ( %mem ( %mem ( %var
+       24                     ( "Boolean" ) , %con ( "prototype" ) ) , %con ( "valueOf"
+       30                     ) ) , %con ( "call" ) ) , %cons ( %con ( %this ) , %nil )
+       18                     ) ) ) ) , %if ( %var ( "b" ) , %return ( %con ( "true" ) 
+        6                    ) , %return ( %con ( "false" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 153 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     2310                  "Code" |-> %seq ( %vdecl ( "b" ) , %seq ( %if ( %bop ( %eqs 
+     1386                    , %pre ( %typeof , %con ( %this ) ) , %con ( "boolean" ) )
+                              , %exp ( %bop ( %assign , %var ( "b" ) , %con ( %this ) )
+     1386                     ) , %if ( %bop ( %and , %call ( %var ( "@IsObject" ) , 
+     2310                    %cons ( %con ( %this ) , %nil ) ) , %bop ( %eqs , %call ( 
+      924                    %var ( "@GetInternalProperty" ) , %cons ( %con ( %this ) ,
+     1848                     %cons ( %con ( "Class" ) , %nil ) ) ) , %con ( "Boolean" 
+     1386                    ) ) ) , %exp ( %bop ( %assign , %var ( "b" ) , %call ( 
+      924                    %var ( "@GetInternalProperty" ) , %cons ( %con ( %this ) ,
+     1386                     %cons ( %con ( "PrimitiveValue" ) , %nil ) ) ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+                             "Invalid arguments: Boolean.prototype.valueOf" ) , %nil ) 
+      924                    ) ) ) ) , %return ( %var ( "b" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 155 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       50                  "Code" |-> %seq ( %seq ( %vdecl ( "n" ) , %exp ( %bop ( 
+       80                    %assign , %var ( "n" ) , %call ( %mem ( %mem ( %mem ( %var
+       40                     ( "Number" ) , %con ( "prototype" ) ) , %con ( "valueOf" 
+       50                    ) ) , %con ( "call" ) ) , %cons ( %con ( %this ) , %nil ) 
+       50                    ) ) ) ) , %seq ( %vdecl ( "r" ) , %seq ( %if ( %bop ( %eqs
+       40                     , %var ( "radix" ) , %var ( "undefined" ) ) , %exp ( %bop
+       10                     ( %assign , %var ( "r" ) , %con ( 10 ) ) ) , %seq ( %exp 
+                             ( %bop ( %assign , %var ( "r" ) , %call ( %var ( 
+                             "@ToInteger" ) , %cons ( %var ( "radix" ) , %nil ) ) ) ) ,
+                              %if ( %pre ( %bang , %bop ( %and , %bop ( %ge , %var ( 
+                             "r" ) , %con ( 2 ) ) , %bop ( %le , %var ( "r" ) , %con ( 
+                             36 ) ) ) ) , %throw ( %call ( %var ( "RangeError" ) , 
+                             %cons ( %con ( 
+                             "Invalid arguments: Number.prototype.toString" ) , %nil ) 
+       20                    ) ) , %emptyStmt ) ) ) , %return ( %call ( %var ( 
+       40                    "@NumberToString" ) , %cons ( %var ( "n" ) , %cons ( %var 
+       10                    ( "r" ) , %nil ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "radix" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 157 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Number.prototype.toLocaleString" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 159 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     2076                  "Code" |-> %if ( %bop ( %eqs , %pre ( %typeof , %con ( %this
+      519                     ) ) , %con ( "string" ) ) , %return ( %con ( %this ) ) , 
+     2076                    %if ( %bop ( %and , %call ( %var ( "@IsObject" ) , %cons (
+     2076                     %con ( %this ) , %nil ) ) , %bop ( %eqs , %call ( %var ( 
+     1557                    "@GetInternalProperty" ) , %cons ( %con ( %this ) , %cons 
+     1557                    ( %con ( "Class" ) , %nil ) ) ) , %con ( "Number" ) ) ) , 
+     1557                    %return ( %call ( %var ( "@GetInternalProperty" ) , %cons 
+     1557                    ( %con ( %this ) , %cons ( %con ( "PrimitiveValue" ) , 
+      519                    %nil ) ) ) ) , %throw ( %call ( %var ( "TypeError" ) , 
+                             %cons ( %con ( 
+                             "Invalid arguments: Number.prototype.valueOf" ) , %nil ) )
+                              ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 161 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        6                  "Code" |-> %return ( %call ( %var ( 
+        6                    "@NumberPrototypeToFixed" ) , %cons ( %con ( %this ) , 
+        9                    %cons ( %var ( "fractionDigits" ) , %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "fractionDigits" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 163 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Number.prototype.toExponential" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "fractionDigits" ) , 
+                             %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 165 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( 
+                             "NotImplemented: Number.prototype.toPrecision" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "precision" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 167 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        3                  "Code" |-> %seq ( %exp ( %bop ( %assign , %var ( "x" ) , 
+        4                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "x" ) , %nil
+        4                     ) ) ) ) , %if ( %bop ( %lt , %var ( "x" ) , %con ( 0 ) ) 
+        1                    , %return ( %pre ( %minus , %var ( "x" ) ) ) , %return ( 
+        1                    %var ( "x" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 169 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.acos" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 171 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.asin" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 173 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.atan" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 175 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.atan2" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "y" ) , %cons ( %var (
+                              "x" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 177 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       24                  "Code" |-> %return ( %pre ( %minus , %call ( %mem ( %var ( 
+       16                    "Math" ) , %con ( "floor" ) ) , %cons ( %pre ( %minus , 
+        8                    %var ( "x" ) ) , %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 179 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.cos" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 181 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.exp" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 183 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       36                  "Code" |-> %seq ( %exp ( %bop ( %assign , %var ( "x" ) , 
+       48                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "x" ) , %nil
+       36                     ) ) ) ) , %return ( %call ( %var ( "@MathFloor" ) , %cons
+       24                     ( %var ( "x" ) , %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 185 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.log" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 187 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     1320                  "Code" |-> %seq ( %seq ( %vdecl ( "max" ) , %exp ( %bop ( 
+      528                    %assign , %var ( "max" ) , %pre ( %minus , %var ( 
+      792                    "Infinity" ) ) ) ) ) , %seq ( %label ( "" , %for ( %seq ( 
+      792                    %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( "i" ) , 
+     3432                    %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , %mem ( %var
+     1320                     ( "arguments" ) , %con ( "length" ) ) ) , %pre ( %inc , 
+     2112                    %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "value" ) , %exp (
+     1056                     %bop ( %assign , %var ( "value" ) , %call ( %var ( 
+     2112                    "@ToNumber" ) , %cons ( %mem ( %var ( "arguments" ) , %var
+     2112                     ( "i" ) ) , %nil ) ) ) ) ) , %if ( %call ( %var ( "isNaN"
+     1584                     ) , %cons ( %var ( "value" ) , %nil ) ) , %return ( %var 
+     2112                    ( "NaN" ) ) , %if ( %bop ( %gt , %var ( "value" ) , %var (
+      927                     "max" ) ) , %exp ( %bop ( %assign , %var ( "max" ) , %var
+      657                     ( "value" ) ) ) , %if ( %bop ( %and , %call ( %var ( 
+      657                    "@IsPositiveZero" ) , %cons ( %var ( "value" ) , %nil ) ) 
+      633                    , %call ( %var ( "@IsNegativeZero" ) , %cons ( %var ( 
+      211                    "max" ) , %nil ) ) ) , %exp ( %bop ( %assign , %var ( 
+      219                    "max" ) , %var ( "value" ) ) ) , %emptyStmt ) ) ) ) ) ) , 
+      528                    %return ( %var ( "max" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "value1" ) , %cons ( 
+                             %var ( "value2" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 189 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+     1320                  "Code" |-> %seq ( %seq ( %vdecl ( "min" ) , %exp ( %bop ( 
+      528                    %assign , %var ( "min" ) , %pre ( %plus , %var ( 
+      792                    "Infinity" ) ) ) ) ) , %seq ( %label ( "" , %for ( %seq ( 
+      792                    %vdecl ( "i" ) , %exp ( %bop ( %assign , %var ( "i" ) , 
+     3432                    %con ( 0 ) ) ) ) , %bop ( %lt , %var ( "i" ) , %mem ( %var
+     1320                     ( "arguments" ) , %con ( "length" ) ) ) , %pre ( %inc , 
+     2112                    %var ( "i" ) ) , %seq ( %seq ( %vdecl ( "value" ) , %exp (
+     1056                     %bop ( %assign , %var ( "value" ) , %call ( %var ( 
+     2112                    "@ToNumber" ) , %cons ( %mem ( %var ( "arguments" ) , %var
+     2112                     ( "i" ) ) , %nil ) ) ) ) ) , %if ( %call ( %var ( "isNaN"
+     1584                     ) , %cons ( %var ( "value" ) , %nil ) ) , %return ( %var 
+     2112                    ( "NaN" ) ) , %if ( %bop ( %lt , %var ( "value" ) , %var (
+      792                     "min" ) ) , %exp ( %bop ( %assign , %var ( "min" ) , %var
+      792                     ( "value" ) ) ) , %if ( %bop ( %and , %call ( %var ( 
+      792                    "@IsNegativeZero" ) , %cons ( %var ( "value" ) , %nil ) ) 
+                             , %call ( %var ( "@IsPositiveZero" ) , %cons ( %var ( 
+                             "min" ) , %nil ) ) ) , %exp ( %bop ( %assign , %var ( 
+      264                    "min" ) , %var ( "value" ) ) ) , %emptyStmt ) ) ) ) ) ) , 
+      528                    %return ( %var ( "min" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "value1" ) , %cons ( 
+                             %var ( "value2" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 191 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 2
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+      126                  "Code" |-> %seq ( %exp ( %bop ( %assign , %var ( "x" ) , 
+      168                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "x" ) , %nil
+      126                     ) ) ) ) , %seq ( %exp ( %bop ( %assign , %var ( "y" ) , 
+      168                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "y" ) , %nil
+      126                     ) ) ) ) , %return ( %call ( %var ( "@MathPow" ) , %cons (
+      168                     %var ( "x" ) , %cons ( %var ( "y" ) , %nil ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %cons ( %var (
+                              "y" ) , %nil ) )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 193 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.random" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 195 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.round" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 197 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       30                  "Code" |-> %seq ( %exp ( %bop ( %assign , %var ( "x" ) , 
+       40                    %call ( %var ( "@ToNumber" ) , %cons ( %var ( "x" ) , %nil
+       40                     ) ) ) ) , %if ( %call ( %var ( "isFinite" ) , %cons ( 
+       40                    %var ( "x" ) , %nil ) ) , %return ( %call ( %var ( 
+       30                    "@MathSin" ) , %cons ( %var ( "x" ) , %nil ) ) ) , %return
+                              ( %var ( "NaN" ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 199 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.sqrt" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 201 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+                           "Code" |-> %throw ( %con ( "NotImplemented: Math.tan" ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "x" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 203 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       22                  "Code" |-> %return ( %call ( %var ( "@DatePrototypeToString"
+       33                     ) , %cons ( %con ( %this ) , %nil ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 205 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       34                  "Code" |-> %return ( %call ( %var ( "@GetInternalProperty" )
+       68                     , %cons ( %con ( %this ) , %cons ( %con ( 
+       17                    "PrimitiveValue" ) , %nil ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 207 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 1
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+        2                  "Code" |-> %return ( %con ( %null ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %cons ( %var ( "string" ) , %nil )
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+                   <obj>
+                       <oid>
+                           @oo ( 209 )
+                       </oid>
+                       <properties>
+                           "length" |-> @desc ( 
+                               "Configurable" |-> false
+                               "Enumerable" |-> false
+                               "Value" |-> 0
+                               "Writable" |-> false )
+                       </properties>
+                       <internalProperties>
+                           "Class" |-> "Function"
+       68                  "Code" |-> %seq ( %if ( %pre ( %bang , %call ( %var ( 
+       51                    "@IsObject" ) , %cons ( %con ( %this ) , %nil ) ) ) , 
+                             %throw ( %call ( %var ( "TypeError" ) , %cons ( %con ( 
+       17                    "Error.prototype.toString" ) , %nil ) ) ) , %emptyStmt ) ,
+       85                     %seq ( %seq ( %vdecl ( "name" ) , %exp ( %bop ( %assign ,
+       68                     %var ( "name" ) , %cond ( %bop ( %eqs , %mem ( %con ( 
+       34                    %this ) , %con ( "name" ) ) , %var ( "undefined" ) ) , 
+       34                    %con ( "Error" ) , %call ( %var ( "@ToString" ) , %cons ( 
+       68                    %mem ( %con ( %this ) , %con ( "name" ) ) , %nil ) ) ) ) )
+       85                     ) , %seq ( %seq ( %vdecl ( "msg" ) , %exp ( %bop ( 
+       51                    %assign , %var ( "msg" ) , %cond ( %bop ( %eqs , %mem ( 
+       51                    %con ( %this ) , %con ( "message" ) ) , %var ( "undefined"
+       34                     ) ) , %con ( "" ) , %call ( %var ( "@ToString" ) , %cons 
+       68                    ( %mem ( %con ( %this ) , %con ( "message" ) ) , %nil ) ) 
+       68                    ) ) ) ) , %seq ( %if ( %bop ( %eqs , %var ( "name" ) , 
+       34                    %con ( "" ) ) , %return ( %var ( "msg" ) ) , %emptyStmt ) 
+       85                    , %seq ( %if ( %bop ( %eqs , %var ( "msg" ) , %con ( "" ) 
+       34                    ) , %return ( %var ( "name" ) ) , %emptyStmt ) , %return (
+       68                     %bop ( %plus , %bop ( %plus , %var ( "name" ) , %con ( 
+       17                    ": " ) ) , %var ( "msg" ) ) ) ) ) ) ) )
+                           "Extensible" |-> true
+                           "FormalParameters" |-> %nil
+                           "Prototype" |-> @FunctionProtoOid
+                           "Scope" |-> @GlobalEid
+                           "Strict" |-> false
+                       </internalProperties>
+                   </obj>
+           ) </objs>
+           syntax Oid ::= "@oo" "(" Int ")"
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 7.6.1 Reserved Words
+           //////////////////////////////////////////////////////////////////////////////
+           // TODO: This should have been used by a front-end such as 'js-trans.k' so that we can distinguish between 'Name' and 'String', both are 'PropertyName'.
+           
+           syntax KItem ::= "@CheckReserved" "(" K /* Bool */ "," K /* Var */ ")" [seqstrict]
+   839767  rule @CheckReserved(Strict:Bool, X:Var)
+   839767    => BEGIN
+   839767       If #@IsReservedWord(Strict,X) = true then {
+       63         Do @Throw(@SyntaxError("A reserved word cannot be used as an identifier",X));
+                };
+                END
+           
+           syntax Bool ::= "#@IsReservedWord" "(" Bool "," Var ")" [function]
+        0  rule #@IsReservedWord(Strict:Bool, X:Var)
+             =>      #@IsKeyword(X)
+              orBool #@IsFutureReservedWord(X)
+              orBool (Strict andBool #@IsFutureReservedWordInStrictMode(X))
+              orBool (X ==K "null")
+              orBool (X ==K "true")
+              orBool (X ==K "false")
+           
+           syntax Bool ::= "#@IsKeyword" "(" Var ")" [function]
+        0  rule #@IsKeyword(X:Var)
+             =>      (X ==K "break")
+              orBool (X ==K "case")
+              orBool (X ==K "catch")
+              orBool (X ==K "continue")
+              orBool (X ==K "debugger")
+              orBool (X ==K "default")
+              orBool (X ==K "delete")
+              orBool (X ==K "do")
+              orBool (X ==K "else")
+              orBool (X ==K "finally")
+              orBool (X ==K "for")
+              orBool (X ==K "function")
+              orBool (X ==K "if")
+              orBool (X ==K "in")
+              orBool (X ==K "instanceof")
+              orBool (X ==K "new")
+              orBool (X ==K "return")
+              orBool (X ==K "switch")
+              orBool (X ==K "this")
+              orBool (X ==K "throw")
+              orBool (X ==K "try")
+              orBool (X ==K "typeof")
+              orBool (X ==K "var")
+              orBool (X ==K "void")
+              orBool (X ==K "while")
+              orBool (X ==K "with")
+           
+           syntax Bool ::= "#@IsFutureReservedWord" "(" Var ")" [function]
+        0  rule #@IsFutureReservedWord(X:Var)
+             =>      (X ==K "class")
+              orBool (X ==K "const")
+              orBool (X ==K "enum")
+              orBool (X ==K "export")
+              orBool (X ==K "extends")
+              orBool (X ==K "import")
+              orBool (X ==K "super")
+           
+           syntax Bool ::= "#@IsFutureReservedWordInStrictMode" "(" Var ")" [function]
+        0  rule #@IsFutureReservedWordInStrictMode(X:Var)
+             =>      (X ==K "implements")
+              orBool (X ==K "interface")
+              orBool (X ==K "let")
+              orBool (X ==K "package")
+              orBool (X ==K "private")
+              orBool (X ==K "protected")
+              orBool (X ==K "public")
+              orBool (X ==K "static")
+              orBool (X ==K "yield")
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 7.8 Literals
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 7.8.1 Null Literals
+     2561  rule %null => @NullVal
+           
+           // 7.8.2 Boolean Literals
+           // Bool
+           
+           // 7.8.3 Numeric Literals
+           // Int
+           // Float
+           
+           // 7.8.4 String Literals
+           // String
+           
+           // 7.8.5 Regular Expression Literals
+           // TODO:
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 8.7 The Reference Specification Type
+           //////////////////////////////////////////////////////////////////////////////
+           
+    45586  syntax Reference    ::= "@Ref" "(" K /* Base */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
+           syntax ReferenceVal ::= "@Ref" "("      Base    ","      Var    ","      Bool    ")"
+           syntax Reference ::= ReferenceVal
+           syntax Val ::= ReferenceVal
+           //rule isVal(@Ref(B:Base,N:Var,S:Bool)) => true
+           //rule isVal(@Ref(B,N,S)) => isBase(B) ==K true andBool isVar(N) ==K true andBool isBool(S) ==K true
+           
+           syntax Base ::= UndefinedType
+                         | Primitive
+                         | Oid
+                         | Eid
+           /* FIXME:
+           syntax Base
+        0  rule isBase(Undefined) => true
+        0  rule isBase(_:Primitive) => true
+        0  rule isBase(_:Oid) => true
+        0  rule isBase(_:Eid) => true
+           */
+           
+      340  syntax KItem /* Base */ ::= "GetBase" "(" K /* Reference */ ")" [seqstrict]
+      170  rule GetBase(@Ref(Base:Base,_,_)) => Base
+           
+      340  syntax KItem /* Var */ ::= "GetReferencedName" "(" K /* Reference */ ")" [seqstrict]
+      170  rule GetReferencedName(@Ref(_,Name:Var,_)) => Name
+           
+      402  syntax KItem /* Bool */ ::= "IsStrictReference" "(" K /* Reference */ ")" [seqstrict]
+      201  rule IsStrictReference(@Ref(_,_,Strict:Bool)) => Strict
+           
+           syntax KItem /* Bool */ ::= "HasPrimitiveBase" "(" K /* Reference */ ")" [seqstrict]
+        0  rule HasPrimitiveBase(@Ref(Undefined, _,_)) => false
+        0  rule HasPrimitiveBase(@Ref(_:Primitive,_,_)) => true
+        0  rule HasPrimitiveBase(@Ref(_:Oid,      _,_)) => false
+        0  rule HasPrimitiveBase(@Ref(_:Eid,      _,_)) => false
+           
+      392  syntax KItem /* Bool */ ::= "IsPropertyReference" "(" K /* Reference */ ")" [seqstrict]
+        0  rule IsPropertyReference(@Ref(Undefined, _,_)) => false
+        0  rule IsPropertyReference(@Ref(_:Primitive,_,_)) => true
+       93  rule IsPropertyReference(@Ref(_:Oid,      _,_)) => true
+      103  rule IsPropertyReference(@Ref(_:Eid,      _,_)) => false
+           
+      402  syntax KItem /* Bool */ ::= "IsUnresolvableReference" "(" K /* Reference */ ")" [seqstrict]
+      201  rule IsUnresolvableReference(@Ref(Base:Base,_,_)) => Base ==K Undefined
+           
+           // 8.7.1 GetValue (V)
+           // TODO: Do we need to consider step 1?
+           
+   214741  syntax KItem /* Val */ ::= "GetValue" "(" K /* Reference */ ")" [seqstrict]
+           
+   182208  rule GetValue(@Ref(E:Eid,      N:Var, Strict:Bool)) => GetBindingValue(E,N,Strict)
+    31590  rule GetValue(@Ref(O:Oid,      P:Var, _          )) => Get(O,P)
+           
+      800  rule GetValue(@Ref(Undefined, P:Var, _          )) => @Throw(@ReferenceError("GetValue",P))
+           
+           /* NOTE: This does not work!!! [[Get]] with 'ToObject' differs from [[Get]] for Primitive base.
+        0  rule GetValue(@Ref(B:Bool,     P:Var, Strict:Bool)) => GetValue(@Ref(ToObject(B),P,Strict))
+        0  rule GetValue(@Ref(S:String,   P:Var, Strict:Bool)) => GetValue(@Ref(ToObject(S),P,Strict))
+        0  rule GetValue(@Ref(N:Number,   P:Var, Strict:Bool)) => GetValue(@Ref(ToObject(N),P,Strict))
+           */
+           
+      376  rule GetValue(@Ref(B:Primitive,P:Var, _          )) => GetPrimitive(B,P)
+           
+           syntax KItem /* Val */ ::= "GetPrimitive" "(" K /* Primitive */ "," K /* Var */ ")" [seqstrict]
+      188  rule GetPrimitive(Base:Primitive,P:Var)
+      188    => BEGIN
+      564       Let $o = ToObject(Base);
+      564       Let $desc = GetProperty($o,P);
+      188       If $desc = Undefined then {
+      131         Return Undefined;
+                } else {
+      310         If IsDataDescriptor($desc) = true then {
+      298           Return $desc."Value";
+                  } else {
+       18           Let $getter = $desc."Get";
+        6           If $getter = Undefined then {
+        0             Return Undefined;
+                    } else {
+       12             Return Call($getter,Base,@Nil); // NOTE: Only difference from Get@Default: 'Base' is used, instead of '$o'.
+                    }
+                  }
+                }
+                END
+           
+           // 8.7.2 PutValue (V, W)
+           
+           // NOTE: Step 1 is covered by @GetReference that raise ReferenceError for non-reference expressions
+    17220  syntax KItem /* .K */ ::= "PutValue" "(" K /* Reference */ "," K /* Val */ ")" [seqstrict]
+           
+    80126  rule PutValue(@Ref(E:Eid,      N:Var, Strict:Bool), V:Val) => SetMutableBinding(E,N,V,Strict) when (N =/=K "eval" andBool N =/=K "arguments") orBool Strict =/=K true
+     9118  rule PutValue(@Ref(O:Oid,      P:Var, Strict:Bool), V:Val) => Put(O,         P,V,Strict)
+      994  rule PutValue(@Ref(Undefined, P:Var, false      ), V:Val) => Put(@GlobalOid,P,V,false)
+        9  rule PutValue(@Ref(Undefined, P:Var, true       ), _    ) => @Throw(@ReferenceError("PutValue",P))
+           
+           // NOTE: Handled by this: 11.13.1 step 4, 11.13.2 step 6, 11.3.1, 11.3.2, 11.4.4, 11.4.5
+        0  rule PutValue(@Ref(_:Eid,      N:Var, true       ), _    ) => @Throw(@SyntaxError("PutValue",N)) when N ==K "eval" orBool N ==K "arguments"
+           
+           /*
+           /* NOTE: This does not work!!! [[Put]] with 'ToObject' differs from [[Put]] for Primitive base.
+        0  rule PutValue(@Ref(B:Bool,     P:Var, Strict:Bool), V:Val) => PutValue(@Ref(ToObject(B),P,Strict),V)
+        0  rule PutValue(@Ref(S:String,   P:Var, Strict:Bool), V:Val) => PutValue(@Ref(ToObject(S),P,Strict),V)
+        0  rule PutValue(@Ref(N:Number,   P:Var, Strict:Bool), V:Val) => PutValue(@Ref(ToObject(N),P,Strict),V)
+           */
+           
+       16  rule PutValue(@Ref(B:Primitive,P:Var, Strict:Bool), V:Val) => PutPrimitive(B,P,V,Strict)
+           
+           syntax KItem /* Val */ ::= "PutPrimitive" "(" K /* Primitive */ "," K /* Var */ "," K /* Val */ "," K /* Bool */ ")" [seqstrict]
+        8  rule PutPrimitive(Base:Primitive,P:Var,V:Val,Throw:Bool)
+        8    => BEGIN
+       24       Let $o = ToObject(Base);
+       16       If CanPut($o,P) = false then {
+        0         If Throw = true then {
+        0           Do @Throw(@TypeError("PutPrimitive, cannot put",PutPrimitive(Base,P,V,Throw)));
+                  } else {
+        0           Return;
+                  }
+                } else {
+       24         Let $ownDesc = GetOwnProperty($o,P);
+       16         If IsDataDescriptor($ownDesc) = true then {
+                    // NOTE: different from [[Put]]: do not put value
+        0           If Throw = true then {
+        0             Do @Throw(@TypeError("PutPrimitive, own Desc is a data descriptor",PutPrimitive(Base,P,V,Throw)));
+                    } else {
+        0             Return;
+                    }
+                  } else {
+       24           Let $desc = GetProperty($o,P);
+       16           If IsAccessorDescriptor($desc) = true then {
+        0             Let $setter = $desc."Set";
+        0             DoI Call($setter,Base,@Cons(V,@Nil)); // NOTE: different from [[Put]]: use 'Base' instead of '$o'
+                    } else {
+                      // NOTE: different from [[Put]]: do not put value
+        8             If Throw = true then {
+        0               Do @Throw(@TypeError("PutPrimitive, inherited Desc is a data descriptor",PutPrimitive(Base,P,V,Throw)));
+                      } else {
+        8               Return;
+                      }
+                    }
+                  }
+                }
+                END
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 8.10 The Property Descriptor and Property Identifier Specification Types
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 8.10.1 IsAccessorDescriptor ( Desc )
+           
+   435400  syntax KItem /* Bool */ ::= "IsAccessorDescriptor" "(" K /* Val */ ")" [seqstrict]
+           
+     2119  rule IsAccessorDescriptor(Undefined) => false
+   320834  rule IsAccessorDescriptor(@desc(Desc)) => ("Get" in keys(Desc)) orBool
+                                                      ("Set" in keys(Desc))
+           
+           // 8.10.2 IsDataDescriptor ( Desc )
+           
+  1012328  syntax KItem /* Bool */ ::= "IsDataDescriptor" "(" K /* Val */ ")" [seqstrict]
+           
+     4833  rule IsDataDescriptor(Undefined) => false
+   832959  rule IsDataDescriptor(@desc(Desc)) => ("Value"    in keys(Desc)) orBool
+                                                  ("Writable" in keys(Desc))
+           
+           // 8.10.3 IsGenericDescriptor ( Desc )
+           
+   210150  syntax KItem /* Bool */ ::= "IsGenericDescriptor" "(" K /* Val */ ")" [seqstrict]
+           
+        0  rule IsGenericDescriptor(Undefined) => false
+   331326  rule IsGenericDescriptor(@desc(Desc)) => notBool("Get"      in keys(Desc)) andBool
+                                                     notBool("Set"      in keys(Desc)) andBool
+                                                     notBool("Value"    in keys(Desc)) andBool
+                                                     notBool("Writable" in keys(Desc))
+           
+           // 8.10.? IsValidDescriptor ( Desc )
+           
+      336  syntax KItem /* Bool */ ::= "IsValidDescriptor" "(" K /* PropertyDescriptor */ ")" [seqstrict]
+           
+      840  rule IsValidDescriptor(Desc:PropertyDescriptor) => @NotBool(@AndBool(IsAccessorDescriptor(Desc),IsDataDescriptor(Desc)))
+           
+           // 8.10.? #IsFullyPopulatedDescriptor ( Desc )
+           
+           syntax Bool ::= "#IsFullyPopulatedDescriptor" "(" PropertyDescriptor ")" [function]
+           
+        0  rule #IsFullyPopulatedDescriptor(@desc(Desc)) => (keys(Desc) ==K SetItem("Get")   SetItem("Set")      SetItem("Enumerable") SetItem("Configurable"))
+                                                    orBool (keys(Desc) ==K SetItem("Value") SetItem("Writable") SetItem("Enumerable") SetItem("Configurable"))
+           
+           // 8.10.? MakeFullyPopulatedDescriptor ( Desc )
+           
+           syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedDataDescriptor1" "(" K /* PropertyDescriptor */ ")" [seqstrict]
+   222677  rule MakeFullyPopulatedDataDescriptor1(Desc:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(Desc,@desc("Value" |-> Undefined "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false))
+           
+           syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedAccessorDescriptor1" "(" K /* PropertyDescriptor */ ")" [seqstrict]
+    19697  rule MakeFullyPopulatedAccessorDescriptor1(Desc:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(Desc,@desc("Get" |-> Undefined "Set" |-> Undefined "Enumerable" |-> false "Configurable" |-> false))
+           
+   210128  syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedDataDescriptor2" "(" K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict]
+       20  rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Value",       Default.."Value",       Desc)),Default) when notBool("Value"        in keys(Desc))
+   209954  rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Writable",    Default.."Writable",    Desc)),Default) when notBool("Writable"     in keys(Desc))
+   209970  rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Enumerable",  Default.."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
+   209950  rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedDataDescriptor2(@desc(#@AddMap("Configurable",Default.."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
+  4119329  rule MakeFullyPopulatedDataDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when #IsFullyPopulatedDescriptor(@desc(Desc))
+           
+       22  syntax KItem /* PropertyDescriptor */ ::= "MakeFullyPopulatedAccessorDescriptor2" "(" K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict]
+       62  rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Get",         Default.."Get",         Desc)),Default) when notBool("Get"          in keys(Desc))
+       96  rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Set",         Default.."Set",         Desc)),Default) when notBool("Set"          in keys(Desc))
+    12414  rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Enumerable",  Default.."Enumerable",  Desc)),Default) when notBool("Enumerable"   in keys(Desc))
+       88  rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => MakeFullyPopulatedAccessorDescriptor2(@desc(#@AddMap("Configurable",Default.."Configurable",Desc)),Default) when notBool("Configurable" in keys(Desc))
+    35053  rule MakeFullyPopulatedAccessorDescriptor2(@desc(Desc),Default:PropertyDescriptor) => @desc(Desc) when #IsFullyPopulatedDescriptor(@desc(Desc))
+           
+           // 8.10.4 FromPropertyDescriptor ( Desc )
+           
+           syntax KItem /* Val */ ::= "FromPropertyDescriptor" "(" K /* PropertyDescriptor */ ")" [seqstrict]
+           
+      329  rule FromPropertyDescriptor(Undefined) => Undefined
+           
+           syntax Id ::= "$obj"
+           
+      140  rule FromPropertyDescriptor(Desc:PropertyDescriptor)
+      140    => BEGIN
+      420       Let $obj = @CreateObject;
+      420       If IsDataDescriptor(Desc) = true then {
+      243         DoI DefineOwnProperty($obj, "value",      @desc("Value" |-> Desc.."Value"        "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+      162         DoI DefineOwnProperty($obj, "writable",   @desc("Value" |-> Desc.."Writable"     "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+                } else /* IsAccessorDescriptor(Desc) = true */ {
+      177         DoI DefineOwnProperty($obj, "get",        @desc("Value" |-> Desc.."Get"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+      118         DoI DefineOwnProperty($obj, "set",        @desc("Value" |-> Desc.."Set"          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+                }
+      420       DoI DefineOwnProperty($obj, "enumerable",   @desc("Value" |-> Desc.."Enumerable"   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+      420       DoI DefineOwnProperty($obj, "configurable", @desc("Value" |-> Desc.."Configurable" "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false);
+      140       Return $obj;
+                END
+                when #IsFullyPopulatedDescriptor(Desc)
+           
+           // 8.10.5 ToPropertyDescriptor ( Obj )
+           // TODO: make it more elegant
+           
+           syntax KItem /* PropertyDescriptor */ ::= "ToPropertyDescriptor" "(" K /* Val */ ")" [seqstrict]
+           
+        3  rule ToPropertyDescriptor(V:Val) => @Throw(@TypeError("ToPropertyDescriptor",V)) when notBool(#@IsOid(V))
+           
+           syntax Id ::= "$desc0" | "$desc1" | "$desc2" | "$desc3" | "$desc4" | "$desc5" | "$desc6"
+           
+      169  rule ToPropertyDescriptor(O:Oid)
+      169    => BEGIN
+     1326       Let $desc0 = @desc(.Map);
+      507       Let $desc1 = ToPropertyDescriptorAux(O,"enumerable",  $desc0,"Enumerable");
+      507       Let $desc2 = ToPropertyDescriptorAux(O,"configurable",$desc1,"Configurable");
+      507       Let $desc3 = ToPropertyDescriptorAux(O,"value",       $desc2,"Value");
+      507       Let $desc4 = ToPropertyDescriptorAux(O,"writable",    $desc3,"Writable");
+      507       Let $desc5 = ToPropertyDescriptorAux(O,"get",         $desc4,"Get");
+      504       Let $desc6 = ToPropertyDescriptorAux(O,"set",         $desc5,"Set");
+      336       If IsValidDescriptor($desc6) = true then {
+      167         Return $desc6;
+                } else {
+        3         Do @Throw(@TypeError("ToPropertyDescriptor InvalidDescriptor",$desc6));
+                }
+                END
+           
+     2026  syntax KItem /* PropertyDescriptor */ ::= "ToPropertyDescriptorAux" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* String */ ")" [seqstrict]
+           
+           syntax Id ::= "$value"
+           
+      507  rule ToPropertyDescriptorAux(O:Oid,P:Var,Desc:PropertyDescriptor,Attr:String)
+      507    => BEGIN
+     1014       If HasProperty(O,P) = true then {
+      784         Let $value = ToBoolean(Get(O,P));
+      392         Return @AddDesc(Attr, $value, Desc);
+                } else {
+      311         Return Desc;
+                }
+                END
+                when (P ==K "enumerable"   andBool Attr ==K "Enumerable")
+              orBool (P ==K "configurable" andBool Attr ==K "Configurable")
+              orBool (P ==K "writable"     andBool Attr ==K "Writable")
+           
+      169  rule ToPropertyDescriptorAux(O:Oid,P:Var,Desc:PropertyDescriptor,Attr:String)
+      169    => BEGIN
+      338       If HasProperty(O,P) = true then {
+      207         Let $value = Get(O,P);
+      138         Return @AddDesc(Attr, $value, Desc);
+                } else {
+      100         Return Desc;
+                }
+                END
+                when P ==K "value" andBool Attr ==K "Value"
+           
+      337  rule ToPropertyDescriptorAux(O:Oid,P:Var,Desc:PropertyDescriptor,Attr:String)
+      337    => BEGIN
+      674       If HasProperty(O,P) = true then {
+      354         Let $value = Get(O,P);
+      354         If IsCallable($value) = true then {
+      104           Nop;
+                  } else {
+       14           If $value = Undefined then {
+       13             Nop;
+                    } else {
+        3             Do @Throw(@TypeError("ToPropertyDescriptorAux",$value));
+                    }
+                  }
+      234         Return @AddDesc(Attr, $value, Desc);
+                } else {
+      219         Return Desc;
+                }
+                END
+                when (P ==K "get" andBool Attr ==K "Get")
+              orBool (P ==K "set" andBool Attr ==K "Set")
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 8.12 Algorithms for Object Internal Methods
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 8.12.1 [[GetOwnProperty]] (P)
+           
+    20098  syntax KItem /* Val */ ::= "GetOwnProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+  1019330  rule GetOwnProperty(O:Oid,P:Var)
+  1019330    => BEGIN
+  2038660       If @IsArgumentsObjectNonStrictWithFormalParams(O) = true then {
+    13658         Do GetOwnProperty@Arguments(O,P);
+                } else {
+  2025002         If @IsStringObject(O) = true then {
+     4374           Do GetOwnProperty@String(O,P);
+                  } else {
+  2020628           Do GetOwnProperty@Default(O,P);
+                  }
+                }
+                END
+           
+           syntax KItem /* Val */ ::= "GetOwnProperty@Default" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+   669627  rule <k> GetOwnProperty@Default(O:Oid,P:Var) => V ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> P |-> V:Val _:Map </properties>
+                  _
+                </obj>
+  1837100  rule <k> GetOwnProperty@Default(O:Oid,P:Var) => Undefined ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> Prop:Map </properties>
+                  _
+                </obj>
+                when notBool(P in keys(Prop))
+           
+           // 8.12.? [[GetInternalProperty]] (P)
+           
+           syntax KItem /* Val */ ::= "GetInternalProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+   250778  rule <k> GetInternalProperty(O:Oid,P:Var) => V ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> P |-> V:Val _:Map </internalProperties>
+                  _
+                </obj>
+        0  rule <k> GetInternalProperty(O:Oid,P:Var) => Undefined ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> Prop:Map </internalProperties>
+                  _
+                </obj>
+                when notBool(P in keys(Prop))
+           
+           // 8.12.? [[SetInternalProperty]] (P,V)
+           
+    70120  syntax KItem /* .K */ ::= "SetInternalProperty" "(" K /* Oid */ "," K /* Var */ "," K /* Val */ ")" [seqstrict]
+           
+    30473  rule <k> SetInternalProperty(O:Oid,P:Var,V:Val) => . ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> Prop:Map => #@AddMap(P,V,Prop) </internalProperties>
+                  _
+                </obj>
+           
+           // 8.12.? [[GetInheritedProperty]] (P)
+           
+           syntax KItem /* Val */ ::= "GetInheritedProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+   321544  rule <k> GetInheritedProperty(O:Oid,P:Var) => GetProperty(O',P) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Prototype" |-> O':Oid _:Map </internalProperties>
+                  _
+                </obj>
+                when O' =/=K @NullOid
+   930950  rule <k> GetInheritedProperty(O:Oid,_) => Undefined ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Prototype" |-> @NullOid _:Map </internalProperties>
+                  _
+                </obj>
+           
+           // 8.12.? [[GetInheritedPropertyOwner]] (P)
+           
+           syntax KItem /* Val */ ::= "GetInheritedPropertyOwner" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+        4  rule <k> GetInheritedPropertyOwner(O:Oid,P:Var) => GetPropertyOwner(O',P) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Prototype" |-> O':Oid _:Map </internalProperties>
+                  _
+                </obj>
+                when O' =/=K @NullOid
+        0  rule <k> GetInheritedPropertyOwner(O:Oid,_) => @NullOid ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Prototype" |-> @NullOid _:Map </internalProperties>
+                  _
+                </obj>
+           
+           // 8.12.2 [[GetProperty]] (P)
+           
+    10094  syntax KItem /* Val */ ::= "GetProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+           syntax Id ::= "$prop"
+   559939  rule GetProperty(O:Oid,P:Var)
+   559939    => BEGIN
+  1679817       Let $prop = GetOwnProperty(O,P);
+   559939       If $prop = Undefined then {
+   630016         Return GetInheritedProperty(O,P);
+                } else {
+   244931         Return $prop;
+                }
+                END
+           
+           // 8.12.? [[GetPropertyOwner]] (P)
+           
+           syntax KItem /* Val */ ::= "GetPropertyOwner" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+     1969  rule GetPropertyOwner(O:Oid,P:Var)
+     1969    => BEGIN
+     5907       Let $prop = GetOwnProperty(O,P);
+     1969       If $prop = Undefined then {
+        4         Return GetInheritedPropertyOwner(O,P);
+                } else {
+     1967         Return O;
+                }
+                END
+           
+           // 8.12.3 [[Get]] (P)
+           
+     2340  syntax KItem /* Val */ ::= "Get" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+    82460  rule Get(O:Oid,P:Var)
+    82460    => BEGIN
+   164920       If @IsArgumentsObjectNonStrictWithFormalParams(O) = true then {
+     6630         Do Get@Arguments(O,P);
+                } else {
+   158290         Do Get@Default(O,P);
+                }
+                END
+           
+           syntax KItem /* Val */ ::= "Get@Default" "(" K /* Oid */ "," K /* Var */ ")"  [seqstrict]
+           
+           syntax Id ::= "$desc" | "$getter"
+    81323  rule Get@Default(O:Oid,P:Var)
+    81323    => BEGIN
+   243969       Let $desc = GetProperty(O,P);
+    81323       If $desc = Undefined then {
+     1810         Return Undefined;
+                } else {
+   161946         If IsDataDescriptor($desc) = true then {
+   159488           Return $desc."Value";
+                  } else {
+     3687           Let $getter = $desc."Get";
+     1229           If $getter = Undefined then {
+        9             Return Undefined;
+                    } else {
+     2454             Return Call($getter,O,@Nil);
+                    }
+                  }
+                }
+                END
+           
+           // 8.12.4 [[CanPut]] (P)
+           
+           // Intuistic Algorithm
+           //
+           // If O has P as its own property,
+           //   the property should be writable
+           //   or, its setter function should be defined.
+           //
+           // If O has P as its inherited property,
+           //   O should be extensible and the inherited property should be writable (the inherited property is not supposed to be updated, though)
+           //   or, its setter function should be defined.
+           //
+           // If O has no P along with prototype chain,
+           //   O should be extensible.
+           
+       16  syntax KItem /* Bool */ ::= "CanPut" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+           syntax Id ::= "$proto" | "$inherited"
+   109880  rule CanPut(O:Oid,P:Var)
+   109880    => BEGIN
+   329640       Let $desc = GetOwnProperty(O,P);
+   109880       If $desc = Undefined then {
+    14556         Let $proto = GetInternalProperty(O,"Prototype");
+     4852         If $proto = @NullOid then {
+        2           Return GetInternalProperty(O,"Extensible");
+                  } else {
+    14553           Let $inherited = GetProperty($proto,P);
+     4851           If $inherited = Undefined then {
+     4268             Return GetInternalProperty(O,"Extensible");
+                    } else {
+     5434             If IsAccessorDescriptor($inherited) = true then {
+        4               If $inherited."Set" = Undefined then {
+        1                 Return false;
+                        } else {
+        1                 Return true;
+                        }
+                      } else {
+     5430               If GetInternalProperty(O,"Extensible") = false then {
+        0                 Return false;
+                        } else {
+     5430                 Return $inherited."Writable";
+                        }
+                      }
+                    }
+                  }
+                } else {
+   210056         If IsAccessorDescriptor($desc) = true then {
+       90           If $desc."Set" = Undefined then {
+       13             Return false;
+                    } else {
+       32             Return true;
+                    }
+                  } else {
+   209966           Return $desc."Writable";
+                  }
+                }
+                END
+           
+           // 8.12.5 [[Put]] ( P, V, Throw )
+           
+       20  syntax KItem /* .K */ ::= "Put" "(" K /* Oid */ "," K /* Var */ "," K /* Val */ "," K /* Bool */ ")" [seqstrict]
+           
+           syntax Id ::= "$ownDesc" | "$valueDesc" | "$setter" | "$newDesc"
+   109872  rule Put(O:Oid,P:Var,V:Val,Throw:Bool)
+   109872    => BEGIN
+   219744       If CanPut(O,P) = false then {
+       69         If Throw = true then {
+      144           Do @Throw(@TypeError("Put",Put(O,P,V,Throw)));
+                  } else {
+       21           Return;
+                  }
+                } else {
+   329409         Let $ownDesc = GetOwnProperty(O,P);
+   219606         If IsDataDescriptor($ownDesc) = true then {
+   314838           Let $valueDesc = @desc("Value" |-> V);
+   209892           DoI DefineOwnProperty(O,P,$valueDesc,Throw);
+                  } else {
+    14571           Let $desc = GetProperty(O,P);
+     9714           If IsAccessorDescriptor($desc) = true then {
+       99             Let $setter = $desc."Set";
+       66             DoI Call($setter,O,@Cons(V,@Nil));
+                    } else {
+    14472             Let $newDesc = @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true);
+     9648             DoI DefineOwnProperty(O,P,$newDesc,Throw);
+                    }
+                  }
+                }
+                END
+           
+           // 8.12.? [[HasOwnProperty]] (P)
+           
+           syntax KItem /* Bool */ ::= "HasOwnProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+        0  rule HasOwnProperty(O:Oid,P:Var)
+             => BEGIN
+        0       If GetOwnProperty(O,P) = Undefined then {
+        0         Return false;
+                } else {
+        0         Return true;
+                }
+                END
+           
+           // 8.12.6 [[HasProperty]] (P)
+           
+       82  syntax KItem /* Bool */ ::= "HasProperty" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+   305960  rule HasProperty(O:Oid,P:Var)
+   305960    => BEGIN
+   611920       If GetProperty(O,P) = Undefined then {
+   149598         Return false;
+                } else {
+   156362         Return true;
+                }
+                END
+           
+           // 8.12.7 [[Delete]] (P, Throw)
+           
+      578  syntax KItem /* Bool */ ::= "Delete" "(" K /* Oid */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
+           
+      165  rule Delete(O:Oid,P:Var,Throw:Bool)
+      165    => BEGIN
+      330       If @IsArgumentsObjectNonStrictWithFormalParams(O) = true then {
+       14         Do Delete@Arguments(O,P,Throw);
+                } else {
+      316         Do Delete@Default(O,P,Throw);
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "Delete@Default" "(" K /* Oid */ "," K /* Var */ "," K /* Bool */ ")"  [seqstrict]
+           
+       11  rule <k> Delete@Default(O:Oid,P:Var,Throw:Bool) => true ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> Prop:Map </properties>
+                  _
+                </obj>
+                when notBool(P in keys(Prop))
+      107  rule <k> Delete@Default(O:Oid,P:Var,Throw:Bool) => true ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+                    (P |-> @desc("Configurable" |-> true _) => .Map)
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+       94  rule <k> Delete@Default(O:Oid,P:Var,Throw:Bool) => Reject(Throw,"Delete@Default",Delete@Default(O,P,Throw)) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+                    P |-> @desc("Configurable" |-> false _)
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+           
+           // 8.12.8 [[DefaultValue]] (hint)
+           
+           syntax KItem /* Val */ ::= "DefaultValue" "(" K /* Oid */ "," K /* String */ ")"  [seqstrict]
+           // TODO: Can we make it more elegant?
+           
+           syntax Id ::= "$toString" | "$valueOf" | "$str" | "$val"
+           
+      200  rule DefaultValue(O:Oid,"String")
+      200    => BEGIN
+      600       Let $toString = Get(O,"toString");
+      600       If IsCallable($toString) = true then {
+      600         Let $str = Call($toString,O,@Nil);
+      400         If @IsPrimitive($str) = true then {
+      392           Return $str; Exit;
+                  };
+                };
+       12       Let $valueOf = Get(O,"valueOf");
+       12       If IsCallable($valueOf) = true then {
+       12         Let $val = Call($valueOf,O,@Nil);
+        8         If @IsPrimitive($val) = true then {
+        6           Return $val; Exit;
+                  };
+                };
+        3       Do @Throw(@TypeError("DefaultValue String",O));
+                END
+           
+     1846  rule DefaultValue(O:Oid,"Number")
+     1846    => BEGIN
+     5538       Let $valueOf = Get(O,"valueOf");
+     5538       If IsCallable($valueOf) = true then {
+     5538         Let $val = Call($valueOf,O,@Nil);
+     3604         If @IsPrimitive($val) = true then {
+     3076           Return $val; Exit;
+                  };
+                };
+      792       Let $toString = Get(O,"toString");
+      792       If IsCallable($toString) = true then {
+      792         Let $str = Call($toString,O,@Nil);
+      528         If @IsPrimitive($str) = true then {
+      468           Return $str; Exit;
+                  };
+                };
+       90       Do @Throw(@TypeError("DefaultValue Number",O));
+                END
+           
+       10  rule <k> DefaultValue(O:Oid,"") => DefaultValue(O,"String") ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Class" |-> "Date" _:Map </internalProperties>
+                  _
+                </obj>
+           
+      484  rule <k> DefaultValue(O:Oid,"") => DefaultValue(O,"Number") ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Class" |-> Class:String _:Map </internalProperties>
+                  _
+                </obj>
+                when Class =/=String "Date"
+           
+           // 8.12.9 [[DefineOwnProperty]] (P, Desc, Throw)
+           
+           // Intuitive algorithm
+           //
+           // If O has P as its own property,
+           //   If the property is configurable,
+           //     any change is acceptable.
+           //   Else,
+           //     only value field can be updated when the property is writable.
+           //     o.w., rejected.
+           //
+           // If O does not have P as its own property,
+           //   If O is extensible,
+           //     freely update it.
+           //   Else,
+           //     reject.
+           
+   338734  syntax KItem /* Bool */ ::= "DefineOwnProperty" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict]
+           
+   226160  rule DefineOwnProperty(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
+   226160    => BEGIN
+   452320       If @IsArgumentsObjectNonStrictWithFormalParams(O) = true then {
+     9236         Do DefineOwnProperty@Arguments(O,P,Desc,Throw);
+                } else {
+   443084         If @IsArrayObject(O) = true then {
+     2496           Do DefineOwnProperty@Array(O,P,Desc,Throw);
+                  } else {
+   440588           Do DefineOwnProperty@Default(O,P,Desc,Throw);
+                  }
+                }
+                END
+           
+      204  syntax KItem /* Bool */ ::= "DefineOwnProperty@Default" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict]
+           
+           syntax Id ::= "$current" | "$current2" | "$extensible"
+   226255  rule DefineOwnProperty@Default(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
+   226255    => BEGIN
+              //Do @LOG(DefineOwnProperty@Default(O,P,Desc,Throw));
+   678765       Let $current = GetOwnProperty(O,P);
+              //Do @LOG($current);
+              //Do @LOG(IsDataDescriptor($current));
+              //Do @LOG(IsDataDescriptor(Desc));
+   678765       Let $extensible = GetInternalProperty(O,"Extensible");
+   226255       If $current = Undefined then {
+   121171         If $extensible = false then {
+        3           Return Reject(Throw,"DefineOwnProperty@Default not extensible",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                  } else {
+   605850           If @OrBool(IsGenericDescriptor(Desc), IsDataDescriptor(Desc)) = true then {
+                    //Do @LOG("Data");
+                    //Do @LOG(Desc);
+   333996             Do SetOwnProperty(O,P,MakeFullyPopulatedDataDescriptor1(Desc));
+                    } else {
+                    //Do @LOG("Accessor");
+                    //Do @LOG(Desc);
+    29514             Do SetOwnProperty(O,P,MakeFullyPopulatedAccessorDescriptor1(Desc));
+                    }
+   121170           Return true;
+                  }
+                } else {
+           //     If @SubDesc(Desc,$current) = true then { // NOTE: Redundant: It is safe even if it proceeds along the way.
+           //       Return true;
+           //     } else {
+   315252           If $current."Configurable" = false then {
+   302796             If Desc."Configurable" = true then {
+        6               Return Reject(Throw,"DefineOwnProperty@Default conflict configurable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                      };
+   706510             If @OrBool(@AndBool(@EqVal($current."Enumerable", true ), @EqVal(Desc."Enumerable", false)),
+   504650                         @AndBool(@EqVal($current."Enumerable", false), @EqVal(Desc."Enumerable", true ))) = true then {
+        3               Return Reject(Throw,"DefineOwnProperty@Default conflict enumerable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                      };
+                    };
+   315243           If IsGenericDescriptor(Desc) = true then {
+        2             Nop;
+                    } else {
+   525395             If @OrBool(@AndBool(IsDataDescriptor($current), IsAccessorDescriptor(Desc)),
+   315237                         @AndBool(IsAccessorDescriptor($current), IsDataDescriptor(Desc))) = true then {
+       24               If $current."Configurable" = false then {
+        3                 Return Reject(Throw,"DefineOwnProperty@Default conflict descriptor type",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                        };
+                      //Do @LOG("convert");
+       14               Do ConvertDescriptorType(O,P);
+                      } else {
+   420284               If @AndBool(IsDataDescriptor($current), IsDataDescriptor(Desc)) = true then {
+   210124                 If $current."Configurable" = false then {
+   706468                   If @AndBool(@EqVal($current."Writable", false), @EqVal(Desc."Writable", true)) = true then {
+        3                     Return Reject(Throw,"DefineOwnProperty@Default conflict writable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                            };
+  1110153                   If @AndBool(@AndBool(@EqVal($current."Writable", false), @NeqVal(Desc."Value", Undefined)), @NotBool(SameValue(Desc."Value",$current."Value"))) = true then {
+        6                     Return Reject(Throw,"DefineOwnProperty@Default not writable",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                            };
+                          };
+                        } else {
+       18                 If $current."Configurable" = false then {
+       27                   If @AndBool(@NeqVal(Desc."Set", Undefined), @NotBool(SameValue(Desc."Set",$current."Set"))) = true then {
+        3                     Return Reject(Throw,"DefineOwnProperty@Default conflict set",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                            };
+       16                   If @AndBool(@NeqVal(Desc."Get", Undefined), @NotBool(SameValue(Desc."Get",$current."Get"))) = true then {
+        3                     Return Reject(Throw,"DefineOwnProperty@Default conflict get",DefineOwnProperty@Default(O,P,Desc,Throw)); Exit;
+                            };
+                          };
+                        }
+                      }
+                    }
+   315225           Let $current2 = GetOwnProperty@Default(O,P);
+   525375           If @OrBool(IsGenericDescriptor($current2), IsDataDescriptor($current2)) = true then {
+                    //Do @LOG("Data");
+                    //Do @LOG(Desc);
+                    //Do @LOG($current2);
+   315192             Do SetOwnProperty(O,P,MakeFullyPopulatedDataDescriptor2(Desc,$current2));
+                    } else {
+                    //Do @LOG("Accessor");
+                    //Do @LOG(Desc);
+                    //Do @LOG($current2);
+       33             Do SetOwnProperty(O,P,MakeFullyPopulatedAccessorDescriptor2(Desc,$current2));
+                    }
+   105075           Return true;
+           //     }
+                }
+                END
+           
+           syntax KItem /* .K */ ::= "ConvertDescriptorType" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+        4  rule <k> ConvertDescriptorType(O:Oid,P:Var) => . ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+                    P |-> ( @desc(                                               "Enumerable" |-> Enumerable:Bool "Configurable" |-> Configurable:Bool  M:Map)
+       28                => @desc("Get"   |-> Undefined "Set"      |-> Undefined "Enumerable" |-> Enumerable      "Configurable" |-> Configurable     ) )
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+                when "Value" in keys(M) andBool "Writable" in keys(M)
+        3  rule <k> ConvertDescriptorType(O:Oid,P:Var) => . ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+                    P |-> ( @desc(                                                "Enumerable" |-> Enumerable:Bool "Configurable" |-> Configurable:Bool  M:Map)
+       12                => @desc("Value" |-> Undefined "Writable" |-> false      "Enumerable" |-> Enumerable      "Configurable" |-> Configurable     ) )
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+                when "Get" in keys(M) andBool "Set" in keys(M)
+           
+   452490  syntax KItem /* .K */ ::= "SetOwnProperty" "(" K /* Oid */ "," K /* Var */ "," K /* Val */ ")" [seqstrict]
+   226245  rule <k> SetOwnProperty(O:Oid,P:Var,V:Val) => . ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> Prop:Map => #@AddMap(P,V,Prop) </properties>
+                  _
+                </obj>
+           
+           syntax KItem /* Bool */ ::= "Reject" "(" K /* Bool */ "," K /* String */ "," K ")" [seqstrict(1,2)]
+       60  rule Reject(true, S:String,K:K) => @Throw(@TypeError("Reject" +String S, K))
+       42  rule Reject(false,_,       _  ) => false
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 9 Type Conversion and Testing
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 9.1 ToPrimitive
+           
+           syntax KItem /* Val */ ::= "ToPrimitive" "(" K /* Val */ "," K /* String */ ")" [seqstrict]
+           
+      264  rule ToPrimitive(Undefined,               _) => Undefined
+      258  rule ToPrimitive(@NullVal,                 _) => @NullVal
+      101  rule ToPrimitive(B:Bool,                   _) => B
+    16335  rule ToPrimitive(S:String,                 _) => S
+    21035  rule ToPrimitive(N:Number,                 _) => N
+     4092  rule ToPrimitive(O:Oid, PreferredType:String) => DefaultValue(O,PreferredType)
+           
+           // 9.2 ToBoolean
+           
+     5931  syntax KItem /* Bool */ ::= "ToBoolean" "(" K /* Val */ ")" [seqstrict]
+           
+       27  rule ToBoolean(Undefined) => false
+        8  rule ToBoolean(@NullVal  ) => false
+    40274  rule ToBoolean(B:Bool    ) => B
+       43  rule ToBoolean(S:String  ) => true when S =/=String ""
+       14  rule ToBoolean(""        ) => false
+       52  rule ToBoolean(N:Number  ) => true when N =/=K 0 andBool N =/=K @NaN andBool N =/=K @nz
+       30  rule ToBoolean(0         ) => false
+        7  rule ToBoolean(@nz       ) => false
+        8  rule ToBoolean(@NaN      ) => false
+      119  rule ToBoolean(O:Oid     ) => true
+           
+           // 9.3 ToNumber
+           
+    23289  syntax KItem /* Number */ ::= "ToNumber" "(" K /* Val */ ")" [seqstrict]
+           
+     1148  rule ToNumber(Undefined) => @NaN
+      428  rule ToNumber(@NullVal  ) => 0
+      939  rule ToNumber(true      ) => 1
+       57  rule ToNumber(false     ) => 0
+     9468  rule ToNumber(S:String  ) => @StringToNumber(trim(replaceAll(S,"\n","")))
+    57950  rule ToNumber(N:Number  ) => N
+     3972  rule ToNumber(O:Oid     ) => ToNumber(ToPrimitive(O,"Number"))
+           
+           // 9.3.1 ToNumber Applied to the String Type
+           
+           syntax KItem /* Bool */ ::= "@IsStrNumericLiteral" "(" K /* String */ ")" [seqstrict]
+     9318  rule @IsStrNumericLiteral(N:String) => @IsStrNumericLiteralAux(#parse(N,"StrNumericLiteral"))
+           
+           syntax KItem /* Bool */ ::= "@IsStrNumericLiteralAux" "(" K /* StrNumericLiteral or IOError */ ")" // nostrict
+     4659  rule @IsStrNumericLiteralAux(K) => isStrNumericLiteral(K) ==K true
+           /*
+        0  rule @IsStrNumericLiteralAux(_:StrNumericLiteral) => true
+        0  rule @IsStrNumericLiteralAux(#noparse) => false
+           */
+           
+           syntax KItem /* Number */ ::= "@StringToNumber" "(" K /* String */ ")" [seqstrict]
+           syntax Id ::= "$isMinus" | "$num" | "$num2"
+     4734  rule @StringToNumber(S:String)
+     4734    => BEGIN
+     4734       If lengthString(S) ==Int 0 = true then {
+       75         Return 0;
+                } else {
+     9318         If @IsStrNumericLiteral(S) = true then {
+    10653           Let $isMinus = @IsMinus(S);
+    14204           Let $str = @RemoveLeadingZeros(@RemoveLeadingSign(S));
+    14204           Let $num = @ResolveOverflow(@StringToNumber@Core($str));
+     3551           If $isMinus = true then {
+      120             Return @Bop(%times, -1, $num);
+                    } else {
+     3491             Return $num;
+                    }
+                  } else {
+     3512           Return @NaN;
+                  }
+                }
+                END
+           
+     7102  syntax KItem /* Number */ ::= "@StringToNumber@Core" "(" K /* String */ ")" [seqstrict]
+           syntax Id ::= "$s"
+     3551  rule @StringToNumber@Core(S:String)
+     3551    => BEGIN
+     3551       If S = "Infinity" then {
+      195         Return @+Infinity;
+                } else {
+     7050         If @IsHexIntegerLiteral(S) = true then {
+      138           Let $s = @SubstrString(S,1,lengthString(S));
+       92           Return @String2Base($s, 16);
+                  } else {
+     6958           If @IsFloatLiteral(S) = true then {
+      146             Return @String2Float(S);
+                    } else {
+     6812             Return @String2Int(S);
+                    }
+                  }
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsMinus" "(" K /* String */ ")" [seqstrict]
+     3551  rule @IsMinus(S:String) => substrString(S,0,1) ==String "-"
+           
+           syntax KItem /* String */ ::= "@RemoveLeadingSign" "(" K /* String */ ")" [seqstrict]
+           syntax Id ::= "$prefix"
+     3551  rule @RemoveLeadingSign(S:String)
+     3551    => BEGIN
+     3551       If lengthString(S) >=Int 2 = true then {
+     7185         Let $prefix = @SubstrString(S,0,1);
+     9580         If @OrBool(@EqVal($prefix,"+"), @EqVal($prefix,"-")) = true then {
+      204           Return @SubstrString(S,1,lengthString(S));
+                  } else {
+     2293           Return S;
+                  }
+                } else {
+     1156         Return S;
+                }
+                END
+           
+     7196  syntax KItem /* String */ ::= "@RemoveLeadingZeros" "(" K /* String */ ")" [seqstrict]
+     3598  rule @RemoveLeadingZeros(S:String)
+     3598    => BEGIN
+     3598       If lengthString(S) >=Int 2 = true then {
+     4760         If @SubstrString(S,0,1) = "0" then {
+      110           If @SubstrString(S,1,2) = "." then {
+        8             Return S;
+                    } else {
+      141             Return @RemoveLeadingZeros(@SubstrString(S,1,lengthString(S)));
+                    }
+                  } else {
+     2325           Return S;
+                  }
+                } else {
+     1218         Return S;
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsHexIntegerLiteral" "(" K /* String */ ")" [seqstrict]
+     3525  rule @IsHexIntegerLiteral(S:String) => substrString(S,0,1) ==String "x"
+                                           orBool substrString(S,0,1) ==String "X"
+           
+           syntax KItem /* Bool */ ::= "@IsFloatLiteral" "(" K /* String */ ")" [seqstrict]
+    13916  rule @IsFloatLiteral(S:String) => @OrBool(@HasPoint(S), @HasExponentPart(S))
+           
+           syntax KItem /* Bool */ ::= "@HasExponentPart" "(" K /* String */ ")" [seqstrict]
+     3479  rule @HasExponentPart(S:String) => findString(S, "e", 0) =/=Int -1
+                                       orBool findString(S, "E", 0) =/=Int -1
+           
+           syntax KItem /* Bool */ ::= "@HasPoint" "(" K /* String */ ")" [seqstrict]
+     3479  rule @HasPoint(S:String) => findString(S, ".", 0) =/=Int -1
+           
+           // 9.4 ToInteger
+           
+           syntax KItem /* Val */ ::= "ToInteger" "(" K /* Val */ ")" [seqstrict]
+           
+     3012  rule ToInteger(V:Val) => @NumberToInteger(ToNumber(V))
+           
+           // TODO: Do more correctly
+     2008  syntax KItem /* Int */ ::= "@NumberToInteger" "(" K /* Number */ ")" [seqstrict]
+      115  rule @NumberToInteger(I:Int  ) => I
+       11  rule @NumberToInteger(F:Float) => Float2Int(F)
+       24  rule @NumberToInteger(@nz    ) => @nz
+      873  rule @NumberToInteger(@NaN   ) => 0
+       54  rule @NumberToInteger(@+Infinity) => @+Infinity
+       48  rule @NumberToInteger(@-Infinity) => @-Infinity
+           
+           // 9.5 ToInt32: (Signed 32 Bit Integer)
+           
+      209  syntax KItem /* Int32 */ ::= "ToInt32" "(" K /* Val */ ")" [seqstrict]
+           
+    17979  rule ToInt32(V:Val) => @NumberToInt32(ToNumber(V))
+           
+    11971  syntax KItem /* Int32 */ ::= "@NumberToInt32" "(" K /* Number */ ")" [seqstrict]
+    11474  rule @NumberToInt32(I:Int  )    => @IntToInt32(I)
+       56  rule @NumberToInt32(F:Float)    => @IntToInt32(Float2Int(F))
+        2  rule @NumberToInt32(@nz    )    => 0
+      206  rule @NumberToInt32(@NaN   )    => 0
+        3  rule @NumberToInt32(@+Infinity) => 0
+        2  rule @NumberToInt32(@-Infinity) => 0
+           
+           syntax KItem /* Int32 */ ::= "@IntToInt32" "(" K /* Int */ ")" [seqstrict]
+     5765  rule @IntToInt32(I:Int) => svalueMInt(mi(32,I))
+           
+           // 9.6 ToUint32: (Unsigned 32 Bit Integer)
+           
+      572  syntax KItem /* Val */ ::= "ToUint32" "(" K /* Val */ ")" [seqstrict]
+           
+    36798  rule ToUint32(V:Val) => @NumberToUint32(ToNumber(V))
+           
+    24521  syntax KItem /* Int32 */ ::= "@NumberToUint32" "(" K /* Number */ ")" [seqstrict]
+    23872  rule @NumberToUint32(I:Int  )    => @IntToUint32(I)
+      412  rule @NumberToUint32(F:Float)    => @IntToUint32(Float2Int(F))
+        2  rule @NumberToUint32(@nz    )    => 0
+      107  rule @NumberToUint32(@NaN   )    => 0
+        2  rule @NumberToUint32(@+Infinity) => 0
+        2  rule @NumberToUint32(@-Infinity) => 0
+           
+           syntax KItem /* Uint32 */ ::= "@IntToUint32" "(" K /* Int */ ")" [seqstrict]
+    12142  rule @IntToUint32(I:Int) => uvalueMInt(mi(32,I))
+           
+           // 9.7 ToUint16: (Unsigned 16 Bit Integer)
+           
+           syntax KItem /* Val */ ::= "ToUint16" "(" K /* Val */ ")" [seqstrict]
+           
+      153  rule ToUint16(V:Val) => @NumberToUint16(ToNumber(V))
+           
+      102  syntax KItem /* Int32 */ ::= "@NumberToUint16" "(" K /* Number */ ")" [seqstrict]
+       74  rule @NumberToUint16(I:Int  )    => @IntToUint16(I)
+        8  rule @NumberToUint16(F:Float)    => @IntToUint16(Float2Int(F))
+        2  rule @NumberToUint16(@nz    )    => 0
+        4  rule @NumberToUint16(@NaN   )    => 0
+        2  rule @NumberToUint16(@+Infinity) => 0
+        2  rule @NumberToUint16(@-Infinity) => 0
+           
+           syntax KItem /* Uint16 */ ::= "@IntToUint16" "(" K /* Int */ ")" [seqstrict]
+       41  rule @IntToUint16(I:Int) => uvalueMInt(mi(16,I))
+           
+           // 9.8 ToString
+           
+     4621  syntax KItem /* Val */ ::= "ToString" "(" K /* Val */ ")" [seqstrict]
+           
+       17  rule ToString(Undefined) => "undefined"
+       11  rule ToString(@NullVal  ) => "null"
+       23  rule ToString(true      ) => "true"
+        7  rule ToString(false     ) => "false"
+    39745  rule ToString(S:String  ) => S
+    21627  rule ToString(I:Int     ) => #external("node\x01-p\x01-e\x01String(" +String Int2String(I)   +String ")")
+       65  rule ToString(F:Float   ) => #external("node\x01-p\x01-e\x01String(" +String Float2String(F) +String ")")
+        1  rule ToString(@nz       ) => "0"
+       10  rule ToString(@NaN      ) => "NaN"
+        3  rule ToString(@+Infinity) =>  "Infinity"
+        2  rule ToString(@-Infinity) => "-Infinity"
+      585  rule ToString(O:Oid     ) => ToString(ToPrimitive(O,"String"))
+           
+           // 9.9 ToObject
+           
+      868  syntax KItem /* Val */ ::= "ToObject" "(" K /* Val */ ")" [seqstrict]
+           
+        3  rule ToObject(Undefined) => @Throw(@TypeError("ToObject","Undefined"))
+        3  rule ToObject(@NullVal  ) => @Throw(@TypeError("ToObject","Null"))
+       44  rule ToObject(B:Bool    ) => @NewBoolean(@Cons(B,@Nil))
+      554  rule ToObject(S:String  ) => @NewString(@Cons(S,@Nil))
+      224  rule ToObject(N:Number  ) => @NewNumber(@Cons(N,@Nil))
+      977  rule ToObject(O:Oid) => O
+           
+           // 9.10 CheckObjectCoercible
+           
+           syntax KItem /* .K */ ::= "CheckObjectCoercible" "(" K /* Val */ ")" [seqstrict]
+    22970  rule <k> CheckObjectCoercible(V:Val) => . ... </k>
+                when (V =/=K Undefined) andBool
+                     (V =/=K @NullVal)
+       18  rule CheckObjectCoercible(Undefined) => @Throw(@TypeError("CheckObjectCoercible","Undefined"))
+        9  rule CheckObjectCoercible(@NullVal  ) => @Throw(@TypeError("CheckObjectCoercible","Null"))
+           
+           // 9.11 IsCallable
+           
+     4864  syntax KItem /* Bool */ ::= "IsCallable" "(" K /* Val */ ")" [seqstrict]
+           
+       26  rule IsCallable(Undefined) => false
+        3  rule IsCallable(@NullVal  ) => false
+        2  rule IsCallable(B:Bool    ) => false
+        2  rule IsCallable(S:String  ) => false
+        3  rule IsCallable(N:Number  ) => false
+    17517  rule <k> IsCallable(O:Oid ) => Class ==K "Function" ... </k> // TODO: Do more correctly
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> "Class" |-> Class:String _:Map </internalProperties>
+                  _
+                </obj>
+       15  rule IsCallable(@(_)) => true
+           
+           // 9.12 The SameValue Algorithm
+           
+   403712  syntax KItem /* Bool */ ::= "SameValue" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+           
+           // TODO: Do more correctly Step 4 of Number
+   122210  rule SameValue(V1:Val,V2:Val) => V1 ==K V2 when notBool(isInt(V1)   ==K true andBool isFloat(V2) ==K true)
+                                                    andBool notBool(isFloat(V1) ==K true andBool isInt(V2)   ==K true)
+       12  rule SameValue(I1:Int,  F2:Float) => #@Int2Float(I1) ==Float F2
+     1089  rule SameValue(F1:Float,I2:Int  ) =>            F1 ==Float #@Int2Float(I2)
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 10.2.1 Environment Records
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax KItem /* Bool */ ::= "HasBinding" "(" K /* Eid */ "," K /* Var */ ")" [seqstrict]
+           // 10.2.1.1.1 HasBinding(N)
+    73600  rule <k> HasBinding(E:Eid,N:Var) => N in keys(Record) ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> Record:Map </declEnvRec>
+                  _
+                </env>
+           // 10.2.1.2.1 HasBinding(N)
+   338694  rule <k> HasBinding(E:Eid,N:Var) => HasProperty(O,N) ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+     2184  syntax KItem /* .K */ ::= "CreateMutableBinding" "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")"  [seqstrict]
+           // 10.2.1.1.2 CreateMutableBinding (N, D)
+    24022  rule <k> CreateMutableBinding(E:Eid,N:Var,D:Bool) => . ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> (.Map => N |-> @ve(Undefined,false,true,D)) Record:Map </declEnvRec>
+                  _
+                </env>
+                when notBool(N in keys(Record))
+           // 10.2.1.2.2 CreateMutableBinding (N, D)
+    73666  rule <k> CreateMutableBinding(E:Eid,N:Var,D:Bool)
+    73666        => HasProperty(O,N) ~> @False?
+   147297        ~> DefineOwnProperty(O, N, @desc("Value" |-> Undefined "Writable" |-> true "Enumerable" |-> true "Configurable" |-> D), true) ~> @Ignore
+                ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+   129592  syntax KItem /* .K */ ::= "SetMutableBinding" "(" K /* Eid */ "," K /* Var */ "," K /* Val */ "," K /* Bool */ ")" [seqstrict]
+           // 10.2.1.1.3 SetMutableBinding (N,V,S)
+    39302  rule <k> SetMutableBinding(E:Eid,N:Var,V:Val,S:Bool) => . ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve((_ => V),(_ => true),true,_) _:Map </declEnvRec>
+                  _
+                </env>
+        0  rule <k> SetMutableBinding(E:Eid,N:Var,_:Val,true) => @Throw(@TypeError("SetMutableBinding",N)) ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve(_,_,false,_) _:Map </declEnvRec>
+                  _
+                </env>
+        0  rule <k> SetMutableBinding(E:Eid,N:Var,_:Val,false) => . ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve(_,_,false,_) _:Map </declEnvRec>
+                  _
+                </env>
+           // 10.2.1.2.3 SetMutableBinding (N,V,S)
+   209622  rule <k> SetMutableBinding(E:Eid,N:Var,V:Val,S:Bool) => Put(O,N,V,S) ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+           syntax KItem /* Val */ ::= "GetBindingValue" "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")"  [seqstrict]
+           // 10.2.1.1.4 GetBindingValue(N,S)
+    29211  rule <k> GetBindingValue(E:Eid,N:Var,S:Bool) => V ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve(V:Val,Initialized:Bool,Mutable:Bool,_) _:Map </declEnvRec>
+                  _
+                </env>
+                when notBool(Initialized ==K false andBool Mutable ==K false)
+        0  rule <k> GetBindingValue(E:Eid,N:Var,S:Bool)
+                 => BEGIN
+        0           If S = true then {
+        0             Do @Throw(@ReferenceError("GetBindingValue, DeclEnv", N));
+                    } else {
+        0             Return Undefined;
+                    }
+                    END
+                 ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve(_,false,false,_) _:Map </declEnvRec>
+                  _
+                </env>
+           // 10.2.1.2.4 GetBindingValue(N,S)
+    61893  rule <k> GetBindingValue(E:Eid,N:Var,S:Bool)
+    61893        => BEGIN
+   123786           If HasProperty(O,N) = true then {
+   123786             Return Get(O,N);
+                    } else {
+        0             If S = true then {
+        0               Do @Throw(@ReferenceError("GetBindingValue, ObjEnv", N));
+                      } else {
+        0               Return Undefined;
+                      }
+                    } 
+                    END
+                ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+      308  syntax KItem /* Bool */ ::= "DeleteBinding" "(" K /* Eid */ "," K /* Var */ ")"  [seqstrict]
+           // 10.2.1.1.5 DeleteBinding (N)
+        0  rule <k> DeleteBinding(E:Eid,N:Var) => true ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> (N |-> @ve(_,_,_,true) => .Map) _:Map </declEnvRec>
+                  _
+                </env>
+       15  rule <k> DeleteBinding(E:Eid,N:Var) => false ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve(_,_,_,false) _:Map </declEnvRec>
+                  _
+                </env>
+        0  rule <k> DeleteBinding(E:Eid,N:Var) => true ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> Record:Map </declEnvRec>
+                  _
+                </env>
+                when notBool(N in keys(Record))
+           // 10.2.1.2.5 DeleteBinding (N)
+      124  rule <k> DeleteBinding(E:Eid,N:Var) => Delete(O,N,false) ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+           syntax KItem /* Val */ ::= "ImplicitThisValue" "(" K /* Eid */ ")"  [seqstrict]
+           // 10.2.1.1.6 ImplicitThisValue()
+     2486  rule <k> ImplicitThisValue(E:Eid) => Undefined ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> _:Map </declEnvRec>
+                  _
+                </env>
+           // 10.2.1.2.6 ImplicitThisValue()
+        2  rule <k> ImplicitThisValue(E:Eid) => O ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <bindingObj> O:Oid </bindingObj>
+                    <provideThis> true </provideThis>
+                  </objEnvRec>
+                  _
+                </env>
+    12347  rule <k> ImplicitThisValue(E:Eid) => Undefined ... </k>
+                <env>
+                  <eid> E </eid>
+                  <objEnvRec>
+                    <provideThis> false </provideThis>
+                    _
+                  </objEnvRec>
+                  _
+                </env>
+           
+       64  syntax KItem /* .K */ ::= "CreateImmutableBinding" "(" K /* Eid */ "," K /* Var */ ")"  [seqstrict]
+           // 10.2.1.1.7 CreateImmutableBinding (N)
+     1802  rule <k> CreateImmutableBinding(E:Eid,N:Var) => . ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> (.Map => N |-> @ve(Undefined,false,false,false)) Record:Map </declEnvRec>
+                  _
+                </env>
+                when notBool(N in keys(Record))
+           
+     3668  syntax KItem /* .K */ ::= "InitializeImmutableBinding" "(" K /* Eid */ "," K /* Var */ "," K /* Val */ ")"  [seqstrict]
+           // 10.2.1.1.8 InitializeImmutableBinding (N,V)
+     1802  rule <k> InitializeImmutableBinding(E:Eid,N:Var,V:Val) => . ... </k>
+                <env>
+                  <eid> E </eid>
+                  <declEnvRec> N |-> @ve((_ => V),(false => true),false,_) _:Map </declEnvRec>
+                  _
+                </env>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 10.2.2 Lexical Environment Operations
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 10.2.2.1 GetIdentifierReference (lex, name, strict)
+           
+           syntax KItem /* Reference */ ::= "GetIdentifierReference" "(" K /* Eid */ "," K /* Var */ "," K /* Bool */ ")" [seqstrict]
+           
+     3540  rule GetIdentifierReference(@NullEid,N:Var,Strict:Bool) => @Ref(Undefined,N,Strict)
+   144067  rule <k> GetIdentifierReference(E:Eid,N:Var,Strict:Bool)
+   144067        => BEGIN
+   288134           If HasBinding(E,N) = true then {
+   432512             Return @Ref(E,N,Strict);
+                    } else {
+    25640             Return GetIdentifierReference(E',N,Strict);
+                    }
+                    END
+                ... </k>
+                <env>
+                  <eid> E </eid>
+                  <outer> E' </outer>
+                  _
+                </env>
+           
+           // 10.2.2.2 NewDeclarativeEnvironment (E)
+           
+       64  syntax KItem /* Eid */ ::= "NewDeclarativeEnvironment" "(" K /* Eid */ "," K /* Bool */ ")"  [seqstrict]
+           
+    31490  rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
+                <envs>
+                  (. => <env>
+                          <eid> @e(!N:Int) </eid>
+                          <outer> E </outer>
+                          <strict> Strict </strict>
+                          <declEnvRec> .Map </declEnvRec>
+                        </env>)
+                  _
+                </envs>
+           
+           
+           // 10.2.2.3 NewObjectEnvironment (O, E)
+           
+      362  syntax KItem /* Eid */ ::= "NewObjectEnvironment" "(" K /* Oid */ "," K /* Eid */ "," K /* Bool */ "," K /* Bool */ ")" [seqstrict]
+           
+      398  rule <k> NewObjectEnvironment(O:Oid,E:Eid,ProvideThis:Bool,Strict:Bool) => @e(!N) ... </k>
+                <envs>
+                  (. => <env>
+                          <eid> @e(!N:Int) </eid>
+                          <outer> E </outer>
+                          <strict> Strict </strict>
+                          <objEnvRec>
+                            <bindingObj> O </bindingObj>
+                            <provideThis> ProvideThis </provideThis>
+                          </objEnvRec>
+                        </env>)
+                  _
+                </envs>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 10.4 Establishing an Execution Context
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 10.4.1 Entering Global Code
+           
+           syntax KItem /* .K */ ::= "@EnterGlobalCode" "(" Stmt ")"
+     2744  rule <k> @EnterGlobalCode(Code:Stmt)
+     2744        => @CheckEarlyErrors(#@IsStrict(Code), Code)
+     2705        ~> @BindDeclarations("function",false,#@IsStrict(Code),Code)
+     2705        ~> @BindDeclarations("variable",false,#@IsStrict(Code),Code)
+                ... </k>
+                <envs>
+                  // 10.2.3 The Global Environment
+                  (. => <env>
+                          <eid> @GlobalEid </eid>
+                          <objEnvRec>
+                            <bindingObj> @GlobalOid </bindingObj>
+                            <provideThis> false </provideThis>
+                          </objEnvRec>
+                          <outer> @NullEid </outer>
+                          <strict> #@IsStrict(Code) </strict> // 10.1.1 Strict Mode Code, Case 1
+                        </env>)
+                </envs>
+                <ctx>
+                  <activeStack> .List </activeStack>
+                  <running>
+      653           <lexicalEnv>  . => @GlobalEid </lexicalEnv>
+     3515           <thisBinding> . => @GlobalOid </thisBinding>
+                    <lastNonEmptyValue> . => Undefined </lastNonEmptyValue>
+                  </running>
+                </ctx>
+           
+           // 10.4.2 Entering Eval Code
+           
+           syntax KItem /* .K */ ::= "@EnterEvalCode" "(" Stmt "," K /* Bool */ /* Direct? */ ")" [seqstrict(2)]
+           syntax Id ::= "$strict"
+      903  rule <k> @EnterEvalCode(Code:Stmt, true)
+      903        => BEGIN
+     1806           Let $strict = #@IsStrict(Code) orBool Strict; // 10.1.1 Strict Mode Code, Case 2 (direct call to eval)
+     2709           Do @CheckEarlyErrors($strict, Code);
+     2976           Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(E,$strict), This);
+     2232           Do @BindDeclarations("function",true,$strict,Code);
+     1488           Do @BindDeclarations("variable",true,$strict,Code);
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    <thisBinding> This:Val </thisBinding>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           //
+       14  rule @EnterEvalCode(Code:Stmt, false)
+       14    => BEGIN
+       28       Let $strict = #@IsStrict(Code); // 10.1.1 Strict Mode Code, Case 2 (NOT direct call to eval)
+       42       Do @CheckEarlyErrors($strict, Code);
+       74       Do @SetRunningCtx(@NewDeclarativeEnvironmentForEval(@GlobalEid,$strict), @GlobalOid);
+       39       Do @BindDeclarations("function",true,$strict,Code);
+       26       Do @BindDeclarations("variable",true,$strict,Code);
+                END
+           
+     1514  syntax KItem /* Eid */ ::= "@NewDeclarativeEnvironmentForEval" "(" K /* Eid */ "," K /* Bool */ /* Strict? */ ")" [seqstrict]
+      110  rule @NewDeclarativeEnvironmentForEval(E,true ) => NewDeclarativeEnvironment(E, true)
+      702  rule @NewDeclarativeEnvironmentForEval(E,false) => E
+           
+           // 10.4.3 Entering Function Code
+           
+           syntax KItem /* .K */ ::= "@EnterFunctionCode" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
+    12841  rule <k> @EnterFunctionCode(F:Oid,This:Val,Args:Vals)
+    12841        => BEGIN
+    64205           Do @SetRunningCtx(NewDeclarativeEnvironment(E,Strict), @ResolveThis(Strict,This));
+    38523           Do @BindFunctionParameters(F,Args,Strict);
+    38523           Do @BindDeclarations("function",false,Strict,Code);
+    38523           Do @BindArgumentsObject(F,Args,Strict);
+    25682           Do @BindDeclarations("variable",false,Strict,Code);
+                    END
+                ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <internalProperties>
+                    "Scope"  |-> E:Eid
+                    "Code"   |-> Code:Stmt
+                    "Strict" |-> Strict:Bool
+                    _:Map
+                  </internalProperties>
+                  _
+                </obj>
+           
+           syntax KItem /* Oid */ ::= "@ResolveThis" "(" K /* Bool */ "," K /* Val */ ")" [seqstrict]
+     1770  rule @ResolveThis(true, V:Val) => V
+     4711  rule @ResolveThis(false,O:Oid) => O                   // NOTE: Method call or function call under the 'with'
+    35012  rule @ResolveThis(false,Undefined) => @GlobalOid     // NOTE: Function call without the 'with' (from p.28 of Good Parts)
+       18  rule @ResolveThis(false,@NullVal  ) => @GlobalOid     // NOTE: Apply call with 'null' as a 'this' value (from p.30 of Good Parts)
+      256  rule @ResolveThis(false,V:Val) => ToObject(V) when isPrimitive(V) ==K true
+           
+    55424  syntax KItem /* .K */ ::= "@SetRunningCtx" "(" K /* Eid */ "," K /* Oid */ ")" [seqstrict]
+    14870  rule <k> @SetRunningCtx(E:Eid,This:Val) => . ... </k>
+                <ctx>
+                  <activeStack> (.List => ListItem(@active(R))) _:List </activeStack>
+                  <running>
+                    (R => <lexicalEnv> E </lexicalEnv>
+                          <thisBinding> This </thisBinding>
+       75                 <lastNonEmptyValue> Undefined </lastNonEmptyValue>)
+                  </running>
+                </ctx>
+           
+           syntax KItem /* Val */ ::= "@RestoreRunningCtx"
+    14585  rule <k> @RestoreRunningCtx => . ... </k>
+                <ctx>
+                  <activeStack> (ListItem(@active(R)) => .List) _:List </activeStack>
+                  <running> _ => R </running>
+                </ctx>
+           
+           // 10.5 Declaration Binding Instantiation
+           
+           // 10.5: Step 4: Function Parameter Binding Instantiation
+           syntax KItem /* .K */ ::= "@BindFunctionParameters" "(" K /* Oid */ "," K /* Vals */ "," K /* Bool */ ")"  [seqstrict]
+    25682  rule <k> @BindFunctionParameters(F:Oid,Args:Vals,Strict:Bool) => @SetParams(Ns,Args,Strict) ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <internalProperties> "FormalParameters" |-> Ns:Exps _:Map </internalProperties>
+                  _
+                </obj>
+           //
+           syntax KItem /* .K */ ::= "@SetParams" "(" Exps "," K /* Vals */ "," K /* Bool */ ")" [seqstrict(2,3)]
+    12841  rule @SetParams(%nil, _:Vals, _) => .
+      632  rule @SetParams(%cons(%var(N:Var), Ns:Exps), @Nil                 , Strict:Bool) => @SetParam(N, Undefined, Strict) ~> @SetParams(Ns, @Nil, Strict)
+    18591  rule @SetParams(%cons(%var(N:Var), Ns:Exps), @Cons(V:Val, Vs:Vals), Strict:Bool) => @SetParam(N, V         , Strict) ~> @SetParams(Ns, Vs,   Strict)
+           //
+           syntax KItem /* .K */ ::= "@SetParam" "(" K /* Var */ "," K /* Val */ "," K /* Bool */ ")" [seqstrict]
+     6348  rule <k> @SetParam(N,V,Strict:Bool)
+     6348        => @BindVariableDeclaration(N,false,Strict) // TODO: check if it is correct that the configurableBindings is false: Unspecified at Step 4.d.iv.
+     6348        ~> SetMutableBinding(E,N,V,Strict) ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+           
+           // 10.5: Step 5 & 8: Function/Variable Declarations Binding Instantiation
+           // Visitor function
+           // NOTE: the second boolean argument indicates whether it is eval code or not
+     3028  syntax KItem /* .K */ ::= "@BindDeclarations" "(" K /* String */ "," K /* Bool */ "," K /* Bool */ "," Stmt ")" [seqstrict(1,2,3)]
+   421096  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %fdecl(F:Var,Ps:Exps,FB:Stmt))      => BEGIN If Mode = "function" then { Do @BindFunctionDeclaration(F,Ps,FB,CB,Strict); }; END
+   216432  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %vdecl(N:Var))                      => BEGIN If Mode = "variable" then { Do @BindVariableDeclaration(N,CB,Strict); }; END
+   818004  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %seq(S1:Stmt,S2:Stmt))              => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2)
+   123816  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %exp(_))                            => .
+   134934  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %if(_,S1:Stmt,S2:Stmt))             => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2)
+      276  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %do(S:Stmt,_))                      => @BindDeclarations(Mode,CB,Strict,S)
+      328  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %while(_,S:Stmt))                   => @BindDeclarations(Mode,CB,Strict,S)
+     6300  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %for  (S1:Stmt,_,_,S2:Stmt))        => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2)
+      948  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %forin(S1:Stmt,_,_,S2:Stmt))        => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2)
+      102  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %continue(_))                       => .
+      568  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %break(_))                          => .
+     6364  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %label(_,S:Stmt))                   => @BindDeclarations(Mode,CB,Strict,S)
+    29026  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %return(_))                         => .
+     6544  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %throw(_))                          => .
+     9488  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %try(S1:Stmt,_,S2:Stmt,S3:Stmt))    => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2) ~> @BindDeclarations(Mode,CB,Strict,S3)
+      408  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %try(S1:Stmt,          S3:Stmt))    => @BindDeclarations(Mode,CB,Strict,S1) ~>                                         @BindDeclarations(Mode,CB,Strict,S3)
+      676  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %with(_,S:Stmt))                    => @BindDeclarations(Mode,CB,Strict,S)
+    38794  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %emptyStmt)                         => .
+     1368  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %switch(_,S1:Stmt,S2:Stmt,S3:Stmt)) => @BindDeclarations(Mode,CB,Strict,S1) ~> @BindDeclarations(Mode,CB,Strict,S2) ~> @BindDeclarations(Mode,CB,Strict,S3)
+     2320  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %case(_,S:Stmt))                    => @BindDeclarations(Mode,CB,Strict,S)
+      672  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %default(S:Stmt))                   => @BindDeclarations(Mode,CB,Strict,S)
+        0  rule @BindDeclarations(Mode:String, CB:Bool, Strict:Bool, %debugger)                          => .
+           
+           // 10.5: Step 5: Function Declaration Binding Instantiation
+           syntax KItem /* .K */ ::= "@BindFunctionDeclaration" "(" K /* Var */ "," Exps "," Stmt "," K /* Bool */ "," K /* Bool */ ")" [seqstrict(1,4,5)]
+           syntax Id ::= "$existingProp"
+    52637  rule <k> @BindFunctionDeclaration(N:Var, Params:Exps, FunBody:Stmt, ConfigurableBindings:Bool, Strict:Bool)
+    52637        => BEGIN
+   157911           If HasBinding(E,N) = false then {
+   105246             Do CreateMutableBinding(E,N,ConfigurableBindings);
+                    } else {
+       14             If E = @GlobalEid then {
+       33               Let $existingProp = GetProperty(@GlobalOid,N);
+       22               If $existingProp."Configurable" = true then {
+        0                 DoI DefineOwnProperty(@GlobalOid, N, @desc("Value" |-> Undefined "Writable" |-> true "Enumerable" |-> true "Configurable" |-> ConfigurableBindings), true);
+                        } else {
+       33                 If IsAccessorDescriptor($existingProp) = true then {
+        0                   Do @Throw(@TypeError("BindFunctionDeclaration accessor",$existingProp));
+                          };
+       44                 If @AndBool($existingProp."Writable", $existingProp."Enumerable") = false then {
+        0                   Do @Throw(@TypeError("BindFunctionDeclaration writable/enumerable",$existingProp));
+                          };
+                        }
+                      };
+                    }
+   157911           Do SetMutableBinding(E, N, @FunctionDeclaration(N,Params,FunBody), Strict);
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+           
+           // 10.5: Step 8: Variable Declaration Binding Instantiation
+           syntax KItem /* .K */ ::= "@BindVariableDeclaration" "(" K /* Var */ "," K /* Bool */ "," K /* Bool */ ")" [seqstrict]
+    33402  rule <k> @BindVariableDeclaration(N:Var, ConfigurableBindings:Bool, Strict:Bool)
+    33402        => BEGIN
+    66804           If HasBinding(E,N) = true then {
+      496             Return;
+                    } else {
+    98718             Do CreateMutableBinding(E,N,ConfigurableBindings);
+   130095             Do SetMutableBinding(E,N,Undefined,Strict);
+                    }
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+           
+           syntax KItem /* .K */ ::= "@BindArgumentsObject" "(" K /* Oid */ "," K /* Vals */ "," K /* Bool */ ")" [seqstrict]
+           syntax Id ::= "$argsObj"
+    12841  rule <k> @BindArgumentsObject(F:Oid,Args:Vals,Strict:Bool)
+    12841        => BEGIN
+    25682           If HasBinding(E,"arguments") = false then {
+    38511             Let $argsObj = @CreateArgumentsObject(F,Names,Args,E,Strict);
+    12837             If Strict = true then {
+     5310               Do CreateImmutableBinding(E,"arguments");
+     3540               Do InitializeImmutableBinding(E,"arguments",$argsObj);
+                      } else {
+    33201               Do CreateMutableBinding(E,"arguments",false); // TODO: check if the third argument is false or not (not mentioned in the specification)
+    22134               Do SetMutableBinding(E,"arguments",$argsObj,false);
+                      }
+                    };
+                    END
+                ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <internalProperties>
+                    "FormalParameters" |-> Names:Exps
+                    _:Map
+                  </internalProperties>
+                  _
+                </obj>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+           
+           // 10.6 Arguments Object
+           
+           syntax KItem /* Oid */ ::= "@CreateArgumentsObject" "(" K /* Oid */ "," Exps "," K /* Vals */ "," K /* Eid */ "," K /* Bool */ ")" [seqstrict(1,3,4,5)]
+           syntax Id ::= "$len" | "$map"
+    12837  rule @CreateArgumentsObject(Func:Oid, Names:Exps, Args:Vals, Env:Eid, Strict:Bool)
+    12837    => BEGIN
+    25674       Let $len = #@LengthVals(Args);
+    38511       Let $obj = @CreateObject;
+    38511       Do SetInternalProperty($obj, "Class", "Arguments");
+    38511       Do SetInternalProperty($obj, "Strict", Strict); // NOTE: This is not specified in language standard, but added for our own @IsArgumentsObjectNonStrictWithFormalParams
+    51348       DoI DefineOwnProperty($obj, "length", @GenDesc("Value", $len, "Writable", true, "Enumerable", false, "Configurable", true), false);
+    38511       Let $map = @CreateObject;
+    38511       Do @BindActualParams($obj, Args, 0);
+    25674       If Strict = false then {
+    22134         Do @BindFormalParams($map, Names, Args, Env, 0);
+                };
+    25674       If #@Length(Names) >Int 0 = true then {
+     9276         Do SetInternalProperty($obj, "ParameterMap", $map);
+                };
+    25674       If Strict = true then {
+     5324         DoI DefineOwnProperty($obj, "caller", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+     3557         DoI DefineOwnProperty($obj, "callee", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+                } else {
+    22134         DoI DefineOwnProperty($obj, "callee", @desc("Value" |-> Func "Writable" |-> true "Enumerable" |-> false "Configurable" |-> true), false);
+                }
+    12837       Return $obj;
+                END
+           
+    25674  syntax KItem /* .K */ ::= "@BindActualParams" "(" K /* Oid */ "," K /* Vals */ "," K /* Int */ ")" [seqstrict]
+    12837  rule @BindActualParams(O:Oid, @Nil, _) => .
+     6373  rule @BindActualParams(O:Oid, @Cons(V:Val,Vs:Vals), I:Int)
+    12746    => DefineOwnProperty(O, ToString(I), @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false) ~> @Ignore ~>
+     6373       @BindActualParams(O, Vs, I +Int 1)
+           
+    22134  syntax KItem /* .K */ ::= "@BindFormalParams" "(" K /* Oid */ "," Exps "," K /* Vals */ "," K /* Eid */ "," K /* Int */ ")" [seqstrict(1,3,4,5)]
+           // TODO: consider step 11.c.ii 2nd condition: "name is not an element of mappedNames". what if duplicated names?
+    10931  rule @BindFormalParams(M:Oid, %nil, _, _, _) => .
+      136  rule @BindFormalParams(M:Oid, _, @Nil, _, _) => .
+     6156  rule @BindFormalParams(M:Oid, %cons(%var(Name:Var),Names:Exps), @Cons(Arg:Val,Args:Vals), Env:Eid, I:Int)
+     6156    => BEGIN
+    18468       Let $getter = @MakeArgGetter(Name,Env);
+    18468       Let $setter = @MakeArgSetter(Name,Env);
+    30780       DoI DefineOwnProperty(M, ToString(I), @GenDesc("Get", $getter, "Set", $setter, "Configurable", true), false);
+    12312       Do @BindFormalParams(M, Names, Args, Env, I +Int 1);
+                END
+           
+           syntax KItem /* Oid */ ::= "@MakeArgGetter" "(" K /* Var */ "," K /* Eid */ ")" [seqstrict]
+    14646  rule @MakeArgGetter(N:Var,E:Eid) => @CreateFunctionObject(%nil, %return(%var(N)), E, true) // TODO: in what case? // 10.1.1 Strict Mode Code, Case ?
+           
+           syntax KItem /* Oid */ ::= "@MakeArgSetter" "(" K /* Var */ "," K /* Eid */ ")" [seqstrict]
+           syntax Id ::= "$param"
+     6156  rule @MakeArgSetter(N:Var,E:Eid)
+     6156    => BEGIN
+    12327       Return @CreateFunctionObject(%cons(%var((N:>String +String "_arg"):>Var),%nil), %exp(%bop(%assign,%var(N),%var((N:>String +String "_arg"):>Var))), E, true); // TODO: in what case? // 10.1.1 Strict Mode Code, Case ?
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsArgumentsObjectNonStrictWithFormalParams" "(" K /* Oid */ ")" [seqstrict]
+    80786  rule <k> @IsArgumentsObjectNonStrictWithFormalParams(O:Oid)
+                 => Class ==String "Arguments" andBool notBool(Strict) andBool "ParameterMap" in keys(InternalProperties) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    "Class" |-> Class:String
+                    "Strict" |-> Strict:Bool
+                    InternalProperties:Map
+                  </internalProperties>
+                  _
+                </obj>
+  1247329  rule <k> @IsArgumentsObjectNonStrictWithFormalParams(O:Oid) => false ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    InternalProperties:Map
+                  </internalProperties>
+                  _
+                </obj>
+                when notBool("Strict" in keys(InternalProperties))
+           
+           syntax Id ::= "$isMapped" | "$allowed"
+           
+           syntax KItem /* Val */ ::= "Get@Arguments" "(" K /* Oid */ "," K /* Var */ ")"  [seqstrict]
+           
+     3315  rule Get@Arguments(O:Oid,P:Var)
+     3315    => BEGIN
+     9945       Let $map = GetInternalProperty(O,"ParameterMap");
+     9945       Let $isMapped = GetOwnProperty($map,P);
+     3315       If $isMapped = Undefined then {
+     4356         Return Get@Default(O,P); // TODO: consider step 3.b
+                } else {
+     2274         Return Get($map,P);
+                }
+                END
+           
+           syntax KItem /* Val */ ::= "GetOwnProperty@Arguments" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           
+     6829  rule GetOwnProperty@Arguments(O:Oid,P:Var)
+     6829    => BEGIN
+    20487       Let $desc = GetOwnProperty@Default(O,P);
+     6829       If $desc = Undefined then {
+     4728         Return $desc;
+                } else {
+     6303         Let $map = GetInternalProperty(O,"ParameterMap");
+     6303         Let $isMapped = GetOwnProperty($map,P);
+     2101         If $isMapped = Undefined then {
+     2071           Return $desc;
+                  } else {
+       90           Return @AddDesc("Value", Get($map,P), $desc);
+                  }
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "DefineOwnProperty@Arguments" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict]
+           
+     4618  rule DefineOwnProperty@Arguments(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
+     4618    => BEGIN
+    13854       Let $map = GetInternalProperty(O,"ParameterMap");
+    13854       Let $isMapped = GetOwnProperty($map,P);
+    13854       Let $allowed = DefineOwnProperty@Default(O,P,Desc,false);
+     4618       If $allowed = false then {
+        1         If Throw = true then {
+        3           Do @Throw(@TypeError("DefineOwnProperty for Arguments",DefineOwnProperty(O,P,Desc,Throw)));
+                  } else {
+        0           Return false;
+                  }
+                } else {
+     9234         If $isMapped = Undefined then {
+     4611           Nop;
+                  } else {
+       12           If IsAccessorDescriptor(Desc) = true then {
+        2             DoI Delete($map, P, false);
+                    } else {
+       15             If @MemDesc(Desc,"Value") = true then {
+       15               Do Put($map, P, Desc."Value", Throw);
+                      };
+       10             If Desc."Writable" = false then {
+        4               DoI Delete($map, P, false);
+                      };
+                    }
+                  }
+     4617         Return true;
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "Delete@Arguments" "(" K /* Oid */ "," K /* Var */ "," K /* Bool */ ")"  [seqstrict]
+           
+        7  rule Delete@Arguments(O:Oid,P:Var,Throw:Bool)
+        7    => BEGIN
+       21       Let $map = GetInternalProperty(O,"ParameterMap");
+       21       Let $isMapped = GetOwnProperty($map,P);
+       21       Let $result = Delete@Default(O,P,Throw);
+       28       If @AndBool($result, @NeqVal($isMapped, Undefined)) = true then {
+        8         DoI Delete($map, P, false);
+                };
+        7       Return $result;
+                END
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 11 Expressions
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax KItem /* Reference */ ::= "@GetReference" "(" Exp ")"
+           
+   264078  rule <k> @GetReference(%var(N:Var)) => GetIdentifierReference(E,N,Strict) ... </k>
+                <running>
+                  <lexicalEnv> E:Eid </lexicalEnv>
+                  _
+                </running>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+    68410  context @GetReference(%mem(HOLE,_))
+    68406  context @GetReference(%mem(_:Val,HOLE))
+    22802  rule <k> @GetReference(%mem(O:Val,N:Val)) // NOTE: O does not need to be an Oid
+    68388        => CheckObjectCoercible(O) ~> @Ref(O, ToString(N), Strict) ... </k>
+                <running>
+                  <lexicalEnv> E:Eid </lexicalEnv>
+                  _
+                </running>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+      123  rule @GetReference(E:Exp) => @Throw(@ReferenceError("GetReference",E)) when notBool(#@IsReferenceExp(E))
+           
+           syntax Bool ::= "#@IsReferenceExp" "(" Exp ")" [function]
+           
+        0  rule #@IsReferenceExp(E:Exp) => getKLabel(E) ==KLabel '%var`(_`)
+                                   orBool getKLabel(E) ==KLabel '%mem`(_`,_`)
+           
+      445  rule %emptyExp => Undefined
+           
+           // 11.1.1 The this Keyword
+           
+    13125  rule <k> %this => This ... </k>
+                <running>
+                  <thisBinding> This:Val </thisBinding>
+                  _
+                </running>
+           
+           // 11.1.2 Identifier Reference
+           // 10.3.1 Identifier Resolution
+           
+   252207  rule %var(N:Var) => GetValue(@GetReference(%var(N)))
+           
+           // 11.1.3 Literal Reference
+           // TODO: Numeric, Regular Expressions
+           
+    26250  rule %con(%this)    => %this
+     1702  rule %con(%null)    => %null
+     8036  rule %con(B:Bool)   => B
+    72912  rule %con(I:Int)    => @ResolveOverflow(I)
+     3352  rule %con(F:Float)  => @ResolveOverflow(F)
+    52490  rule %con(S:String) => S
+           
+           // 11.1.4 Array Initialiser
+           
+      656  rule %arr(Es:Exps) => @MakeArray(#@RemoveLastEmptyExp(Es))
+           
+           // NOTE: the last ending comma should be ignored: [ 1, 2, ] => [ 1, 2 ]
+           //       "If an element is elided at the end of an array, that element does not contribute to the length of the Array." (p.63)
+           syntax Exps ::= "#@RemoveLastEmptyExp" "(" Exps ")" [function]
+      292  rule #@RemoveLastEmptyExp(                   %nil ) => %nil
+        0  rule #@RemoveLastEmptyExp(%cons(%emptyExp,   %nil)) => %nil
+       72  rule #@RemoveLastEmptyExp(%cons(E:Exp,       %nil)) => %cons(E,%nil) when E =/=K %emptyExp
+       99  rule #@RemoveLastEmptyExp(%cons(E:Exp,    Es:Exps)) => %cons(E,#@RemoveLastEmptyExp(Es)) when Es =/=K %nil
+           
+           // 11.1.5 Object Initialiser
+           // NOTE: step 4 of p.66 (duplicated properties) is checked by 'CheckDuplicatedProp'
+           
+     3558  rule %obj(PAs:Exps) => @AssignProps(@CreateObject,PAs)
+           
+     2372  syntax KItem /* Oid */ ::= "@AssignProps" "(" K /* Oid */ "," Exps ")" [seqstrict(1)]
+     1186  rule @AssignProps(O:Oid, %nil) => O
+     5940  rule @AssignProps(O:Oid, %cons(PA:Exp, PAs:Exps)) => @AssignProp(O,PA) ~> @AssignProps(O,PAs)
+           
+           syntax KItem /* .K */ ::= "@AssignProp" "(" K /* Oid */ "," Exp ")"  [seqstrict(1)]
+           
+     5859  context @AssignProp(_,%prop(_,HOLE))
+     1953  rule @AssignProp(O:Oid, %prop(P:Var,V:Val))
+     1953    => DefineOwnProperty(O, P, @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true), false) ~> @Ignore
+           
+       14  rule <k> @AssignProp(O:Oid, %get(P:Var,FunBody:Stmt))
+       14        => BEGIN
+       42           Let $closure = @CreateFunctionObject(%nil, FunBody, E, #@IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
+       42           DoI DefineOwnProperty(O, P, @GenDesc("Get", $closure, "Enumerable", true, "Configurable", true), false);
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+       13  rule <k> @AssignProp(O:Oid, %set(P:Var,X:Var,FunBody:Stmt))
+       13        => BEGIN
+       39           Let $closure = @CreateFunctionObject(%cons(%var(X),%nil), FunBody, E, #@IsStrict(FunBody) orBool Strict); // 10.1.1 Strict Mode Code, Case 3
+       39           DoI DefineOwnProperty(O, P, @GenDesc("Set", $closure, "Enumerable", true, "Configurable", true), false);
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+           // 11.1.6 The Grouping Operator
+           // NOTE: Nothing to do
+           
+           // 11.2.1 Property Accessors
+           
+    47829  rule %mem(E1:Exp,E2:Exp) => GetValue(@GetReference(%mem(E1,E2)))
+           
+           // 11.2.2 The new Operator
+           
+     9598  rule %new(F:Exp,Es:Exps) => @ConstructIfPossible(F,Es)
+           
+    19187  syntax KItem /* Oid */ ::= "@ConstructIfPossible" "(" K /* Val */ "," K /* Vals */ ")" [seqstrict]
+     4796  rule @ConstructIfPossible(F:Val, Args:Vals)
+     4796    => BEGIN
+     9592       If @IsConstructable(F) = true then {
+     9532         Do Construct(F, Args);
+                } else {
+       90         Do @Throw(@TypeError("ConstructIfPossible",F));
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsConstructable" "(" K /* Val */ ")" [seqstrict]
+     4781  rule <k> @IsConstructable(F:Oid) => "prototype" in keys(Prop) ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <properties> Prop:Map </properties>
+                  _
+                </obj>
+       15  rule @IsConstructable(F:Val) => false when notBool(#@IsOid(F))
+           
+           // 11.2.3 Function Calls
+           
+    36861  rule %call(F:Exp,Es:Exps) => @CallIfPossible(F, @DetermineThis(F), Es)
+                when #@IsEval(F) ==K false // TODO: could it be made in uniform way?
+             andBool #@IsAPI(F) ==K false
+           
+           syntax KItem /* Val */ ::= "@DetermineThis" "(" Exp ")"
+           
+    28041  rule @DetermineThis(F) => @FindThis(@GetReference(F)) when #@IsReferenceExp(F)
+     6002  rule @DetermineThis(F) => Undefined                  when notBool(#@IsReferenceExp(F))
+           
+    18694  syntax KItem /* Val */ ::= "@FindThis" "(" K /* ReferenceVal */ ")" [seqstrict]
+           
+     2075  rule @FindThis(@Ref(O:Oid,_,_)) => O
+    14304  rule @FindThis(@Ref(E:Eid,_,_)) => ImplicitThisValue(E)
+      120  rule @FindThis(@Ref(I:Primitive,_,_)) => I // NOTE: This will be resolved by @ResolveThis
+           /* NOTE: Not possible.
+        0     If @GetReference(F) is Ref(Undefined,_,_), then it could not get to here, because evaluating F, which is GetValue(@GetReference(F)), will raise RefereneError.
+              Indeed, this rule is not specified in the standard, which already knows this.
+              Indeed, the condition of Step 7 is "#@IsReferenceExp(F) is false", not "@GetReference(F) is Ref(Undefined,_,_)".
+        0  rule @FindThis(@Ref(Undefined,_,_)) => Undefined
+           */
+           
+    73693  syntax KItem /* Val */ ::= "@CallIfPossible" "(" K /* Val */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
+           
+    12279  rule @CallIfPossible(F:Val, This:Val, Args:Vals)
+    12279    => BEGIN
+    24558       If IsCallable(F) = true then {
+    24496         Do Call(F, This, Args);
+                } else {
+       93         Do @Throw(@TypeError("CallIfPossible",F));
+                }
+                END
+           
+           // 11.2.4 Argument Lists
+           
+   104654  context %cons(HOLE,_)
+   104637  context %cons(_:Val,HOLE)
+    69754  rule %cons(V:Val,Vs:Vals) => @Cons(V,Vs)
+    65618  rule %nil => @Nil
+           
+           // 11.2.5 Function Expressions
+           
+     8602  rule %fun(       Params:Exps, FunBody:Stmt) => @FunctionExpressionAnonymous(   Params, FunBody)
+       64  rule %fun(F:Var, Params:Exps, FunBody:Stmt) => @FunctionExpressionRecursive(F, Params, FunBody)
+           
+           // 11.3.1 Postfix Increment Operator
+           
+           syntax Id ::= "$lhs" | "$oldValue" | "$newValue"
+           
+     1766  rule %post(E:Exp,%inc)
+     1766    => BEGIN
+     5298       Let $lhs = @GetReference(E);
+     7056       Let $oldValue = ToNumber(GetValue($lhs));
+     5283       Let $newValue = @Addition($oldValue,1);
+     5283       Do PutValue($lhs,$newValue);
+     1761       Return $oldValue;
+                END
+           
+           // 11.3.2 Postfix Decrement Operator
+           
+     1139  rule %post(E:Exp,%dec)
+     1139    => BEGIN
+     3417       Let $lhs = @GetReference(E);
+     4548       Let $oldValue = ToNumber(GetValue($lhs));
+     3402       Let $newValue = @Subtraction($oldValue,1);
+     3402       Do PutValue($lhs,$newValue);
+     1134       Return $oldValue;
+                END
+           
+           // 11.4.1 The delete Operator
+           
+           // TODO: consider the first sentence of note.
+      222  rule %pre(%delete,E:Exp)
+      222    => BEGIN
+      222       If #@IsReferenceExp(E) = false then {
+       40         DoI E;
+       20         Return true;
+                } else {
+      606         Let $ref = @GetReference(E);
+      402         If IsUnresolvableReference($ref) = true then {
+       10           If IsStrictReference($ref) = true then {
+        3             Do @Throw(@SyntaxError("delete unresolvable ref",$ref));
+                    } else {
+        4             Return true;
+                    }
+                  } else {
+      392           If IsPropertyReference($ref) = true then {
+      558             Return Delete(ToObject(GetBase($ref)), GetReferencedName($ref), IsStrictReference($ref));
+                    } else {
+      206             If IsStrictReference($ref) = true then {
+       78               Do @Throw(@SyntaxError("delete not property ref",$ref));
+                      } else {
+      308               Return DeleteBinding(GetBase($ref), GetReferencedName($ref));
+                      }
+                    }
+                  }
+                }
+                END
+           
+           // 11.4.2 The void Operator
+           
+      129  rule %pre(%void,E:Exp) => E ~> @Ignore ~> Undefined
+           
+           // 11.4.3 The typeof Operator
+           
+     6678  rule %pre(%typeof,E:Exp) => @Try(@TypeOf(E),"undefined")
+           
+     4418  syntax KItem ::= "@TypeOf" "(" K /* Val */ ")" [seqstrict]
+      130  rule @TypeOf(Undefined) => "undefined"
+        3  rule @TypeOf(@NullVal  ) => "object"
+        8  rule @TypeOf(_:Bool    ) => "boolean"
+       65  rule @TypeOf(_:Number  ) => "number"
+       26  rule @TypeOf(_:String  ) => "string"
+     1887  rule @TypeOf(O:Oid     )
+     1887    => BEGIN
+     3774       If IsCallable(O) = true then {
+      166         Return "function";
+                } else {
+     1721         Return "object";
+                }
+                END
+           // for built-in objects' functions
+       73  rule @TypeOf(@(_)      ) => "function" // TODO: is there any better way?
+           
+           // NOTE: We don't need to consider the 'Case 2.a' that the reference value of E is an unresolvable reference.
+           //       If the case happens, evaluating E throws an ReferenceError and we can catch the case.
+           
+           syntax KItem ::= "@Try" "(" K "," K ")" | "@PopExc"
+           syntax KItem ::= "@exc" "(" K "," K "," CtrlCellFragment ")"
+           
+     2226  rule <k> (@Try(E1:K,E2:K) => E1 ~> @PopExc) ~> K </k>
+                <ctrl>
+                  <excStack> (.List => ListItem(@exc(E2,K,Ctrl))) _:List </excStack>
+                  Ctrl
+                </ctrl>
+           
+     2192  rule <k> V:Val ~> @PopExc => V ... </k>
+                <ctrl>
+                  <excStack> (ListItem(@exc(_,_,_)) => .List) _:List </excStack>
+                  _
+                </ctrl>
+           
+       34  rule <k> @Throw(V) ~> _ => E2 ~> K </k>
+                <ctrl>
+                  <excStack> (ListItem(@exc(E2,K,Ctrl)) => .List) _:List </excStack>
+                  (_ => Ctrl)
+                </ctrl>
+           
+           // 11.4.4 Prefix Increment Operator
+           
+     1372  rule %pre(%inc,E:Exp)
+     1372    => BEGIN
+     4116       Let $lhs = @GetReference(E);
+     5480       Let $oldValue = ToNumber(GetValue($lhs));
+     4101       Let $newValue = @Addition($oldValue,1);
+     4101       Do PutValue($lhs,$newValue);
+     1367       Return $newValue;
+                END
+           
+           // 11.4.5 Prefix Decrement Operator
+           
+       48  rule %pre(%dec,E:Exp)
+       48    => BEGIN
+      144       Let $lhs = @GetReference(E);
+      184       Let $oldValue = ToNumber(GetValue($lhs));
+      129       Let $newValue = @Subtraction($oldValue,1);
+      129       Do PutValue($lhs,$newValue);
+       43       Return $newValue;
+                END
+           
+           // 11.4.6 Unary + Operator
+           
+      960  rule %pre(%plus,E:Exp) => ToNumber(E)
+           
+           // 11.4.7 Unary - Operator
+           
+    16638  rule %pre(%minus,E:Exp) => @Minus(ToNumber(E))
+           
+    11193  syntax KItem ::= "@Minus" "(" K /* Number */ ")" [seqstrict]
+     4772  rule @Minus(I:Int     ) => I *Int   (-1)   when I =/=Int   0
+      337  rule @Minus(F:Float   ) => F *Float (-1.0) when F =/=Float 0.0
+      655  rule @Minus(0         ) => @nz
+        4  rule @Minus(0.0       ) => @nz
+       13  rule @Minus(@nz       ) => 0.0
+       90  rule @Minus(@NaN      ) => @NaN
+     2102  rule @Minus(@+Infinity) => @-Infinity
+       29  rule @Minus(@-Infinity) => @+Infinity
+           
+           // 11.4.8 Bitwise NOT Operator ( ~ )
+           
+      315  rule %pre(%tilde,E:Exp) => @NotBitwise(ToInt32(E))
+           
+      205  syntax KItem ::= "@NotBitwise" "(" K /* Int */ ")" [seqstrict]
+           
+      100  rule @NotBitwise(I:Int) => ~Int I
+           
+           // 11.4.9 Logical NOT Operator ( ! )
+           
+     8310  rule %pre(%bang,E:Exp) => @Not(ToBoolean(E))
+           
+    45045  syntax KItem ::= "@Not" "(" K /* Bool */ ")" [seqstrict]
+    20172  rule @Not(true) => false
+     2348  rule @Not(false) => true
+           
+           // 11.? Binary Operator
+           
+   164922  context %bop(_:OpNormal,HOLE,_)
+   164762  context %bop(_:OpNormal,_:Val,HOLE)
+           
+           // TODO: IEEE 754 binary double-precision arithmetic: *, /, %, +, -
+           
+    18910  syntax KItem ::= "@ResolveOverflow" "(" K /* Number */ ")" [seqstrict]
+     8238  rule @ResolveOverflow(F:Float) => @ResolveOverflowAux(F,F)
+      150  rule @ResolveOverflow(I:Int)   => @ResolveOverflowAux(I,#@Int2Float(I)) when notBool(I <Int @MAX_INT andBool I >Int @MIN_INT)
+    42784  rule @ResolveOverflow(I:Int)   => I                                     when         I <Int @MAX_INT andBool I >Int @MIN_INT
+           //
+      603  rule @ResolveOverflow(N:Number) => N when isFloat(N) =/=K true andBool isInt(N) =/=K true
+           
+           syntax KItem ::= "@ResolveOverflowAux" "(" K /* Number */ "," K /* Float */ ")" [seqstrict]
+     4194  rule @ResolveOverflowAux(N:Number, F:Float)
+     4194    => BEGIN
+     4194       If F >=Float 0.0 = true then {
+     4129         If F >Float @MAX_VALUE = true then {
+       71           Return @+Infinity;
+                  } else {
+     4110           Return N;
+                  }
+                } else {
+       65         If (F *Float -1.0) >Float @MAX_VALUE = true then {
+       24           Return @-Infinity;
+                  } else {
+       57           Return N;
+                  }
+                }
+                END
+           
+           // TODO: instead of using this, generalize number type to include sign information so that negative zero can be represented naturally
+    13596  syntax KItem ::= "@ResolveNumber" "(" K /* Number */ "," K /* Bool */ ")" [seqstrict]
+      100  rule @ResolveNumber(0,  false) => @nz
+        0  rule @ResolveNumber(0.0,false) => @nz
+       28  rule @ResolveNumber(-0.0,false) => @nz
+     3373  rule @ResolveNumber(N:Number,Positive:Bool) => N when (N =/=K 0 andBool N =/=K 0.0) orBool Positive =/=K false
+           
+           syntax KItem /* Bool */ ::= "@IsPositive" "(" K /* Number */ ")" [seqstrict]
+     2756  rule @IsPositive(I:Int)   => I >=Int   0
+     3425  rule @IsPositive(F:Float) => F >=Float 0.0
+       76  rule @IsPositive(@nz) => false
+      168  rule @IsPositive(@NaN) => true // TODO:
+       49  rule @IsPositive(@+Infinity) => true
+       39  rule @IsPositive(@-Infinity) => false
+           
+           // 11.5.1 Applying the * Operator
+           
+    13269  rule %bop(%times,V1:Val,V2:Val) => @ResolveOverflow(@MultiplicationSign(ToNumber(V1),ToNumber(V2)))
+           
+    10611  syntax KItem ::= "@MultiplicationSign" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+    15906  rule @MultiplicationSign(N1:Number,N2:Number) => @ResolveNumber(@Multiplication(N1,N2), @XorBool(@IsPositive(N1),@IsPositive(N2)))
+           
+           syntax KItem ::= "@Multiplication" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+      282  rule @Multiplication(@NaN,_) => @NaN
+      222  rule @Multiplication(_,@NaN) => @NaN
+           //
+      352  rule @Multiplication(I1:Int,I2:Int    ) => I1            *Int   I2
+       29  rule @Multiplication(I1:Int,F2:Float  ) => #@Int2Float(I1) *Float F2
+        4  rule @Multiplication( I:Int,@nz       ) => @MultiplicationNegativeZero(I)
+       16  rule @Multiplication( I:Int,@+Infinity) => @MultiplicationInfinity(I)
+        6  rule @Multiplication( I:Int,@-Infinity) => @MultiplicationInfinity(@Minus(I))
+           //
+     1080  rule @Multiplication(F1:Float,I2:Int    ) => F1 *Float #@Int2Float(I2)
+     1094  rule @Multiplication(F1:Float,F2:Float  ) => F1 *Float F2
+        0  rule @Multiplication( F:Float,@nz       ) => @MultiplicationNegativeZero(F)
+        2  rule @Multiplication( F:Float,@+Infinity) => @MultiplicationInfinity(F)
+        3  rule @Multiplication( F:Float,@-Infinity) => @MultiplicationInfinity(@Minus(F))
+           //
+        4  rule @Multiplication(@nz,I:Int     ) => @MultiplicationNegativeZero(I)
+        0  rule @Multiplication(@nz,F:Float   ) => @MultiplicationNegativeZero(F)
+        2  rule @Multiplication(@nz,@nz       ) => 0
+        6  rule @Multiplication(@nz,@+Infinity) => @NaN
+        6  rule @Multiplication(@nz,@-Infinity) => @NaN
+           //
+        4  rule @Multiplication(@+Infinity,I:Int     ) => @MultiplicationInfinity(I)
+       10  rule @Multiplication(@+Infinity,F:Float   ) => @MultiplicationInfinity(F)
+        2  rule @Multiplication(@+Infinity,@nz       ) => @MultiplicationInfinity(@nz)
+        4  rule @Multiplication(@+Infinity,@+Infinity) => @+Infinity
+        4  rule @Multiplication(@+Infinity,@-Infinity) => @-Infinity
+           //
+        6  rule @Multiplication(@-Infinity,I:Int     ) => @MultiplicationInfinity(@Minus(I))
+        6  rule @Multiplication(@-Infinity,F:Float   ) => @MultiplicationInfinity(@Minus(F))
+        3  rule @Multiplication(@-Infinity,@nz       ) => @MultiplicationInfinity(@Minus(@nz))
+        4  rule @Multiplication(@-Infinity,@+Infinity) => @-Infinity
+        4  rule @Multiplication(@-Infinity,@-Infinity) => @+Infinity
+           
+       16  syntax KItem ::= "@MultiplicationInfinity" "(" K /* Number */ ")" [seqstrict]
+       18  rule @MultiplicationInfinity(@nz    ) => @NaN
+       12  rule @MultiplicationInfinity(0      ) => @NaN
+        8  rule @MultiplicationInfinity(I:Int  ) => @+Infinity when I >Int 0
+       50  rule @MultiplicationInfinity(I:Int  ) => @-Infinity when I <Int 0
+        6  rule @MultiplicationInfinity(0.0    ) => @NaN
+       24  rule @MultiplicationInfinity(F:Float) => @+Infinity when F >Float 0.0
+       12  rule @MultiplicationInfinity(F:Float) => @-Infinity when F <Float 0.0
+           
+           syntax KItem ::= "@MultiplicationNegativeZero" "(" K /* Number */ ")" [seqstrict]
+       18  rule @MultiplicationNegativeZero(I:Int  ) => @nz when I >=Int 0
+        0  rule @MultiplicationNegativeZero(I:Int  ) => 0   when I  <Int 0
+        0  rule @MultiplicationNegativeZero(F:Float) => @nz when F >=Float 0.0
+        0  rule @MultiplicationNegativeZero(F:Float) => 0   when F  <Float 0.0
+           
+           // 11.5.2 Applying the / Operator
+           
+     2329  rule %bop(%div,V1:Val,V2:Val) => @ResolveOverflow(@DivisionSign(ToNumber(V1),ToNumber(V2)))
+           
+     1859  syntax KItem ::= "@DivisionSign" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+     2778  rule @DivisionSign(N1:Number,N2:Number) => @ResolveNumber(@Division(N1,N2), @XorBool(@IsPositive(N1),@IsPositive(N2)))
+           
+           syntax KItem ::= "@Division" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+      282  rule @Division(@NaN,_) => @NaN
+      222  rule @Division(_,@NaN) => @NaN
+           //
+       46  rule @Division(0,  N:Number) =>        @DivisionZero(N)  when N =/=K @NaN
+        0  rule @Division(0.0,N:Number) =>        @DivisionZero(N)  when N =/=K @NaN
+       24  rule @Division(@nz,N:Number) => @Minus(@DivisionZero(N)) when N =/=K @NaN
+           //
+      194  rule @Division(N:Number,0  ) =>        @DivisionByZero(N)  when N =/=K @NaN
+       30  rule @Division(N:Number,0.0) =>        @DivisionByZero(N)  when N =/=K @NaN
+      105  rule @Division(N:Number,@nz) => @Minus(@DivisionByZero(N)) when N =/=K @NaN
+           //
+       10  rule @Division(@+Infinity,N:Number) =>        @DivisionInfinity(N)  when N =/=K @NaN
+       15  rule @Division(@-Infinity,N:Number) => @Minus(@DivisionInfinity(N)) when N =/=K @NaN
+           //
+       10  rule @Division(N:Number,@+Infinity) =>        @DivisionByInfinity(N)  when N =/=K @NaN
+       12  rule @Division(N:Number,@-Infinity) => @Minus(@DivisionByInfinity(N)) when N =/=K @NaN
+           //
+      141  rule @Division(I1:Int,  I2:Int    ) =>           I1  /Int             I2  when I1 =/=Int   0   andBool I2 =/=Int   0    andBool I1 %Int I2 ==Int  0
+       24  rule @Division(I1:Int,  I2:Int    ) => #@Int2Float(I1) /Float #@Int2Float(I2) when I1 =/=Int   0   andBool I2 =/=Int   0    andBool I1 %Int I2 =/=Int 0
+       11  rule @Division(I1:Int,  F2:Float  ) => #@Int2Float(I1) /Float F2            when I1 =/=Int   0   andBool F2 =/=Float 0.0
+        8  rule @Division(F1:Float,I2:Int    ) =>           F1  /Float #@Int2Float(I2) when F1 =/=Float 0.0 andBool I2 =/=Int   0
+       23  rule @Division(F1:Float,F2:Float  ) =>           F1  /Float F2            when F1 =/=Float 0.0 andBool F2 =/=Float 0.0
+           
+           syntax KItem ::= "@DivisionZero" "(" K /* Number */ ")" [seqstrict]
+        8  rule @DivisionZero(@nz    ) => @NaN
+       28  rule @DivisionZero(0      ) => @NaN
+       16  rule @DivisionZero(I:Int  ) => 0   when I >Int 0
+       18  rule @DivisionZero(I:Int  ) => @nz when I <Int 0
+        0  rule @DivisionZero(0.0    ) => @NaN
+        2  rule @DivisionZero(F:Float) => 0   when F >Float 0.0
+        9  rule @DivisionZero(F:Float) => @nz when F <Float 0.0
+        0  rule @DivisionZero(@+Infinity) => 0
+        0  rule @DivisionZero(@-Infinity) => @nz
+           
+           syntax KItem ::= "@DivisionInfinity" "(" K /* Number */ ")" [seqstrict]
+        0  rule @DivisionInfinity(@nz    ) => @-Infinity
+        0  rule @DivisionInfinity(0      ) => @+Infinity
+        6  rule @DivisionInfinity(I:Int  ) => @+Infinity when I >Int 0
+        6  rule @DivisionInfinity(I:Int  ) => @-Infinity when I <Int 0
+        0  rule @DivisionInfinity(0.0    ) => @+Infinity
+        2  rule @DivisionInfinity(F:Float) => @+Infinity when F >Float 0.0
+        4  rule @DivisionInfinity(F:Float) => @-Infinity when F <Float 0.0
+        8  rule @DivisionInfinity(@+Infinity) => @NaN
+        8  rule @DivisionInfinity(@-Infinity) => @NaN
+           
+           syntax KItem ::= "@DivisionByZero" "(" K /* Number */ ")" [seqstrict]
+        0  rule @DivisionByZero(@nz    ) => @NaN
+        0  rule @DivisionByZero(0      ) => @NaN
+      540  rule @DivisionByZero(I:Int  ) => @+Infinity when I >Int 0
+        8  rule @DivisionByZero(I:Int  ) => @-Infinity when I <Int 0
+        0  rule @DivisionByZero(0.0    ) => @NaN
+        6  rule @DivisionByZero(F:Float) => @+Infinity when F >Float 0.0
+        0  rule @DivisionByZero(F:Float) => @-Infinity when F <Float 0.0
+        6  rule @DivisionByZero(@+Infinity) => @+Infinity
+        6  rule @DivisionByZero(@-Infinity) => @-Infinity
+           
+           syntax KItem ::= "@DivisionByInfinity" "(" K /* Number */ ")" [seqstrict]
+        0  rule @DivisionByInfinity(@nz    ) => @nz
+        0  rule @DivisionByInfinity(0      ) => 0
+        4  rule @DivisionByInfinity(I:Int  ) => 0   when I >Int 0
+       13  rule @DivisionByInfinity(I:Int  ) => @nz when I <Int 0
+        0  rule @DivisionByInfinity(0.0    ) => 0.0
+        1  rule @DivisionByInfinity(F:Float) => 0.0 when F >Float 0.0
+        0  rule @DivisionByInfinity(F:Float) => @nz when F <Float 0.0
+        0  rule @DivisionByInfinity(@+Infinity) => @NaN
+        0  rule @DivisionByInfinity(@-Infinity) => @NaN
+           
+           // 11.5.3 Applying the % Operator
+           
+     1439  rule %bop(%mod,V1:Val,V2:Val) => @ResolveOverflow(@ModuloSign(ToNumber(V1),ToNumber(V2)))
+           
+     1147  syntax KItem ::= "@ModuloSign" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+     1140  rule @ModuloSign(N1:Number,N2:Number) => @ResolveNumber(@Modulo(N1,N2), @IsPositive(N1))
+           
+           syntax KItem ::= "@Modulo" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+      282  rule @Modulo(@NaN,_) => @NaN
+      222  rule @Modulo(_,@NaN) => @NaN
+           //
+      144  rule @Modulo(I1:Int,I2:Int) => I1 %Int I2 when I2 =/=Int 0
+      158  rule @Modulo(I1:Int,0     ) => @NaN
+       30  rule @Modulo(I1:Int,N2:Number) => @Modulo(#@Int2Float(I1),N2) when notBool(isInt(N2))
+       26  rule @Modulo(N1:Number,I2:Int) => @Modulo(N1,#@Int2Float(I2)) when notBool(isInt(N1))
+           //
+       30  rule @Modulo( _:Float,@nz       ) => @NaN
+       12  rule @Modulo( _:Float,0.0       ) => @NaN
+        4  rule @Modulo(0.0     , F:Float  ) => 0.0 when F =/=Float 0.0
+        8  rule @Modulo(F1:Float,F2:Float  ) => F1 %Float F2 when F1 =/=Float 0.0 andBool F2 =/=Float 0.0
+        8  rule @Modulo( F:Float,@+Infinity) => F
+        8  rule @Modulo( F:Float,@-Infinity) => F
+           //
+        6  rule @Modulo(@nz     ,0.0       ) => @NaN
+       36  rule @Modulo(@nz     ,F:Float   ) => @nz when F =/=Float 0.0
+        6  rule @Modulo(@nz     ,@nz       ) => @NaN
+        9  rule @Modulo(@nz     ,@+Infinity) => @nz
+        9  rule @Modulo(@nz     ,@-Infinity) => @nz
+           //
+       48  rule @Modulo(@+Infinity,_) => @NaN
+           //
+       48  rule @Modulo(@-Infinity,_) => @NaN
+           
+           // 11.6.1 The Addition operator ( + )
+           
+    36575  rule %bop(%plus,V1:Val,V2:Val) => @PolymorphicAddition(ToPrimitive(V1,""), ToPrimitive(V2,""))
+           
+    36571  syntax KItem ::= "@PolymorphicAddition" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+     3944  rule @PolymorphicAddition(V1:Val,V2:Val) => @ResolveOverflow(@Addition(ToNumber(V1), ToNumber(V2))) when notBool(#@IsString(V1)) andBool notBool(#@IsString(V2))
+    33396  rule @PolymorphicAddition(V1:Val,V2:Val) =>              @Concatnation(ToString(V1), ToString(V2))  when          isString(V1)   orBool          isString(V2)
+           
+    33396  syntax KItem ::= "@Concatnation" "(" K /* String */ "," K /* String */ ")" [seqstrict]
+     8349  rule @Concatnation(S1:String,S2:String) => S1 +String S2
+           
+           // 11.6.2 The Subtraction Operator ( - )
+           
+     8549  rule %bop(%minus,V1:Val,V2:Val) => @ResolveOverflow(@Subtraction(ToNumber(V1), ToNumber(V2)))
+           
+           // 11.6.3 Applying the Additive Operators to Numbers
+           
+     9564  syntax KItem ::= "@Addition" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+      783  rule @Addition(@NaN,_) => @NaN
+      282  rule @Addition(_,@NaN) => @NaN
+           //
+     3803  rule @Addition(I1:Int,I2:Int    ) => I1 +Int I2
+        9  rule @Addition(I1:Int,F2:Float  ) => #@Int2Float(I1) +Float F2
+        3  rule @Addition( I:Int,@nz       ) => I
+       10  rule @Addition( _:Int,@+Infinity) => @+Infinity
+       10  rule @Addition( _:Int,@-Infinity) => @-Infinity
+           //
+       31  rule @Addition(F1:Float,I2:Int    ) => F1 +Float #@Int2Float(I2)
+       45  rule @Addition(F1:Float,F2:Float  ) => F1 +Float F2
+        3  rule @Addition( F:Float,@nz       ) => F
+        9  rule @Addition( _:Float,@+Infinity) => @+Infinity
+        6  rule @Addition( _:Float,@-Infinity) => @-Infinity
+           //
+        4  rule @Addition(@nz,I:Int     ) => I
+        4  rule @Addition(@nz,F:Float   ) => F
+       14  rule @Addition(@nz,@nz       ) => @nz
+        0  rule @Addition(@nz,@+Infinity) => @+Infinity
+        0  rule @Addition(@nz,@-Infinity) => @-Infinity
+           //
+        6  rule @Addition(@+Infinity,_:Int     ) => @+Infinity
+        6  rule @Addition(@+Infinity,_:Float   ) => @+Infinity
+        0  rule @Addition(@+Infinity,@nz       ) => @+Infinity
+        6  rule @Addition(@+Infinity,@+Infinity) => @+Infinity
+       10  rule @Addition(@+Infinity,@-Infinity) => @NaN
+           //
+        6  rule @Addition(@-Infinity,_:Int     ) => @-Infinity
+        6  rule @Addition(@-Infinity,_:Float   ) => @-Infinity
+        0  rule @Addition(@-Infinity,@nz       ) => @-Infinity
+       10  rule @Addition(@-Infinity,@+Infinity) => @NaN
+        6  rule @Addition(@-Infinity,@-Infinity) => @-Infinity
+           
+     9189  syntax KItem ::= "@Subtraction" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+     2754  rule @Subtraction(I1:Int,I2:Int) => I1 -Int I2
+      346  rule @Subtraction(N1:Number,N2:Number) => @Addition(N1,@Minus(N2)) when notBool(isInt(N1)) orBool notBool(isInt(N2))
+           
+           // 11.7.1 The Left Shift Operator ( << )
+           
+     9475  rule %bop(%lshift,V1:Val,V2:Val) => @LeftShift(ToInt32(V1),ToUint32(V2))
+           
+     9471  syntax KItem ::= "@LeftShift" "(" K "," K ")" [seqstrict]
+           
+     2366  rule @LeftShift(I1:Int,I2:Int) => svalueMInt(shlMInt(mi(32,I1), I2 &Int 31 /* 0x1F */))
+           
+           // 11.7.2 The Signed Right Shift Operator ( >> )
+           
+     9251  rule %bop(%rshift,V1:Val,V2:Val) => @SignedRightShift(ToInt32(V1),ToUint32(V2))
+           
+     9247  syntax KItem ::= "@SignedRightShift" "(" K "," K ")" [seqstrict]
+           
+           // Arithmetic shift, sign extension shift: ashrMInt
+     2310  rule @SignedRightShift(I1:Int,I2:Int) => svalueMInt(ashrMInt(mi(32,I1), I2 &Int 31 /* 0x1F */))
+           
+           // 11.7.3 The Unsigned Right Shift Operator ( >>> )
+           
+     9551  rule %bop(%rshiftshift,V1:Val,V2:Val) => @UnsignedRightShift(ToUint32(V1),ToUint32(V2))
+           
+     9539  syntax KItem ::= "@UnsignedRightShift" "(" K "," K ")" [seqstrict]
+           
+           // Logical shift, zero-filling shift: lshrMInt
+     2382  rule @UnsignedRightShift(I1:Int,I2:Int) => uvalueMInt(lshrMInt(mi(32,I1), I2 &Int 31 /* 0x1F */))
+           
+           // 11.8.1 The Less-than Operator ( < )
+           
+           syntax Id ::= "$v1" | "$v2" | "$r"
+           
+     3433  rule %bop(%lt,V1:Val,V2:Val)
+     3433    => BEGIN
+    10299       Let $v1 = ToPrimitive(V1,"Number");
+    10296       Let $v2 = ToPrimitive(V2,"Number");
+    10290       Let $r = @LessThan($v1,$v2);
+     3430       If $r = Undefined then {
+       33         Return false;
+                } else {
+     3397         Return $r;
+                }
+                END
+           
+           // 11.8.2 The Greater-than Operator ( > )
+           
+     2021  rule %bop(%gt,V1:Val,V2:Val)
+     2021    => BEGIN
+     6063       Let $v1 = ToPrimitive(V1,"Number");
+     6060       Let $v2 = ToPrimitive(V2,"Number");
+     6054       Let $r = @LessThan($v2,$v1);
+     2018       If $r = Undefined then {
+       33         Return false;
+                } else {
+     1985         Return $r;
+                }
+                END
+           
+           // 11.8.3 The Less-than-or-equal Operator ( <= )
+           
+     1667  rule %bop(%le,V1:Val,V2:Val)
+     1667    => BEGIN
+     5001       Let $v1 = ToPrimitive(V1,"Number");
+     4998       Let $v2 = ToPrimitive(V2,"Number");
+     4992       Let $r = @LessThan($v2,$v1);
+     1664       If $r = Undefined then {
+       36         Return false;
+                } else {
+     3256         Return @Not($r);
+                }
+                END
+           
+           // 11.8.4 The Greater-than-or-equal Operator ( >= )
+           
+     2781  rule %bop(%ge,V1:Val,V2:Val)
+     2781    => BEGIN
+     8343       Let $v1 = ToPrimitive(V1,"Number");
+     8340       Let $v2 = ToPrimitive(V2,"Number");
+     8334       Let $r = @LessThan($v1,$v2);
+     2778       If $r = Undefined then {
+       36         Return false;
+                } else {
+     5484         Return @Not($r);
+                }
+                END
+           
+           // 11.8.5 The Abstract Relational Comparison Algorithm
+           
+    39560  syntax KItem ::= "@LessThan" "(" K "," K ")" [seqstrict]
+    38801  rule @LessThan(V1:Val,V2:Val) => @LessThanNumber(ToNumber(V1),ToNumber(V2))
+                when notBool(#@IsString(V1) andBool #@IsString(V2))
+      342  rule @LessThan(V1:String,V2:String) => @LessThanString(V1,V2)
+           
+    38726  syntax KItem ::= "@LessThanNumber" "(" K "," K ")" [seqstrict]
+      225  rule @LessThanNumber(@NaN,_) => Undefined
+      189  rule @LessThanNumber(_,@NaN) => Undefined
+           //
+     8875  rule @LessThanNumber(I1:Int,I2:Int) => I1 <Int I2
+           //
+      584  rule @LessThanNumber(I:Int,N:Number) => @LessThanNumber(#@Int2Float(I),N) when notBool(isInt(N))
+      582  rule @LessThanNumber(N:Number,I:Int) => @LessThanNumber(N,#@Int2Float(I)) when notBool(isInt(N))
+           //
+       55  rule @LessThanNumber(F1:Float,F2:Float  ) => F1 <Float F2
+        4  rule @LessThanNumber( 0.0    ,@nz       ) => false
+        0  rule @LessThanNumber( F:Float,@nz       ) => F <Float 0.0 when F =/=Float 0.0
+      285  rule @LessThanNumber( _:Float,@+Infinity) => true
+       20  rule @LessThanNumber( _:Float,@-Infinity) => false
+           //
+        1  rule @LessThanNumber(@nz,F:Float   ) => 0.0 <Float F when F =/=Float 0.0
+        5  rule @LessThanNumber(@nz,0.0       ) => false // NOTE: unlike intuition, step.3.g is not typo
+        4  rule @LessThanNumber(@nz,@nz       ) => false
+        0  rule @LessThanNumber(@nz,@+Infinity) => true
+        0  rule @LessThanNumber(@nz,@-Infinity) => false
+           //
+       21  rule @LessThanNumber(@+Infinity,_:Float   ) => false
+        0  rule @LessThanNumber(@+Infinity,@nz       ) => false
+        5  rule @LessThanNumber(@+Infinity,@+Infinity) => false
+        8  rule @LessThanNumber(@+Infinity,@-Infinity) => false
+           //
+      283  rule @LessThanNumber(@-Infinity,_:Float   ) => true
+        0  rule @LessThanNumber(@-Infinity,@nz       ) => true
+        9  rule @LessThanNumber(@-Infinity,@+Infinity) => true
+        6  rule @LessThanNumber(@-Infinity,@-Infinity) => false
+           
+           syntax KItem ::= "@LessThanString" "(" K "," K ")" [seqstrict]
+           
+      171  rule @LessThanString(S1:String,S2:String) => S1 <String S2
+           
+           // 11.8.6 The instanceof operator
+           
+      639  rule %bop(%instanceof,V1:Val,V2:Val)
+      639    => BEGIN
+     1278       If @IsOid(V2) = true then {
+     1268         If @HasHasInstance(V2) = true then {
+     1262           Return HasInstance(V2,V1);
+                  } else {
+        9           Do @Throw(@TypeError("instanceof not having hasinstance",V2));
+                  }
+                } else {
+       15         Do @Throw(@TypeError("instanceof not object",V2));
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@HasHasInstance" "(" K /* Oid */ ")" [seqstrict]
+      634  rule @HasHasInstance(F:Oid)
+     1268    => @EqVal(GetInternalProperty(F,"Class"), "Function")
+           
+           // 11.8.7 The in operator
+           
+       46  rule %bop(%in,V1:Val,V2:Val)
+       46    => BEGIN
+       92       If @IsOid(V2) = true then {
+      123         Return HasProperty(V2,ToString(V1));
+                } else {
+       15         Do @Throw(@TypeError("in",V2));
+                }
+                END
+           
+           // 11.9.1 The Equals Operator ( == )
+           
+      466  rule %bop(%eq, V1:Val,V2:Val) =>      @AbstractEquality(V1,V2)
+           
+           // 11.9.2 The Does-not-equals Operator ( != )
+           
+      588  rule %bop(%neq,V1:Val,V2:Val) => @Not(@AbstractEquality(V1,V2))
+           
+           // 11.9.3 The Abstract Equality Comparison Algorithm
+           
+      472  syntax KItem ::= "@AbstractEquality" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+           
+        6  rule @AbstractEquality(Undefined,Undefined) => true
+        2  rule @AbstractEquality(Undefined,@NullVal  ) => true
+        2  rule @AbstractEquality(Undefined,_:Bool    ) => false
+        2  rule @AbstractEquality(Undefined,_:String  ) => false
+        3  rule @AbstractEquality(Undefined,_:Number  ) => false
+        2  rule @AbstractEquality(Undefined,_:Oid     ) => false
+           //
+        2  rule @AbstractEquality(@NullVal,  Undefined) => true
+        2  rule @AbstractEquality(@NullVal,  @NullVal  ) => true
+        2  rule @AbstractEquality(@NullVal,  _:Bool    ) => false
+        2  rule @AbstractEquality(@NullVal,  _:String  ) => false
+        2  rule @AbstractEquality(@NullVal,  _:Number  ) => false
+        2  rule @AbstractEquality(@NullVal,  _:Oid     ) => false
+           //
+        2  rule @AbstractEquality(B:Bool,    Undefined) => false
+        2  rule @AbstractEquality(B:Bool,    @NullVal  ) => false
+       23  rule @AbstractEquality(B1:Bool,   B2:Bool   ) => B1 ==K B2
+       16  rule @AbstractEquality(B:Bool,    S:String  ) => @AbstractEquality(ToNumber(B), ToNumber(S))
+       87  rule @AbstractEquality(B:Bool,    N:Number  ) => @AbstractEquality(ToNumber(B), N)
+       48  rule @AbstractEquality(B:Bool,    O:Oid     ) => @AbstractEquality(ToNumber(B), ToPrimitive(O,""))
+           //
+        3  rule @AbstractEquality(S:String,  Undefined) => false
+        3  rule @AbstractEquality(S:String,  @NullVal  ) => false
+       20  rule @AbstractEquality(S:String,  B:Bool    ) => @AbstractEquality(ToNumber(S), ToNumber(B))
+       36  rule @AbstractEquality(S1:String, S2:String ) => S1 ==K S2
+       78  rule @AbstractEquality(S:String,  N:Number  ) => @AbstractEquality(ToNumber(S), N)
+       51  rule @AbstractEquality(S:String,  O:Oid     ) => @AbstractEquality(S, ToPrimitive(O,""))
+           //
+        2  rule @AbstractEquality(N:Number,  Undefined) => false
+        2  rule @AbstractEquality(N:Number,  @NullVal  ) => false
+       27  rule @AbstractEquality(N:Number,  B:Bool    ) => @AbstractEquality(N, ToNumber(B))
+       78  rule @AbstractEquality(N:Number,  S:String  ) => @AbstractEquality(N, ToNumber(S))
+      596  rule @AbstractEquality(N1:Number, N2:Number ) => @AbstractEqualityNumber(N1,N2)
+       48  rule @AbstractEquality(N:Number,  O:Oid     ) => @AbstractEquality(N, ToPrimitive(O,""))
+           //
+        2  rule @AbstractEquality(O:Oid,     Undefined) => false
+        2  rule @AbstractEquality(O:Oid,     @NullVal  ) => false
+       48  rule @AbstractEquality(O:Oid,     B:Bool    ) => @AbstractEquality(ToPrimitive(O,""), ToNumber(B))
+       39  rule @AbstractEquality(O:Oid,     S:String  ) => @AbstractEquality(ToPrimitive(O,""), S)
+      114  rule @AbstractEquality(O:Oid,     N:Number  ) => @AbstractEquality(ToPrimitive(O,""), N)
+       17  rule @AbstractEquality(O1:Oid,    O2:Oid    ) => O1 ==K O2
+           
+           syntax KItem ::= "@AbstractEqualityNumber" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+           
+       27  rule @AbstractEqualityNumber(@NaN,_:Number) => false
+       14  rule @AbstractEqualityNumber(_:Number,@NaN) => false
+           //
+       31  rule @AbstractEqualityNumber(0,  0  ) => true
+        0  rule @AbstractEqualityNumber(0,  0.0) => true
+        4  rule @AbstractEqualityNumber(0,  @nz) => true
+        0  rule @AbstractEqualityNumber(0.0,0  ) => true
+        0  rule @AbstractEqualityNumber(0.0,0.0) => true
+        0  rule @AbstractEqualityNumber(0.0,@nz) => true
+        3  rule @AbstractEqualityNumber(@nz,0  ) => true
+        0  rule @AbstractEqualityNumber(@nz,0.0) => true
+        0  rule @AbstractEqualityNumber(@nz,@nz) => true
+           //
+      438  rule @AbstractEqualityNumber(N1:Number,N2:Number) => SameValue(N1,N2)
+                when notBool(N1 ==K @NaN orBool N2 ==K @NaN)
+             andBool notBool((N1 ==K 0 orBool N1 ==K 0.0 orBool N1 ==K @nz) andBool
+                             (N2 ==K 0 orBool N2 ==K 0.0 orBool N2 ==K @nz))
+           
+           // 11.9.4 The Strict Equals Operator ( === )
+           
+    19372  rule %bop(%eqs, V1:Val,V2:Val) =>      @StrictEquality(V1,V2)
+           
+           // 11.9.5 The Strict Does-not-equal Operator ( !== )
+           
+    45567  rule %bop(%neqs,V1:Val,V2:Val) => @Not(@StrictEquality(V1,V2))
+           
+           // 11.9.6 The Strict Equality Comparison Algorithm
+           
+      956  syntax KItem ::= "@StrictEquality" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+           
+    44328  rule @StrictEquality(V1:Val,V2:Val) => SameValue(V1,V2)
+                when notBool(V1 ==K @NaN orBool V2 ==K @NaN)
+             andBool notBool((V1 ==K 0 orBool V1 ==K 0.0 orBool V1 ==K @nz) andBool
+                             (V2 ==K 0 orBool V2 ==K 0.0 orBool V2 ==K @nz))
+           //
+       49  rule @StrictEquality(@NaN,_) => false
+       22  rule @StrictEquality(_,@NaN) => false
+           //
+     3059  rule @StrictEquality(0,  0  ) => true
+        0  rule @StrictEquality(0,  0.0) => true
+        3  rule @StrictEquality(0,  @nz) => true
+       22  rule @StrictEquality(0.0,0  ) => true
+        2  rule @StrictEquality(0.0,0.0) => true
+        0  rule @StrictEquality(0.0,@nz) => true
+       18  rule @StrictEquality(@nz,0  ) => true
+        0  rule @StrictEquality(@nz,0.0) => true
+       32  rule @StrictEquality(@nz,@nz) => true
+           
+           // 11.10 Binary Bitwise Operators
+           
+      907  rule %bop(%amp,  V1:Val,V2:Val) => @BitwiseAND(ToInt32(V1),ToInt32(V2))
+      747  rule %bop(%caret,V1:Val,V2:Val) => @BitwiseXOR(ToInt32(V1),ToInt32(V2))
+      763  rule %bop(%bar,  V1:Val,V2:Val) => @BitwiseOR (ToInt32(V1),ToInt32(V2))
+           
+      903  syntax KItem /* Int32 */ ::= "@BitwiseAND" "(" K /* Int32 */ "," K /* Int32 */ ")" [seqstrict]
+      743  syntax KItem /* Int32 */ ::= "@BitwiseXOR" "(" K /* Int32 */ "," K /* Int32 */ ")" [seqstrict]
+      759  syntax KItem /* Int32 */ ::= "@BitwiseOR"  "(" K /* Int32 */ "," K /* Int32 */ ")" [seqstrict]
+           
+      224  rule @BitwiseAND(I1:Int,I2:Int) => I1   &Int I2
+      184  rule @BitwiseXOR(I1:Int,I2:Int) => I1 xorInt I2
+      188  rule @BitwiseOR (I1:Int,I2:Int) => I1   |Int I2
+           
+           // 11.11 Binary Logical Operators
+           
+     8187  context %bop(_:OpShortcut,HOLE,_)
+           
+     2528  rule %bop(%and,V1:Val,E2:Exp)
+     2528    => BEGIN
+     5056       If ToBoolean(V1) = true then {
+     2233         Return E2;
+                } else {
+      295         Return V1;
+                }
+                END
+           
+      199  rule %bop(%or,V1:Val,E2:Exp)
+      199    => BEGIN
+      398       If ToBoolean(V1) = true then {
+       72         Return V1;
+                } else {
+      127         Return E2;
+                }
+                END
+           
+           // 11.12 Conditional Operator( ? : )
+           
+      844  context %cond(HOLE,_,_)
+      281  rule %cond(V:Val,E1,E2)
+      281    => BEGIN
+      562       If ToBoolean(V) = true then {
+      143         Return E1;
+                } else {
+      138         Return E2;
+                }
+                END
+           
+           // 11.13.1 Simple Assignment ( = )
+           // TODO: Consider Strict mode, Step 4
+           
+   113793  rule %bop(%assign,L:Exp,E:Exp) => @PutValueAndReturn(@GetReference(L),E)
+           
+   163735  syntax KItem /* Val */ ::= "@PutValueAndReturn" "(" K /* Reference */ "," K /* Val */ ")" [seqstrict]
+    81650  rule @PutValueAndReturn(L:Reference,V:Val) => PutValue(L,V) ~> V
+           
+           // 11.13.2 Compound Assignment ( op= )
+           
+           syntax Id ::= "$ref"
+     3069  rule %bopassign(Op:Op,L:Exp,E:Exp)
+     3069    => BEGIN
+     9207       Let $ref = @GetReference(L);
+    12188       Do @PutValueAndReturn($ref, %bop(Op, GetValue($ref), E));
+                END
+           
+           // 11.14 Comma Operator(,)
+           
+       29  rule %comma(E1:Exp,E2:Exp) => E1 ~> @Ignore ~> E2
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 12 Statements
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 12.1 Block
+           // NOTE: Nothing to do
+           
+           // 12.2 Variable Statement
+           
+    55300  rule %vdecl(_) => %emptyStmt
+           
+           // 12.3 Empty Statement
+           
+   337549  rule %emptyStmt => @Normal
+           
+           // 12.4 Expression Statement
+           
+   108796  rule %exp(E:Exp) => @Exp(E)
+           
+   107894  syntax KItem ::= "@Exp" "(" K /* Val */ ")" [seqstrict]
+   221991  rule @Exp(V:Val) => @UpdateStmtValue(V) ~> @Normal
+           
+           syntax KItem /* .K */ ::= "@UpdateStmtValue" "(" K /* Val */ ")" [seqstrict]
+    45898  rule <k> @UpdateStmtValue(V:Val) => . ... </k>
+                <lastNonEmptyValue> _ => V </lastNonEmptyValue>
+                when V =/=K Undefined
+     7598  rule @UpdateStmtValue(Undefined) => .
+           
+           // 12.5 The if Statement
+           
+   102038  context %if(HOLE,_,_)
+    34010  rule %if(V:Val,S1,S2)
+    34010    => BEGIN
+    68020       If ToBoolean(V) = true then {
+     6932         Do S1;
+                } else {
+    27078         Do S2;
+                }
+                END
+           
+           // 12.6 Iteration Statements
+           
+           // 12.6.1 The do-while Statement
+           
+      165  rule %do(S,E) => %seq(S, %while(E,S))
+           
+           // 12.6.2 The while Statement
+           
+    20509  rule %while(E,S) => %if(E, %seq(S, %while(E,S)), %emptyStmt)
+           
+           // 12.6.3 The for Statement
+           
+      541  rule %for(S0,%emptyExp,E2,S) => %seq(S0, %while(%con(true), %seq(S, %exp(E2))))
+    11249  rule %for(S0,E1,       E2,S) => %seq(S0, %while(E1,         %seq(S, %exp(E2)))) when E1 =/=K %emptyExp
+           
+           // 12.6.4 The for-in Statement
+           
+           syntax Id ::= "$e" | "$props"
+           
+      501  rule %forin(S0,E1,E2,S) => %seq(S0, @ForIn(E1,E2,S))
+           
+           syntax Stmt ::= "@ForIn" "(" Exp "," Exp "," Stmt ")"
+      167  rule @ForIn(L:Exp,E:Exp,S:Stmt)
+      167    => BEGIN
+      334       Let $e = E;
+      668       If @OrBool(@EqVal($e, @NullVal), @EqVal($e, Undefined)) = true then {
+       32         Return @Normal;
+                } else {
+      477         Let $o = ToObject($e);
+      477         Let $props = @EnumerateAllProperties($o, .Map, .Set);
+                //Let $props = @EnumerateAllProperties($o, .Set, .Set);
+      318         Do @ForInAux(L, $o, $props, S);
+                }
+                END
+           
+      636  syntax Stmt ::= "@ForInAux" "(" Exp "," K /* Oid */ "," K "," Stmt ")" [seqstrict(2,3)]
+           syntax Id ::= "$owner"
+     6365  rule @ForInAux(_:Exp, _:Oid, @m(                   .Map), _:Stmt) => @Normal
+     1969  rule @ForInAux(L:Exp, O:Oid, @m(P:Var |-> OP:Oid Ps:Map), S:Stmt)
+     1969    => BEGIN
+     5907       Let $desc = GetProperty(O,P);
+     1969       If $desc = Undefined then {
+        4         Do @ForInAux(L,O,@m(Ps),S);
+                } else {
+     5901         Let $owner = GetPropertyOwner(O,P);
+     1967         If $owner = OP then {
+     9835           Do %seq(%exp(%bop(%assign,L,%con(P:>String))),
+     3910                    %seq(S, @ForInAux(L,O,@m(Ps),S)));
+                  } else {
+                    // NOTE: UNSPECIFIED/UNDEFINED BEHAVIOR:
+                    // If the current property name refers to another property, then the behavior is not specified in the language standard.
+                    // This situation can occur when (for example)
+                    // - the existing property was deleted before visiting, which reveals a shadowed property.
+                    // - a new property was added, which shadows the existing property.
+                    // - the prototype chain was modified so that it inherits different objects.
+        0           Do @unspecified;
+                  }
+                }
+                END
+           
+           syntax KItem ::= "@unspecified"
+           
+      318  syntax KItem /* Set */ ::= "@EnumerateAllProperties" "(" K /* Oid */ "," Map "," Set ")" [seqstrict(1)]
+      477  rule     @EnumerateAllProperties(@NullOid, TM:Map, _:Set) => @m(TM)
+      354  rule <k> @EnumerateAllProperties(O:Oid, TM:Map, KS:Set)
+      354        => @EnumerateAllProperties(Proto, #@AddProp(O,Prop,TM,KS), keys(Prop) KS) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> Prop:Map </properties>
+                  <internalProperties> "Prototype" |-> Proto:Oid _:Map </internalProperties>
+                </obj>
+                when O =/=K @NullOid
+           
+           syntax Map ::= "#@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
+        0  rule #@AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
+        0  rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddPropAux(O, P, Desc, M, TM, KS)
+           //
+           syntax Map ::= "#@AddPropAux" "(" Oid "," Var "," PropertyDescriptor "," Map "," Map "," Set ")" [function]
+        0  rule #@AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => #@AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc.."Enumerable" ==K true
+        0  rule #@AddPropAux(O:Oid, P:Var, Desc:PropertyDescriptor, M:Map, TM:Map, KS:Set) => #@AddProp(O, M,         TM, KS) when         P in KS   orBool Desc.."Enumerable" ==K false
+           /*
+           syntax Map ::= "#@AddProp" "(" Oid "," Map "," Map "," Set ")" [function]
+        0  rule #@AddProp(O:Oid,                                      .Map, TM:Map,  _:Set) => TM
+        0  rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddProp(O, M, P |-> O TM, KS) when notBool(P in KS) andBool Desc."Enumerable" ==K true
+        0  rule #@AddProp(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TM:Map, KS:Set) => #@AddProp(O, M,         TM, KS) when         P in KS   orBool Desc."Enumerable" ==K false
+           */
+           
+           // XXX: Unsupported AC Matching
+           //
+           // syntax Stmt ::= "@ForInAux" "(" Exp "," Oid "," K "," Stmt ")"
+           // syntax Id ::= "$owner"
+           // rule @ForInAux(_:Exp, _:Oid, @s(                                .Set), _:Stmt) => @Normal
+           // rule @ForInAux(L:Exp, O:Oid, @s(SetItem(@tuple(OP:Oid,P:Var)) Ps:Set), S:Stmt)
+           //   => Let $desc = GetProperty(O,P);
+           //      If $desc = Undefined then {
+           //        Do @ForInAux(L,O,@s(Ps),S);
+           //      } else {
+           //        Let $owner = GetPropertyOwner(O,P);
+           //        If $owner = OP then {
+           //          Do %seq(%exp(%bop(%assign,L,%con(P:>String))),
+           //                   %seq(S, @ForInAux(L,O,@s(Ps),S)));
+           //        } else {
+           //          // NOTE: UNSPECIFIED/UNDEFINED BEHAVIOR:
+           //          // If the current property name refers to another property, then the behavior is not specified in the language standard.
+           //          // This situation can occur when (for example)
+           //          // - the existing property was deleted before visiting, which reveals a shadowed property.
+           //          // - a new property was added, which shadows the existing property.
+           //          // - the prototype chain was modified so that it inherits different objects.
+           //          Do @unspecified;
+           //        }
+           //      }
+           // 
+           // syntax KItem ::= "@unspecified"
+           // 
+           // syntax KItem /* Set */ ::= "@EnumerateAllProperties" "(" Oid "," Set "," Set ")"
+           // rule     @EnumerateAllProperties(@NullOid, TS:Set, _:Set) => @s(TS)
+           // rule <k> @EnumerateAllProperties(O:Oid, TS:Set, KS:Set)
+           //       => @EnumerateAllProperties(Proto, @AddTuples(O,Prop,TS,KS), keys(Prop) KS) ... </k>
+           //      <obj>
+           //        <oid> O </oid>
+           //        <properties> Prop:Map </properties>
+           //        <internalProperties> "Prototype" |-> Proto:Oid _:Map </internalProperties>
+           //      </obj>
+           //      when O =/=K @NullOid
+           // 
+           // syntax KItem ::= "@tuple" "(" K "," K ")"
+           // 
+           // syntax Set ::= "@AddTuples" "(" Oid "," Map "," Set "," Set ")" [function]
+           // rule @AddTuples(O:Oid,                                      .Map, TS:Set,  _:Set) => TS
+           // rule @AddTuples(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TS:Set, KS:Set) => @AddTuples(O, M, SetItem(@tuple(O,P)) TS, KS) when notBool(P in KS) andBool Desc."Enumerable" ==K true
+           // rule @AddTuples(O:Oid, (P:Var |-> Desc:PropertyDescriptor) M:Map, TS:Set, KS:Set) => @AddTuples(O, M,                      TS, KS) when         P in KS   orBool Desc."Enumerable" ==K false
+           
+           // XXX: Before supporting unspecified behavior check
+           //
+           // syntax Stmt ::= "@ForInAux" "(" Exp "," Oid "," K "," Stmt ")"
+           // rule @ForInAux(_:Exp, _:Oid, @s(                 .Set), _:Stmt) => @Normal
+           // rule @ForInAux(L:Exp, O:Oid, @s(SetItem(P:Var) Ps:Set), S:Stmt)
+           //   => Let $desc = GetProperty(O,P);
+           //      If $desc = Undefined then {
+           //        Do @ForInAux(L,O,@s(Ps),S);
+           //      } else {
+           //        If $desc."Enumerable" = true then {
+           //          Do %seq(%exp(%bop(%assign,L,%con(P:>String))),
+           //                   %seq(S, @ForInAux(L,O,@s(Ps),S)));
+           //        } else {
+           //          Do @ForInAux(L,O,@s(Ps),S);
+           //        }
+           //      }
+           //
+           // syntax K /* Set */ ::= "@EnumerateAllProperties" "(" Oid "," Set ")"
+           // rule     @EnumerateAllProperties(@NullOid, S:Set) => @s(S)
+           // rule <k> @EnumerateAllProperties(O:Oid, S:Set)
+           //       => @EnumerateAllProperties(Proto, keys(Prop) S) ... </k>
+           //      <obj>
+           //        <oid> O </oid>
+           //        <properties> Prop:Map </properties>
+           //        <internalProperties> "Prototype" |-> Proto:Oid _:Map </internalProperties>
+           //      </obj>
+           //      when O =/=K @NullOid
+           
+           // 12.7 The continue Statement
+           
+     1058  rule %continue(L) => @Continue(L)
+           
+           // 12.8 The break Statement
+           
+     1787  rule %break(L) => @Break(L)
+           
+           // 12.9 The return Statement
+           
+    35241  context %return(HOLE)
+    36849  rule %return(V:Val) => @Return(V)
+           
+           // 12.10 The with Statement
+           
+      182  rule <k> %with(E,S)
+      182        => BEGIN
+      910           Do @SetRunningCtx(NewObjectEnvironment(ToObject(E),Env,true,false), This);
+      360           Let $result = S;
+      390           Do @RestoreRunningCtx;
+      130           Return $result;
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> Env:Eid </lexicalEnv>
+                    <thisBinding> This:Val </thisBinding>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> Env </eid>
+                  <strict> false </strict>
+                  _
+                </env>
+           
+        0  rule <k> %with(E,S) => @Throw(@SyntaxError("with",%with(E,S))) ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> Env:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> Env </eid>
+                  <strict> true </strict>
+                  _
+                </env>
+           
+           // 12.11 The switch Statement
+           
+           // Intuitive Algorithm:
+           // 
+           // start to find in C1
+           // when found in C1, then fall through along remaining C1 followed by D and C2
+           // when not found in C1, start to find in C2
+           // when found in C2, then fall through along remaining C2 and finish (without visiting default)
+           // when not found in C2, go through D
+           
+      342  rule %switch(E,C1,D,C2) => @Switch(E,C1,D,C2)
+           
+      342  syntax KItem ::= "@Switch" "(" K /* Val */ "," Stmt "," Stmt "," Stmt ")" [seqstrict(1)]
+           
+      399  rule @Switch(Input:Val, %seq(%case(E,S),C1), D, C2)
+      399    => BEGIN
+      798       If @StrictEquality(Input,E) = true then {
+       56         Do %seq(S,%seq(C1,%seq(D,C2)));
+                } else {
+      758         Do @Switch(Input,C1,D,C2);
+                }
+                END
+           
+       97  rule @Switch(Input:Val, %emptyStmt, D, %seq(%case(E,S),C2))
+       97    => BEGIN
+      194       If @StrictEquality(Input,E) = true then {
+       26         Do %seq(S,C2);
+                } else {
+      168         Do @Switch(Input,%emptyStmt,D,C2);
+                }
+                END
+           
+      137  rule @Switch(_:Val, %emptyStmt, %default(S), %emptyStmt) => S
+           
+        2  rule @Switch(_:Val, %emptyStmt, %emptyStmt, %emptyStmt) => @Normal
+           
+       10  rule %case(_,S) => S
+        6  rule %default(S) => S
+           
+           // 12.12 Labelled Statements
+           // TODO: Move to the first-pass
+           
+     4901  rule %label(L,S) => %seq(#@AddContinueLabel(L,S), %labelBreak(L))
+           
+           syntax Stmt ::= "#@AddContinueLabel" "(" Var "," Stmt ")" [function]
+      286  rule #@AddContinueLabel(L, %while(E,S)) => %while(E, %seq(S, %labelContinue(L)))
+      238  rule #@AddContinueLabel(L, %do(S,E))    =>    %do(   %seq(S, %labelContinue(L)), E)
+     9557  rule #@AddContinueLabel(L, %for  (S0,E1,E2,S)) => %for  (S0, E1, E2, %seq(S, %labelContinue(L)))
+     4054  rule #@AddContinueLabel(L, %forin(S0,E1,E2,S)) => %forin(S0, E1, E2, %seq(S, %labelContinue(L)))
+       93  rule #@AddContinueLabel(L, %label(L',S)) => %label(L', #@AddContinueLabel(L,S))
+        0  rule #@AddContinueLabel(_, S) => S   when getKLabel(S) =/=KLabel '%while`(_`,_`)
+                                            andBool getKLabel(S) =/=KLabel '%do`(_`,_`)
+                                            andBool getKLabel(S) =/=KLabel '%for`(_`,_`,_`,_`)
+                                            andBool getKLabel(S) =/=KLabel '%forin`(_`,_`,_`,_`)
+                                            andBool getKLabel(S) =/=KLabel '%label`(_`,_`)
+           
+           syntax Stmt ::= "%labelContinue" "(" Var ")"
+           syntax Stmt ::= "%labelBreak"    "(" Var ")"
+           
+    12268  rule %labelContinue(_) => %emptyStmt
+     2786  rule %labelBreak(_)    => %emptyStmt
+           
+           // 12.13 The throw Statement
+           
+     1389  context %throw(HOLE)
+      924  rule %throw(V:Val) => @Throw(V)
+           
+           // 12.14 The try Statement
+           
+           /*
+        0  rule %try(S:Stmt,X:Var,Catch:Stmt             ) => @TryCatch(S,X,Catch)
+           */
+      172  rule %try(S:Stmt,                 Finally:Stmt) => @TryFinally(S,Finally)
+     2544  rule %try(S:Stmt,X:Var,Catch:Stmt,Finally:Stmt) => @TryCatchFinally(S,X,Catch,Finally)
+           
+           syntax KItem ::= "@TryCatch" "(" Stmt "," K /* Var */ "," Stmt ")" [seqstrict(2)]
+                      | "@PopExcTC"
+           
+        0  rule <k> (@TryCatch(S:Stmt,X:Var,Catch:Stmt) => S ~> @PopExcTC) ~> K </k>
+                <ctrl>
+                  <excStack> (.List => ListItem(@excTC(X,Catch,K,Ctrl))) _:List </excStack>
+                  Ctrl
+                </ctrl>
+           
+        0  rule <k> CT:CompletionType ~> @PopExcTC => CT ... </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTC(_,_,_,_)) => .List) _:List </excStack>
+                  _
+                </ctrl>
+           
+        0  rule <k> @Throw(V) ~> _ => @Catch(X,V,Catch) ~> K </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTC(X,Catch,K,Ctrl)) => .List) _:List </excStack>
+                  (_ => Ctrl)
+                </ctrl>
+           
+           syntax KItem ::= "@TryFinally" "(" K "," Stmt ")" // NOTE: the first argument should be of sort K not Stmt because @Catch(...) can be given there
+                      | "@PopExcTF"
+           
+     1178  rule <k> (@TryFinally(S:K,Finally:Stmt) => S ~> @PopExcTF) ~> K </k>
+                <ctrl>
+                  <excStack> (.List => ListItem(@excTF(Finally,K,Ctrl))) _:List </excStack>
+                  Ctrl
+                </ctrl>
+           
+     2226  rule <k> CT:CompletionType ~> @PopExcTF => @ResolveFinally(Finally, CT) ... </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTF(Finally,_,_)) => .List) _:List </excStack>
+                  _
+                </ctrl>
+           
+      160  rule <k> @Throw(V) ~> _ => @ResolveFinally(Finally, @Throw(V)) ~> K </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTF(Finally,K,Ctrl)) => .List) _:List </excStack>
+                  (_ => Ctrl)
+                </ctrl>
+           
+           syntax KItem ::= "@TryCatchFinally" "(" Stmt "," K /* Var */ "," Stmt "," Stmt ")" [seqstrict(2)]
+                      | "@PopExcTCF"
+           
+     1272  rule <k> (@TryCatchFinally(S:Stmt,X:Var,Catch:Stmt,Finally:Stmt) => S ~> @PopExcTCF) ~> K </k>
+                <ctrl>
+                  <excStack> (.List => ListItem(@excTCF(X,Catch,Finally,K,Ctrl))) _:List </excStack>
+                  Ctrl
+                </ctrl>
+           
+      360  rule <k> CT:CompletionType ~> @PopExcTCF => @ResolveFinally(Finally, CT) ... </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTCF(_,_,Finally,_,_)) => .List) _:List </excStack>
+                  _
+                </ctrl>
+           
+     3276  rule <k> @Throw(V) ~> _ => @TryFinally(@Catch(X,V,Catch), Finally) ~> K </k>
+                <ctrl>
+                  <excStack> (ListItem(@excTCF(X,Catch,Finally,K,Ctrl)) => .List) _:List </excStack>
+                  (_ => Ctrl)
+                </ctrl>
+           
+           // NOTE: If the first argument evaluates to 'Throw', then it is handled differently with Throw's rules.
+           //       The second argument should be non-strict, because it could be 'Throw'.
+     2699  syntax KItem ::= "@ResolveFinally" "(" K /* CompletionType */ "," K /* CompletionType or Throw */ ")" [seqstrict(1)]
+     1272  rule @ResolveFinally( _:CompletionTypeNormal,CT:K) => CT
+       69  rule @ResolveFinally(CT:CompletionTypeAbrupt, _:K) => CT
+           
+     1344  syntax KItem /* CompletionType */ ::= "@Catch" "(" K /* Var */ "," K /* Val */ "," Stmt ")" [seqstrict(1,2)]
+           syntax Id ::= "$catchEnv" | "$result"
+     1092  rule <k> @Catch(X:Var,V:Val,Catch:Stmt)
+     1092        => BEGIN
+     3276           Let $catchEnv = NewDeclarativeEnvironment(E, Strict);
+     3276           Do CreateMutableBinding($catchEnv, X, false);
+     3276           Do SetMutableBinding($catchEnv, X, V, false);
+     3276           Do @SetRunningCtx($catchEnv, This);
+     2184           Let $result = Catch;
+     3201           Do @RestoreRunningCtx;
+     1067           Return $result;
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    <thisBinding> This:Val </thisBinding>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+           // 12.15 The debugger statement
+           /* NOTE: Implementing breakpoint as not giving the semantics
+        0  rule %debugger => %emptyStmt
+           */
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 13 Function Definition
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax KItem /* Oid */ ::= "@FunctionDeclaration" "(" K /* Var */ "," Exps "," Stmt ")" [seqstrict(1)]
+    52637  rule @FunctionDeclaration(_,Params:Exps,FunBody:Stmt)
+    52637    => @FunctionExpressionAnonymous(Params,FunBody)
+           
+           syntax KItem /* Oid */ ::= "@FunctionExpressionAnonymous" "(" Exps "," Stmt ")"
+    56938  rule <k> @FunctionExpressionAnonymous(Params:Exps, FunBody:Stmt)
+    56938        => @CreateFunctionObject(Params, FunBody, E, #@IsStrict(FunBody) orBool Strict) ... </k> // 10.1.1 Strict Mode Code, Case 3
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+           syntax KItem /* Oid */ ::= "@FunctionExpressionRecursive" "(" K /* Var */ "," Exps "," Stmt ")" [seqstrict(1)]
+           syntax Id ::= "$funcEnv" | "$closure"
+       32  rule <k> @FunctionExpressionRecursive(F:Var, Params:Exps, FunBody:Stmt)
+       32        => BEGIN
+       64           Let $strict = #@IsStrict(FunBody) orBool Strict; // 10.1.1 Strict Mode Code, Case 3
+       96           Let $funcEnv = NewDeclarativeEnvironment(E, $strict);
+       96           Do CreateImmutableBinding($funcEnv, F);
+       96           Let $closure = @CreateFunctionObject(Params, FunBody, $funcEnv, $strict);
+       96           Do InitializeImmutableBinding($funcEnv, F, $closure);
+       32           Return $closure;
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+                <env>
+                  <eid> E </eid>
+                  <strict> Strict:Bool </strict>
+                  _
+                </env>
+           
+           // 13.2 Creating Function Objects
+           
+           // NOTE: (from p.26 of Good Parts): Every function object is created with a 'prototype' property. Its value is an object with a 'constructor' property whose value is the function. This is distinct from the hidden link to 'Function.prototype'.
+           
+     5664  syntax KItem /* Oid */ ::= "@CreateFunctionObject" "(" Exps "," Stmt "," K /* Eid */ "," K /* Bool */ ")" [seqstrict(3,4)]
+   399438  rule <k> @CreateFunctionObject(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool) => @CreateFunctionObjectAux(@o(!F), Strict) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!F:Int) </oid>
+                          <properties>
+       63                   "length"           |-> @desc("Value" |-> #@Length(Params) "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
+    36340                   "prototype"        |-> @desc("Value" |-> @o(!P)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false)
+                          </properties>
+                          <internalProperties>
+       62                   "Prototype"        |-> @FunctionProtoOid
+                            "Class"            |-> "Function"
+                            "Extensible"       |-> true
+                            "Scope"            |-> Scope
+                            "FormalParameters" |-> Params
+                            "Code"             |-> FunBody
+                            "Strict"           |-> Strict
+                          </internalProperties>
+                        </obj>)
+                  (. => <obj>
+                          <oid> @o(!P:Int) </oid>
+                          <properties>
+      149                   "constructor"      |-> @desc("Value" |-> @o(!F)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true)
+                          </properties>
+                          <internalProperties>
+     8165                   "Prototype"        |-> @ObjectProtoOid
+                            "Class"            |-> "Object"
+                            "Extensible"       |-> true
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           syntax KItem /* Oid */ ::= "@CreateFunctionObjectAux" "(" K /* Oid */ "," K /* Bool */ ")" [seqstrict]
+    55601  rule <k> @CreateFunctionObjectAux(O:Oid,false) => O ... </k>
+    16476  rule <k> @CreateFunctionObjectAux(O:Oid,true ) => O ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+      233           (.Map => "caller"    |-> @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false))
+      140           (.Map => "arguments" |-> @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false))
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+           
+           // 13.2.1 [[Call]]
+           
+    38455  syntax KItem /* Val */ ::= "Call" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
+    12841  rule Call(F:Oid, This:Val, Args:Vals)
+    12841    => BEGIN
+    25682       If @IsBoundFunction(F) = true then {
+       40         Do Call@BoundFunction(F,This,Args);
+                } else {
+    25642         Do Call@Default(F,This,Args);
+                }
+                END
+                when #@IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
+           
+      120  syntax KItem /* Val */ ::= "Call@Default" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
+    12841  rule <k> Call@Default(F:Oid, This:Val, Args:Vals)
+    12841        => @EnterFunctionCode(F,This,Args) ~> Code ~> @ExitFunctionCode ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <internalProperties> "Code" |-> Code:Stmt _:Map </internalProperties>
+                  _
+                </obj>
+        0  rule <k> Call@Default(F:Oid,_,_) => Undefined ... </k>
+                <obj>
+                  <oid> F </oid>
+                  <internalProperties> Prop:Map </internalProperties>
+                  _
+                </obj>
+                when notBool("Code" in keys(Prop))
+           
+           syntax KItem ::= "@ExitFunctionCode"
+    23462  rule @Return(V:Val) ~> @ExitFunctionCode => @RestoreRunningCtx ~> V
+     4674  rule @Normal        ~> @ExitFunctionCode => @RestoreRunningCtx ~> Undefined
+           
+           // 13.2.2 [[Construct]]
+           
+           syntax KItem /* Oid */ ::= "Construct" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
+      106  rule Construct(F:Oid, Args:Vals)
+      106    => BEGIN
+      212       If @IsBoundFunction(F) = true then {
+        0         Do Construct@BoundFunction(F,Args);
+                } else {
+      212         Do Construct@Default(F,Args);
+                }
+                END
+                when #@IsStandardBuiltinObject(F) ==K false // TODO: could it be made in uniform way?
+           
+           syntax KItem /* Oid */ ::= "Construct@Default" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
+     1658  rule <k> Construct@Default(F:Oid, Args:Vals) => Call(F,@o(!N),Args) ~> @ReturnConstructedObject(@o(!N)) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+                            "Prototype"  |-> #@ResolvePrototype(Prototype)
+                            "Class"      |-> "Object"
+                            "Extensible" |-> true
+                          </internalProperties>
+                        </obj>)
+                  <obj>
+                    <oid> F </oid>
+                    <properties>
+                      "prototype" |-> @desc("Value" |-> Prototype:Val _)
+                      _:Map
+                    </properties>
+                    _
+                  </obj>
+                  _
+                </objs>
+           // TODO: Check correctness of steps 5-7
+           
+           syntax Oid ::= "#@ResolvePrototype" "(" Val ")" [function]
+        0  rule #@ResolvePrototype(Prototype:Oid) => Prototype
+       22  rule #@ResolvePrototype(Prototype:Val) => @ObjectProtoOid when notBool(#@IsOid(Prototype))
+           
+           // Return the newly created object, but if the previous construct call returns another object, then use it.
+           // NOTE: (From p.31 of the book, Good Parts): If the function was invoked with the new prefix and the return value is not an object, then this (the new object) is returned instaed.
+           syntax KItem /* Oid */ ::= "@ReturnConstructedObject" "(" Oid ")" // nostrict
+       33  rule O:Oid ~> @ReturnConstructedObject(_    ) => O
+       63  rule V:Val ~> @ReturnConstructedObject(O:Oid) => O when notBool(#@IsOid(V))
+           
+           // 13.2.3 The [[ThrowTypeError]] Function Object
+           
+           // TODO: check if this simple version works correctly
+       60  rule Call(@("ThrowTypeError"), _:Val, _:Vals) => @Throw(@TypeError("ThrowTypeError",""))
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 14 Program
+           //////////////////////////////////////////////////////////////////////////////
+           
+   482091  context %seq(HOLE, _)
+   473251  context %seq(_:CompletionTypeNormal, HOLE)
+   157078  rule %seq(   _:CompletionTypeNormal, Tail:CompletionType) => Tail
+      323  rule %seq(Head:CompletionTypeReturn,    _:Stmt          ) => Head
+     1900  rule %seq(Head:CompletionTypeGoto,   Tail:Stmt          ) => @ResolveGoto(Head, Tail)
+           
+           syntax KItem ::= "@ResolveGoto" "(" K /* CompletionTypeGoto */ "," Stmt ")" [seqstrict(1)]
+      828  rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => @Normal             when #@IsMatch(CT,S)  ==K true
+      612  rule @ResolveGoto(CT:CompletionTypeGoto, S:Stmt         ) => CT                  when #@IsMatch(CT,S)  ==K false
+           //
+        0  rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => S2                  when #@IsMatch(CT,S1) ==K true
+      466  rule @ResolveGoto(CT:CompletionTypeGoto, %seq(S1,S2)) => @ResolveGoto(CT,S2) when #@IsMatch(CT,S1) ==K false
+           //
+       22  rule @ResolveGoto(CT:CompletionTypeGoto, %seq(%seq(S1,S2),S3)) => @ResolveGoto(CT, %seq(S1,%seq(S2,S3)))
+           
+           syntax Bool ::= "#@IsMatch" "(" CompletionTypeGoto "," Stmt ")" [function]
+        0  rule #@IsMatch(@Break(L:Var),    %labelBreak(L:Var ))    => true
+        0  rule #@IsMatch(@Break(""   ),    %labelBreak(_     ))    => true
+        0  rule #@IsMatch(@Break(L:Var),    %labelBreak(L':Var))    => false when L =/=K "" andBool L =/=K L'
+        0  rule #@IsMatch(@Break(_    ),    S                  )    => false when getKLabel(S) =/=KLabel '%labelBreak`(_`)
+                                                                         andBool getKLabel(S) =/=KLabel '%seq`(_`,_`)
+        0  rule #@IsMatch(@Continue(L:Var), %labelContinue(L:Var )) => true
+        0  rule #@IsMatch(@Continue(""   ), %labelContinue(_     )) => true
+        0  rule #@IsMatch(@Continue(L:Var), %labelContinue(L':Var)) => false when L =/=K "" andBool L =/=K L' 
+        0  rule #@IsMatch(@Continue(_    ), S                     ) => false when getKLabel(S) =/=KLabel '%labelContinue`(_`)
+                                                                         andBool getKLabel(S) =/=KLabel '%seq`(_`,_`)
+           
+           // NOTE: @FunctionDeclaration is not executed here, but at 10.5 Declaration Binding Instantiation
+   105258  rule %fdecl(_,_,_) => %emptyStmt
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 14.1 Directive Prologues and the Use Strict Directive
+           
+           syntax Bool ::= "#@IsStrict" "(" Stmt ")" [function]
+        0  rule #@IsStrict(S:Stmt) => #@IsStrictAux(#@SkipPrelude(S))
+           
+           syntax Bool ::= "#@IsStrictAux" "(" Stmt ")" [function]
+        0  rule #@IsStrictAux(     %exp(%con("USE_STRICT"))   ) => true
+        0  rule #@IsStrictAux(%seq(%exp(%con("USE_STRICT")),_)) => true
+        0  rule #@IsStrictAux(%seq(%exp(%con(C:String    )),S)) => #@IsStrictAux(S) when C =/=String "USE_STRICT"
+        0  rule #@IsStrictAux(_) => false [owise]
+           
+           syntax Stmt ::= "#@SkipPrelude" "(" Stmt ")" [function]
+        0  rule #@SkipPrelude(%seq(%exp(%con("BEGIN PRELUDE")),S)) => #@SkipPreludeAux(S)
+        0  rule #@SkipPrelude(%seq(S1,S2)) => %seq(S1,S2) when S1 =/=K %exp(%con("BEGIN PRELUDE"))
+        0  rule #@SkipPrelude(S) => S when getKLabel(S) =/=KLabel '%seq`(_`,_`)
+           //
+           syntax Stmt ::= "#@SkipPreludeAux" "(" Stmt ")" [function]
+        0  rule #@SkipPreludeAux(%seq(%exp(%con("END PRELUDE")),S)) => S
+        0  rule #@SkipPreludeAux(%seq(S1,S2)) => #@SkipPreludeAux(S2) when S1 =/=K %exp(%con("END PRELUDE"))
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15 Standard Built-in ECMAScript Objects
+           //////////////////////////////////////////////////////////////////////////////
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15 Standard Built-in ECMAScript Objects
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax Bool ::= "#@IsStandardBuiltinObject" "(" Oid ")" [function]
+        0  rule #@IsStandardBuiltinObject(O:Oid) => (O ==K @ObjectOid        )
+                                            orBool (O ==K @FunctionOid      ) orBool (O ==K @FunctionProtoOid )
+                                            orBool (O ==K @ArrayOid         )
+                                            orBool (O ==K @StringOid        )
+                                            orBool (O ==K @BooleanOid       )
+                                            orBool (O ==K @NumberOid        )
+                                            orBool (O ==K @DateOid          )
+                                            orBool (O ==K @RegExpOid        )
+                                            orBool (O ==K @ErrorOid         )
+                                            //
+                                            orBool (O ==K @EvalErrorOid     )
+                                            orBool (O ==K @RangeErrorOid    )
+                                            orBool (O ==K @ReferenceErrorOid)
+                                            orBool (O ==K @SyntaxErrorOid   )
+                                            orBool (O ==K @TypeErrorOid     )
+                                            orBool (O ==K @URIErrorOid      )
+                                            //
+                                            orBool (O ==K @MathOid          )
+                                            orBool (O ==K @JSONOid          )
+           
+           syntax Val ::= "@" "(" String ")"
+           
+           // NOTE: It should ignore additional arguements given for builtin functions
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Parse
+           
+           syntax KItem /* Stmt or Throw */ ::= "#@Parse" "(" String ")" [function]
+        0  rule #@Parse(P:String) => #@ParseAux(#external(#@PWD +String "/jsmassage.sh\x01" +String P),P)
+           //
+           syntax KItem /* Stmt or Throw */ ::= "#@ParseAux" "(" K /* Program */ "," K /* String */ ")" [function]
+        0  rule #@ParseAux(P:String, _) => #@ParsePgm(P)
+        0  rule #@ParseAux(#externalError(E:String), P:String) => @Throw(@SyntaxError("#external: " +String E, P))
+           
+           syntax KItem /* Stmt or Throw */ ::= "#@ParsePgm" "(" String ")" [function]
+        0  rule #@ParsePgm(P:String) => #@ParsePgmAux(#parse(P,"Program"),P)
+           //
+           syntax KItem /* Stmt or Throw */ ::= "#@ParsePgmAux" "(" K /* Program */ "," K /* String */ ")" [function]
+        0  rule #@ParsePgmAux(P:SourceElements, _) => ^SourceElements(P)
+        0  rule #@ParsePgmAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Program",P))
+           //rule #@ParsePgmAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
+           
+           syntax KItem /* Exps or Throw */ ::= "#@ParseParams" "(" String ")" [function]
+        0  rule #@ParseParams(P:String) => #@ParseParamsAux(#parse(P,"Parameters"),P)
+           //
+           syntax KItem /* Exps or Throw */ ::= "#@ParseParamsAux" "(" K /* Parameters */ "," K /* String */ ")" [function]
+        0  rule #@ParseParamsAux(P:Parameters, _) => ^Parameters(P)
+        0  rule #@ParseParamsAux(#noparse, P:String) => @Throw(@SyntaxError("#parse Parameters",P))
+           //rule #@ParseParamsAux(K /* #noparse */, P:String) => @Throw(@SyntaxError("#parse",P)) when isSourceElements(K) =/=K true
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.1 The Global Object
+           
+           // 15.1.2.1 eval (x)
+           
+     1860  rule %call(%var("eval"), Es:Exps) => Call(@("eval_d"), Undefined, Es)
+           
+        5  rule Call(@("eval_d"), _, @Cons(V:Val,     _:Vals)) => V when #@IsString(V) ==K false
+        0  rule Call(@("eval_i"), _, @Cons(V:Val,     _:Vals)) => V when #@IsString(V) ==K false
+           //
+     1850  rule Call(@("eval_d"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), true)
+       28  rule Call(@("eval_i"), _, @Cons(Pgm:String,_:Vals)) => @Eval(#@Parse(Pgm), false)
+           
+           syntax KItem ::= "@Eval" "(" K /* Stmt or Throw */ "," K /* Bool */ ")" [seqstrict(2)]
+     1834  rule @Eval(Code:Stmt, Direct:Bool) => @EnterEvalCode(Code,Direct) ~> Code ~> @ExitEvalCode
+       66  rule @Eval(@Throw(@SyntaxError(E:String,P:String)), _) => @Throw(@SyntaxError(E,P))
+           //rule @Eval(@Throw(@SyntaxError("#parse",P:String)), _) => @Throw(@SyntaxError("#parse",P))
+           
+           syntax KItem ::= "@ExitEvalCode"
+     1416  rule <k> @Normal ~> @ExitEvalCode => @RestoreRunningCtx ~> V ... </k>
+                <lastNonEmptyValue> V:Val </lastNonEmptyValue>
+           
+           syntax Bool ::= "#@IsEval" "(" Exp ")" [function]
+        0  rule #@IsEval(E:Exp) => E ==K %var("eval") // TODO: this is quick fix. any better way?
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.2 Object Objects
+           
+           // 15.2.1.1 Object ( [ value ] )
+           
+      148  rule Call(@ObjectOid, _, Vs:Vals) => @CallObject(Vs)
+           
+           syntax KItem /* Oid */ ::= "@CallObject" "(" K /* Vals */ ")" [seqstrict]
+      142  rule @CallObject(@Cons(V:Val,     _:Vals)) => ToObject(V) when V =/=K @NullVal andBool V =/=K Undefined
+        2  rule @CallObject(@Cons(@NullVal,  _:Vals)) => @CreateObject
+        2  rule @CallObject(@Cons(Undefined,_:Vals)) => @CreateObject
+        2  rule @CallObject(                 @Nil   ) => @CreateObject
+           
+           // 15.2.2.1 new Object ( [ value ] )
+           
+      302  rule Construct(@ObjectOid, Vs:Vals) => @NewObject(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewObject" "(" K /* Vals */ ")" [seqstrict]
+        2  rule @NewObject(@Cons(Undefined,_:Vals)) => @CreateObject
+        2  rule @NewObject(@Cons(@NullVal,  _:Vals)) => @CreateObject
+       16  rule @NewObject(@Cons(B:Bool,    _:Vals)) => ToObject(B)
+        2  rule @NewObject(@Cons(S:String,  _:Vals)) => ToObject(S)
+        8  rule @NewObject(@Cons(N:Number,  _:Vals)) => ToObject(N)
+        1  rule @NewObject(@Cons(O:Oid,     _:Vals)) => O
+      270  rule @NewObject(                 @Nil   ) => @CreateObject
+           
+           syntax KItem /* Oid */ ::= "@CreateObject"
+   237183  rule <k> @CreateObject => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+      436                   "Prototype"  |-> @ObjectProtoOid // Object prototype object 15.2.4
+                            "Class"      |-> "Object"
+                            "Extensible" |-> true
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           // 15.2.3.4 Object.getOwnPropertyNames ( O )
+           // TODO:STD: consider note: when O is string object
+           
+           syntax KItem ::= "@ObjectGetOwnPropertyNames" "(" K /* Oid */ ")" [seqstrict]
+        9  rule <k> @ObjectGetOwnPropertyNames(O:Oid) => @MakeArray(@Set2Vals(keys(Prop))) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties> Prop:Map </properties>
+                  _
+                </obj>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.3 Function Objects
+           
+           // 15.3.1.1 Function (p1, p2, ... , pn, body)
+           
+     5472  rule Call(@FunctionOid, _, Vs:Vals) => @NewFunction(Vs)
+           
+           // 15.3.2.1 new Function (p1, p2, ... , pn, body)
+           
+       72  rule Construct(@FunctionOid, Vs:Vals) => @NewFunction(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewFunction" "(" K /* Vals */ ")" [seqstrict]
+       16  rule @NewFunction(             @Nil      ) => @CreateFunction(%nil, %emptyStmt)
+           // NOTE: We have two rules because of preventing a leading comma.
+     5512  rule @NewFunction(             Args:Vals ) => @NewFunctionAux("",            Args) when #@LengthVals(Args) ==Int 1
+       24  rule @NewFunction(@Cons(P1:Val,Args:Vals)) => @NewFunctionAux(ToString(P1), Args) when Args =/=K @Nil
+           
+       16  syntax KItem /* Oid */ ::= "@NewFunctionAux" "(" K /* String */ "," K /* Vals */ ")" [seqstrict]
+           syntax Id ::= "$p" | "$body"
+        0  rule @NewFunctionAux(Params:String, @Cons(P:Val,Args:Vals))
+             => BEGIN
+        0       Let $p = ToString(P);
+        0       Do @NewFunctionAux(@Concatnation(Params, @Concatnation(",", $p)), Args);
+                END
+                when Args =/=K @Nil
+     2764  rule @NewFunctionAux(Params:String, @Cons(Body:Val,@Nil))
+     2764    => BEGIN
+     8292       Let $body = ToString(Body);
+     5528       Do @NewFunctionAuxAux(Params, $body);
+                END
+     5528  syntax KItem /* Oid */ ::= "@NewFunctionAuxAux" "(" K /* String */ "," K /* String */ ")" [seqstrict]
+     2764  rule @NewFunctionAuxAux(Params:String, Body:String)
+     2764    => @CreateFunction(#@ParseParams(Params), #@Parse(Body))
+           
+           syntax KItem /* Oid */ ::= "@CreateFunction" "(" Exps "," Stmt ")"
+     2772  rule <k> @CreateFunction(Params:Exps,FunBody:Stmt)
+     2772        => BEGIN
+     5544           Let $strict = #@IsStrict(FunBody); // 10.1.1 Strict Mode Code, Case 4
+     8316           Do @CheckEarlyErrors($strict, FunBody);
+     5536           Do @CreateFunctionObject(Params, FunBody, E, $strict);
+                    END
+                ... </k>
+                <ctx>
+                  <running>
+                    <lexicalEnv> E:Eid </lexicalEnv>
+                    _
+                  </running>
+                  _
+                </ctx>
+           
+           // 15.3.4 Properties of the Function Prototype Object
+           // p.118 The Function prototype object is itself a Function object (its [[Class]] is "Function") that, when invoked, accepts any arguments and returns undefined.
+           
+        3  rule Call(@FunctionProtoOid, _, _:Vals) => Undefined
+           
+           // 15.3.4.2 Function.prototype.toString ( )
+           
+           // TODO:STD: ad-hoc, temorary implementation
+           syntax KItem ::= "@FunctionPrototypeToString" "(" K /* Oid */ ")" [seqstrict]
+       96  rule @FunctionPrototypeToString(F:Oid) => "[function ...]"
+           
+           // 15.3.4.3 Function.prototype.apply (thisArg, argArray)
+           
+           syntax KItem ::= "@FunctionPrototypeApply" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
+           syntax Id ::= "$n" | "$argList"
+      282  rule @FunctionPrototypeApply(Func:Val, ThisArg:Val, ArgArray:Val)
+      282    => BEGIN
+      564       If IsCallable(Func) = false then {
+        0         Do @Throw(@TypeError("Function.prototype.apply: func is not callable",Func));
+                } else {
+     1128         If @OrBool(@EqVal(ArgArray,@NullVal), @EqVal(ArgArray,Undefined)) = true then {
+       42           Do Call(Func,ThisArg,@Nil);
+                  } else {
+      522           If @IsOid(ArgArray) = true then {
+      780             Do Call(Func, ThisArg, @Array2List(ArgArray));
+                    } else {
+        3             Do @Throw(@TypeError("Function.prototype.apply: argArray is not an object",Func));
+                    }
+                  }
+                }
+                END
+           
+       40  syntax KItem /* Vals */ ::= "@Array2List" "(" K /* Oid */ ")" [seqstrict]
+           //syntax Id ::= "$n"
+      280  rule @Array2List(ArgArray:Oid)
+      280    => BEGIN
+      840       Let $len = Get(ArgArray,"length");
+      840       Let $n = ToUint32($len);
+     1694       Do @Array2ListAux(ArgArray, @Bop(%minus, $n, 1), @Nil);
+                END
+           //
+      566  syntax KItem /* Vals */ ::= "@Array2ListAux" "(" K /* Oid */ "," K /* Int */ "," K /* Vals */ ")" [seqstrict]
+           syntax Id ::= "$v"
+      283  rule @Array2ListAux(ArgArray:Oid, N:Int, Args:Vals)
+      283    => BEGIN
+      283       If N <Int 0 = true then {
+      280         Return Args;
+                } else {
+       12         Let $v = Get(ArgArray, ToString(N));
+        9         Do @Array2ListAux(ArgArray, N -Int 1, @MakeCons($v, Args));
+                }
+                END
+           
+           // 15.3.4.5 Function.prototype.bind (thisArg [, arg1 [, arg2, ...]])
+           
+           syntax KItem ::= "@FunctionPrototypeBind" "(" K /* Val */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
+           syntax Id ::= "$f"
+       22  rule @FunctionPrototypeBind(Func:Val, ThisArg:Val, ArgArray:Val)
+       22    => BEGIN
+       44       If IsCallable(Func) = false then {
+        0         Do @Throw(@TypeError("Function.prototype.bind",Func));
+                } else {
+       66         Let $f = @CreateObject;
+       66         Do SetInternalProperty($f, "TargetFunction", Func);
+       66         Do SetInternalProperty($f, "BoundThis", ThisArg);
+       66         Do SetInternalProperty($f, "BoundArgs", ArgArray);
+       66         Do SetInternalProperty($f, "Class", "Function");
+       66         Do SetInternalProperty($f, "Prototype", @FunctionProtoOid);
+                  // TODO:STD: step 15-17
+       74         DoI DefineOwnProperty($f, "caller",    @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+       74         DoI DefineOwnProperty($f, "arguments", @desc("Get" |-> @("ThrowTypeError") "Set" |-> @("ThrowTypeError") "Enumerable" |-> false "Configurable" |-> false), false);
+       22         Return $f;
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsBoundFunction" "(" K /* Oid */ ")" [seqstrict]
+    13578  rule <k> @IsBoundFunction(O:Oid) => "BoundArgs" in keys(Prop) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties> Prop:Map </internalProperties>
+                  _
+                </obj>
+           
+           // 15.3.4.5.1 [[Call]]
+           
+           syntax KItem /* Val */ ::= "Call@BoundFunction" "(" K /* Oid */ "," K /* Val */ "," K /* Vals */ ")" [seqstrict]
+           syntax Id ::= "$boundArgs" | "$boundThis" | "$target" | "$args"
+       20  rule Call@BoundFunction(F:Oid, This:Val, Args:Vals)
+       20    => BEGIN
+       60       Let $target    =             GetInternalProperty(F, "TargetFunction");
+       60       Let $boundThis =             GetInternalProperty(F, "BoundThis");
+       80       Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
+       60       Let $args = @AppendVals($boundArgs, Args);
+       40       Return Call@Default($target, $boundThis, $args);
+                END
+           
+           // 15.3.4.5.2 [[Construct]]
+           
+           // TODO:STD: step 2
+           syntax KItem /* Oid */ ::= "Construct@BoundFunction" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
+        0  rule Construct@BoundFunction(F:Oid, Args:Vals)
+             => BEGIN
+        0       Let $target    =             GetInternalProperty(F, "TargetFunction");
+        0       Let $boundArgs = @Array2List(GetInternalProperty(F, "BoundArgs"));
+        0       Let $args = @AppendVals($boundArgs, Args);
+        0       Return Construct@Default($target, $args);
+                END
+           
+           // 15.3.4.5.3 [[HasInstance]] (V)
+           
+           // TODO:STD: step 2
+           syntax KItem /* Bool */ ::= "HasInstance@BoundFunction" "(" K /* Oid */ "," K /* Val */ ")" [seqstrict]
+        0  rule HasInstance@BoundFunction(F:Oid, V:Val)
+             => BEGIN
+        0       Let $target = GetInternalProperty(F, "TargetFunction");
+        0       Return HasInstance@Default($target, V);
+                END
+           
+           // 15.3.5 Properties of Function Instances
+           
+           // 15.3.5.3 [[HasInstance]] (V)
+           
+           syntax KItem /* Bool */ ::= "HasInstance" "(" K "," K ")" [seqstrict]
+      631  rule HasInstance(F:Oid, V:Val)
+      631    => BEGIN
+     1262       If @IsBoundFunction(F) = true then {
+        0         Do HasInstance@BoundFunction(F,V);
+                } else {
+     1262         Do HasInstance@Default(F,V);
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "HasInstance@Default" "(" K "," K ")" [seqstrict]
+           syntax Id ::= "$o"
+      631  rule HasInstance@Default(F:Oid,V:Val)
+      631    => BEGIN
+     1262       If @IsOid(V) = true then {
+     1875         Let $o = Get(F,"prototype");
+     1250         If @IsOid($o) = true then {
+     1248           Return @IsPrototypeOf($o, V);
+                  } else {
+        3           Do @Throw(@TypeError("HasInstance@Default",F));
+                  }
+                } else {
+        6         Return false;
+                }
+                END
+           
+           // TODO: Duplicated: Object.isPrototypeOf
+     1248  syntax KItem /* Bool */ ::= "@IsPrototypeOf" "(" K /* Oid */ "," K /* Oid */ ")" [seqstrict]
+      624  rule @IsPrototypeOf(O:Oid,V:Oid)
+     1248    => @IsPrototypeOfAux(O,GetInternalProperty(V,"Prototype"))
+           
+     1334  syntax KItem /* Bool */ ::= "@IsPrototypeOfAux" "(" K "," K ")" [seqstrict]
+      667  rule @IsPrototypeOfAux(O:Oid,V:Oid)
+      667    => BEGIN
+      667       If V = @NullOid then {
+       17         Return false;
+                } else {
+      650         If O = V then {
+      607           Return true;
+                  } else {
+      129           Do @IsPrototypeOfAux(O,GetInternalProperty(V,"Prototype"));
+                  }
+                }
+                END
+           
+           // 15.3.5.4 [[Get]] (P)
+           // TODO:STD:
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.4 Array Objects
+           
+           // 15.4.1.1 Array ( [ item1 [ , item2 [ , ... ] ] ] )
+           
+        2  rule Call(@ArrayOid, _, Vs:Vals) => @NewArray(Vs)
+           
+           // 15.4.2.1 new Array ( [ item0 [ , item1 [ , ... ] ] ] )
+           
+      104  rule Construct(@ArrayOid, Vs:Vals) => @NewArray(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewArray" "(" K /* Vals */ ")" [seqstrict]
+      102  rule @NewArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs) when #@LengthVals(Vs) =/=Int 1
+        0  rule @NewArray(@Cons(V:Val,@Nil)) => @CreateArray(1, @Cons(V:Val,@Nil)) when notBool(isInt(V) ==K true)
+           
+           syntax KItem /* Oid */ ::= "@CreateArray" "(" K /* Int */ "," K /* Vals */ ")" [seqstrict]
+    31442  rule <k> @CreateArray(Len:Int, Vs:Vals) => @CreateArray@InsertElements(@o(!N),Vs,0) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties>
+     8668                   "length" |-> @desc("Value" |-> Len "Writable" |-> true "Enumerable" |-> false "Configurable" |-> false) // 15.4.5.2 length
+                          </properties>
+                          <internalProperties>
+     3567                   "Prototype"      |-> @ArrayProtoOid
+                            "Class"          |-> "Array"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           syntax KItem /* Oid */ ::= "@CreateArray@InsertElements" "(" K /* Oid */ "," K /* Vals */ "," K /* Int */ ")" [seqstrict]
+      384  rule     @CreateArray@InsertElements(O:Oid, @Nil, _) => O
+      388  rule <k> @CreateArray@InsertElements(O:Oid, @Cons(V:Val,Vs:Vals), I:Int) => @CreateArray@InsertElements(O, Vs, I +Int 1) ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <properties>
+     2384           (.Map => Int2String(I) |-> @desc("Value" |-> V "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true))
+                    _:Map
+                  </properties>
+                  _
+                </obj>
+           
+           // 15.4.2.2 new Array (len)
+           // TODO:STD: more correctly: ToUint32(len) = len, o.w. throw RangeError
+           
+        4  rule @NewArray(@Cons(Len:Int,@Nil)) => @CreateArray(Len, @Nil)
+           
+           // 15.4.X make Array
+           // NOTE: @MakeArray differs from @NewArray in that it simply creates array object given arguments instead of distinguishing the single argument case
+           
+      662  syntax KItem /* Oid */ ::= "@MakeArray" "(" K /* Vals */ ")" [seqstrict]
+      662  rule @MakeArray(Vs:Vals) => @CreateArray(#@LengthVals(Vs), Vs)
+           
+           // 15.4.5 Properties of Array Instances
+           
+           // TODO: Duplicated: Array.isArray
+           syntax KItem /* Bool */ ::= "@IsArrayObject" "(" K /* Oid */ ")" [seqstrict]
+   221542  rule <k> @IsArrayObject(O:Oid) => Class ==String "Array" ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    "Class" |-> Class:String
+                    _:Map
+                  </internalProperties>
+                  _
+                </obj>
+           
+           // 15.4.5.1 [[DefineOwnProperty]] ( P, Desc, Throw )
+           
+           // Intuitive algorithm
+           //
+           // If P is not array index, then same with the normal DefineOwnProperty.
+           //
+           // If P is an array index and P < length, then the same with the normal one.
+           // If P is an array index and P >= length, then add the element and increase length to P + 1.
+           //
+           // If P is 'length' and new length value >= length, then the same with the normal one.
+           // If P is 'length' and new length value < length, then delete all elements whose index >= new length.
+           //   If some elements cannot be deleted, then set the new length value to the largest element's index + 1.
+           
+           syntax KItem /* Bool */ ::= "DefineOwnProperty@Array" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ ")" [seqstrict]
+           syntax Id ::= "$oldLenDesc" | "$oldLen" | "$newLenDesc" | "$newLen" | "$succeeded" | "$succeeded2"
+     1248  rule DefineOwnProperty@Array(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool)
+     1248    => BEGIN
+                // Step 1,2
+     3744       Let $oldLenDesc = GetOwnProperty(O,"length");
+     3744       Let $oldLen = $oldLenDesc."Value";
+                // Step 3
+     1248       If P = "length" then {
+                  // Step 3.a
+       26         If Desc."Value" = Undefined then { // TODO:STD: check if 'absent field' = 'undefined'.
+       14           Do DefineOwnProperty@Default(O,P,Desc,Throw);
+                  } else {
+                    // Step 3.b
+                  //Let $newLenDesc = Desc;
+                    // Step 3.c
+       24           Let $newLen = ToUint32(Desc."Value");
+       18           If $newLen = ToNumber(Desc."Value") then {
+                      // Step 3.e
+       18             Let $newLenDesc = @AddDesc("Value", $newLen, Desc);
+                      // Step 3.f
+       12             If @Bop(%ge, $newLen, $oldLen) = true then {
+        6               Do DefineOwnProperty@Default(O, "length", $newLenDesc, Throw);
+                      } else {
+                        // Step 3.g
+        9               If @EqVal($oldLenDesc."Writable",false) = true then {
+        2                 Return Reject(Throw, "DefineOwnProperty@Array cannot increase length", DefineOwnProperty@Array(O,P,Desc,Throw));
+                        } else {
+                          // TODO:STD: check if step 3.h, 3.i, and 3.m are useless?
+                          // Step 3.j
+        6                 Let $succeeded = DefineOwnProperty@Default(O, "length", $newLenDesc, Throw);
+                          // Step 3.k
+        2                 If $succeeded = false then {
+        0                   Return false;
+                          } else {
+                            // Step 3.l, 3.n
+        4                   Do DefineOwnProperty@Array@DeleteOthers(O,P,Desc,Throw,$newLenDesc,$newLen,$oldLen);
+                          }
+                        }
+                      }
+                    } else {
+                      // Step 3.d
+        0             Do @Throw(@RangeError("DefineOwnProperty@Array index over int32", DefineOwnProperty@Array(O,P,Desc,Throw)));
+                    }
+                  }
+                } else {
+                  // Step 4
+     2470         If @IsArrayIndex(P) = true then {
+                    // Step 4.a
+     3684           Let $index = ToUint32(P);
+                    // Step 4.b
+     6140           If @AndBool(@Bop(%ge, $index, $oldLen), @EqVal($oldLenDesc."Writable",false)) = true then {
+        2             Return Reject(Throw, "DefineOwnProperty@Array cannot increase length", DefineOwnProperty@Array(O,P,Desc,Throw));
+                    } else {
+                      // Step 4.c
+     3681             Let $succeeded2 = DefineOwnProperty@Default(O,P,Desc,false);
+                      // Step 4.d
+     1227             If $succeeded2 = false then {
+        4               Return Reject(Throw, "DefineOwnProperty@Array cannot assign", DefineOwnProperty@Array(O,P,Desc,Throw));
+                      } else {
+                        // Step 4.e
+     2450               If @Bop(%ge, $index, $oldLen) = true then {
+      384                 Do DefineOwnProperty@Default(O, "length", @AddDesc("Value", @Bop(%plus, $index, 1), $oldLenDesc), false); // NOTE: should return true
+                        } else {
+                          // Step 4.f
+     1129                 Return true;
+                        }
+                      }
+                    }
+                  } else {
+                    // Step 5
+       14           Do DefineOwnProperty@Default(O,P,Desc,Throw);
+                  }
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsArrayIndex" "(" K /* Var */ ")" [seqstrict]
+     4940  rule @IsArrayIndex(P:Var) => @EqVal(ToString(ToUint32(P)), P) /* TODO:STD: and ToUint32(P) =/=K 2^32 - 1 */
+           
+       16  syntax KItem /* Bool */ ::= "DefineOwnProperty@Array@DeleteOthers" "(" K /* Oid */ "," K /* Var */ "," K /* PropertyDescriptor */ "," K /* Bool */ "," K /* PropertyDescriptor */ "," K /* Val */ "," K /* Val */ ")" [seqstrict]
+           syntax Id ::= "$deleteSucceeded"
+        4  rule DefineOwnProperty@Array@DeleteOthers(O:Oid,P:Var,Desc:PropertyDescriptor,Throw:Bool,NewLenDesc:PropertyDescriptor,NewLen:Val,OldLen:Val)
+        4    => BEGIN
+        8       If %bop(%lt, NewLen, OldLen) = true then {
+                  // Step 3.l.i
+        9         Let $oldLen = %bop(%minus, OldLen, 1);
+                  // Step 3.l.ii
+       12         Let $deleteSucceeded = Delete(O, ToString($oldLen), false);
+                  // Step 3.l.iii
+        3         If $deleteSucceeded = false then {
+        4           Let $newLenDesc = @AddDesc("Value", @Bop(%plus, $oldLen, 1), NewLenDesc);
+        3           DoI DefineOwnProperty@Default(O, "length", $newLenDesc, false);
+        2           Return Reject(Throw, "DefineOwnProperty@Array cannot delete others", DefineOwnProperty@Array(O,P,Desc,Throw));
+                  } else {
+        4           Do DefineOwnProperty@Array@DeleteOthers(O, P, Desc, Throw, NewLenDesc, NewLen, $oldLen);
+                  }
+                } else {
+                  // Step 3.n
+        1         Return true;
+                }
+                END
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.5 String Objects
+           
+           // 15.5.1.1 String ( [ value ] )
+           
+      306  rule Call(@StringOid, _, Vs:Vals) => @CallString(Vs)
+           
+           syntax KItem /* String */ ::= "@CallString" "(" K /* Vals */ ")" [seqstrict]
+      304  rule @CallString(@Cons(V:Val,_:Vals)) => ToString(V)
+        1  rule @CallString(            @Nil   ) => ""
+           
+           // 15.5.2.1 new String ( [ value ] )
+           
+     1064  rule Construct(@StringOid, Vs:Vals) => @NewString(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewString" "(" K /* Vals */ ")" [seqstrict]
+     2409  rule @NewString(@Cons(V:Val,_:Vals)) => @CreateString(ToString(V))
+       12  rule @NewString(            @Nil   ) => @CreateString("")
+           
+     1606  syntax KItem /* Oid */ ::= "@CreateString" "(" K /* String */ ")" [seqstrict]
+     8186  rule <k> @CreateString(S:String) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties>
+      585                   "length" |-> @desc("Value" |-> lengthString(S) "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false) // 15.5.5.1 length
+                          </properties>
+                          <internalProperties>
+        4                   "Prototype"      |-> @StringProtoOid
+                            "Class"          |-> "String"
+                            "Extensible"     |-> true
+                            "PrimitiveValue" |-> S
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           // 15.5.5 Properties of String Instances
+           
+           syntax KItem /* Bool */ ::= "@IsStringObject" "(" K /* Oid */ ")" [seqstrict]
+  1012501  rule <k> @IsStringObject(O:Oid) => Class ==String "String" ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    "Class" |-> Class:String
+                    _:Map
+                  </internalProperties>
+                  _
+                </obj>
+           
+           // 15.5.5.2 [[GetOwnProperty]] ( P )
+           
+           syntax KItem /* Val */ ::= "GetOwnProperty@String" "(" K /* Oid */ "," K /* Var */ ")" [seqstrict]
+           syntax Id ::= "$index" | "$resultStr"
+     2187  rule GetOwnProperty@String(O:Oid,P:Var)
+     2187    => BEGIN
+     6561       Let $desc = GetOwnProperty@Default(O,P);
+     2187       If $desc = Undefined then {
+     2634         If ToString(ToInteger(P)) = P then { // TODO:STD: it should have been 'ToString(abs(ToInteger(P)))'
+       24           Let $str = GetInternalProperty(O,"PrimitiveValue");
+       24           Let $index = ToInteger(P);
+       24           Let $len = @LengthString($str);
+                  //If $len <=Int $index = true then {
+       32           If @OrBool(@Bop(%lt,$index,0), @Bop(%ge,$index,$len)) = true then {
+       33             Return Undefined;
+                    } else {
+        3             Let $resultStr = @CharAt($str, $index);
+        2             Return @GenDesc("Value", $resultStr, "Enumerable", true, "Writable", false, "Configurable", false);
+                    }
+                  } else {
+     4350           Return Undefined;
+                  }
+                } else {
+     1309         Return $desc;
+                }
+                END
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.6 Boolean Objects
+           
+           // 15.6.1.1 Boolean (value)
+           
+       82  rule Call(@BooleanOid, _, Vs:Vals) => @CallBoolean(Vs)
+           
+           syntax KItem /* Boolean */ ::= "@CallBoolean" "(" K /* Vals */ ")" [seqstrict]
+       80  rule @CallBoolean(@Cons(V:Val,_:Vals)) => ToBoolean(V)
+        1  rule @CallBoolean(            @Nil   ) => false
+           
+           // 15.6.2.1 new Boolean (value)
+           
+     1080  rule Construct(@BooleanOid, Vs:Vals) => @NewBoolean(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewBoolean" "(" K /* Vals */ ")" [seqstrict]
+     1677  rule @NewBoolean(@Cons(V:Val,_:Vals)) => @CreateBoolean(ToBoolean(V))
+        6  rule @NewBoolean(            @Nil   ) => @CreateBoolean(false) // TODO: Report: This is not specified in standard.
+           
+     1118  syntax KItem /* Oid */ ::= "@CreateBoolean" "(" K /* Bool */ ")" [seqstrict]
+     5251  rule <k> @CreateBoolean(B:Bool) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+        1                   "Prototype"      |-> @BooleanProtoOid
+                            "Class"          |-> "Boolean"
+                            "Extensible"     |-> true
+                            "PrimitiveValue" |-> B
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.7 Number Objects
+           
+           // 15.7.1.1 Number ( [ value ] )
+           
+      632  rule Call(@NumberOid, _, Vs:Vals) => @CallNumber(Vs)
+           
+           syntax KItem /* Number */ ::= "@CallNumber" "(" K /* Vals */ ")" [seqstrict]
+      612  rule @CallNumber(@Cons(V:Val,_:Vals)) => ToNumber(V)
+       10  rule @CallNumber(            @Nil   ) => 0
+           
+           // 15.7.2.1 new Number ( [ value ] )
+           
+     1200  rule Construct(@NumberOid, Vs:Vals) => @NewNumber(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewNumber" "(" K /* Val */ ")" [seqstrict]
+     2043  rule @NewNumber(@Cons(V:Val,_:Vals)) => @CreateNumber(ToNumber(V))
+       62  rule @NewNumber(            @Nil   ) => @CreateNumber(0)
+           
+     1362  syntax KItem /* Oid */ ::= "@CreateNumber" "(" K /* Bool */ ")" [seqstrict]
+     5978  rule <k> @CreateNumber(V:Number) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+       31                   "Prototype"      |-> @NumberProtoOid
+                            "Class"          |-> "Number"
+                            "Extensible"     |-> true
+                            "PrimitiveValue" |-> V
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           // 15.7.4.5 Number.prototype.toFixed (fractionDigits)
+           
+        6  syntax KItem /* String */ ::= "@NumberPrototypeToFixed" "(" K /* Oid */ "," K /* Int */ ")" [seqstrict]
+        1  rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01new Number(" +String Int2String(I) +String ").toFixed(" +String Int2String(D) +String ")") ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    "PrimitiveValue" |-> I:Int
+                    _
+                  </internalProperties>
+                  _
+                </obj>
+        2  rule <k> @NumberPrototypeToFixed(O:Oid,D:Int) => #external("node\x01-p\x01-e\x01new Number(" +String Float2String(F) +String ").toFixed(" +String Int2String(D) +String ")") ... </k>
+                <obj>
+                  <oid> O </oid>
+                  <internalProperties>
+                    "PrimitiveValue" |-> F:Float
+                    _
+                  </internalProperties>
+                  _
+                </obj>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.8 The Math Object
+           
+           // NOTE: We do not need to have a Call or Construct for the Math object:
+           // 15.8 The Math object does not have a [[Construct]] internal property; it is not possible to use the Math object as a constructor with the new operator.
+           // 15.8 The Math object does not have a [[Call]] internal property; it is not possible to invoke the Math object as a function.
+           
+           // 15.8.2.9 floor (x)
+           
+           syntax KItem ::= "@MathFloor" "(" K /* Number */ ")" [seqstrict]
+        2  rule @MathFloor(I:Int)      => I
+        6  rule @MathFloor(F:Float)    => Float2Int(F)
+        6  rule @MathFloor(@nz)        => @nz
+        5  rule @MathFloor(@NaN)       => @NaN
+        5  rule @MathFloor(@+Infinity) => @+Infinity
+        6  rule @MathFloor(@-Infinity) => @-Infinity
+           
+           // 15.8.2.13 pow (x, y)
+           
+           // TODO:STD: other cases
+           syntax KItem ::= "@MathPow" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+       10  rule @MathPow(I1:Int,  I2:Int)   => I1 ^Int   I2
+        0  rule @MathPow(F1:Float,F2:Float) => F1 ^Float F2
+      224  rule @MathPow(_:Number,@NaN) => @NaN
+           
+           // 15.8.2.16 sin (x)
+           
+           // TODO:STD: hack
+           syntax KItem ::= "@MathSin" "(" K /* Number */ ")" [seqstrict]
+       30  rule @MathSin(N:Number) => @MathSinAux(ToString(N))
+           //
+       20  syntax KItem ::= "@MathSinAux" "(" K /* String */ ")" [seqstrict]
+       20  rule @MathSinAux(N:String) => ToNumber(#external("node\x01-p\x01-e\x01Math.sin(" +String N +String ")"))
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.9 Date Objects
+           // TODO:STD:
+           
+           // 15.9.2.1 Date ( [ year [, month [, date [, hours [, minutes [, seconds [, ms ] ] ] ] ] ] ] )
+           
+       12  rule Call(@DateOid, _, _:Vals) => %call(%mem(%new(%var("Date"), %nil), %con("toString")), %nil) // (new Date()).toString()
+           
+           // 15.9.3.1 new Date (year, month [, date [, hours [, minutes [, seconds [, ms ] ] ] ] ] )
+           // 15.9.3.2 new Date (value)
+           // 15.9.3.3 new Date ( )
+           // TODO:STD: Implement correctly
+           
+           // XXX: HACK for test262 ch9 and ch11
+       76  rule Construct(@DateOid, @Cons(V:Val,@Nil)) => @CreateDate(TimeClip(ToNumber(V)))
+       20  rule Construct(@DateOid,             @Nil ) => @CreateDate(0) // HACK: 0 is used instead of the current time in milli-seconds
+           
+       38  syntax KItem /* Oid */ ::= "@CreateDate" "(" K /* Number */ ")" [seqstrict]
+      527  rule <k> @CreateDate(V:Number) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @DateProtoOid
+                            "Class"          |-> "Date"
+                            "Extensible"     |-> true
+                            "PrimitiveValue" |-> V
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           // 15.9.1.14 TimeClip (time)
+           
+           // TODO:STD: Consider Step 2. If abs(N) > 8.64 * 10^15, return NaN.
+       38  syntax KItem /* Number */ ::= "TimeClip" "(" K /* Number */ ")" [seqstrict]
+       19  rule TimeClip(N:Number)
+       19    => BEGIN
+       38       If @IsFinite(N) = true then {
+       32         Return ToInteger(N);
+                } else {
+       39         Return @NaN;
+                }
+                END
+           
+           syntax KItem /* Bool */ ::= "@IsFinite" "(" K /* Number */ ")" [seqstrict]
+       19  rule @IsFinite(N:Number) => N =/=K @NaN andBool N =/=K @+Infinity andBool N =/=K @-Infinity
+           
+           // 15.9.5.2 Date.prototype.toString ( )
+           
+           // TODO:STD: HACK
+           syntax KItem /* String */ ::= "@DatePrototypeToString" "(" K /* Oid */ ")" [seqstrict]
+       11  rule @DatePrototypeToString(O:Oid) => "[date ...]"
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.10 RegExp (RegularExpression) Objects
+           // TODO:STD:
+           
+           // 15.10.3.1 RegExp(pattern, flags)
+           // TODO: consider the first case: pattern is "RegExp" object and flags is undefined.
+           
+        6  rule Call(@RegExpOid, _, Vs:Vals) => Construct(@RegExpOid, Vs)
+           
+           // 15.10.4.1 new RegExp(pattern, flags)
+           // TODO:STD: Implement correctly
+           
+           // XXX: HACK for test262 ch9 and ch11
+       12  rule Construct(@RegExpOid, _:Vals) => @CreateRegExp
+           
+           syntax KItem /* Oid */ ::= "@CreateRegExp"
+       22  rule <k> @CreateRegExp => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties> .Map </properties>
+                          <internalProperties>
+                            "Prototype"      |-> @RegExpProtoOid
+                            "Class"          |-> "RegExp"
+                            "Extensible"     |-> true
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.11 ErrorObjects
+           
+           // 15.11.1.1 Error (message)
+           
+        6  rule Call(@ErrorOid, _, Vs:Vals) => @NewError(Vs)
+           
+           // 15.11.2.1 new Error (message)
+           
+     5432  rule Construct(@ErrorOid, Vs:Vals) => @NewError(Vs)
+           
+           syntax KItem /* Oid */ ::= "@NewError" "(" K /* Vals */ ")" [seqstrict]
+     8139  rule @NewError(@Cons(V:Val,_:Vals)) => @CreateError(ToString(V))
+       12  rule @NewError(            @Nil   ) => @CreateError("")
+           
+     5426  syntax KItem /* Oid */ ::= "@CreateError" "(" K /* String */ ")" [seqstrict]
+    16372  rule <k> @CreateError(Msg:String) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties>
+       72                   "message"    |-> @desc("Value" |-> Msg "Writable" |-> true "Enumerable" |-> false "Configurable" |-> true)
+                          </properties>
+                          <internalProperties>
+        7                   "Prototype"  |-> @ErrorProtoOid
+                            "Class"      |-> "Error"
+                            "Extensible" |-> true
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.11.6 Native Error Types Used in This Standard
+           // 15.11.7 NativeError Object Structure
+           
+           // 15.11.7.2 NativeError (message)
+           
+       22  rule Call(NativeError:Oid, _, Vs:Vals) => @NewNativeError(NativeError, Vs)
+                when (NativeError ==K @EvalErrorOid     )
+              orBool (NativeError ==K @RangeErrorOid    )
+              orBool (NativeError ==K @ReferenceErrorOid)
+              orBool (NativeError ==K @SyntaxErrorOid   )
+              orBool (NativeError ==K @TypeErrorOid     )
+              orBool (NativeError ==K @URIErrorOid      )
+           
+           // 15.11.7.4 new NativeError (message)
+           
+        2  rule Construct(NativeError:Oid, Vs:Vals) => @NewNativeError(NativeError, Vs)
+                when (NativeError ==K @EvalErrorOid     )
+              orBool (NativeError ==K @RangeErrorOid    )
+              orBool (NativeError ==K @ReferenceErrorOid)
+              orBool (NativeError ==K @SyntaxErrorOid   )
+              orBool (NativeError ==K @TypeErrorOid     )
+              orBool (NativeError ==K @URIErrorOid      )
+           
+           syntax KItem /* Oid */ ::= "@NewNativeError" "(" K /* Oid */ "," K /* Vals */ ")" [seqstrict]
+       33  rule @NewNativeError(NativeError:Oid, @Cons(V:Val,_)) => @CreateNativeError(NativeError, ToString(V), "@NewNativeError") // NOTE: multiple arguments are allowed: e.g. ch12/12.14/S12.14_A19_T2.js; ch12/12.14/S12.14_A19_T1.js
+        2  rule @NewNativeError(NativeError:Oid, @Nil)           => @CreateNativeError(NativeError, "",           "@NewNativeError")
+           
+           // NOTE: The third argument is only for debugging purpose, not a language standard. It should be non-strict.
+       22  syntax KItem /* Oid */ ::= "@CreateNativeError" "(" K /* Oid */ "," K /* String */ "," K ")" [seqstrict(1,2)]
+     2265  rule <k> @CreateNativeError(NativeError:Oid, Msg:String, KDebug:K) => @o(!N) ... </k>
+                <objs>
+                  (. => <obj>
+                          <oid> @o(!N:Int) </oid>
+                          <properties>
+      261                   "message"    |-> @desc("Value" |-> Msg "Writable" |-> true "Enumerable" |-> false "Configurable" |-> true)
+                          </properties>
+                          <internalProperties>
+                            "Prototype"  |-> #@ResolveNativeError(NativeError)
+                            "Class"      |-> "Error"
+                            "Extensible" |-> true
+                            "KDebug"     |-> KDebug // NOTE: For debug
+                          </internalProperties>
+                        </obj>)
+                  _
+                </objs>
+           
+           syntax Oid ::= "#@ResolveNativeError" "(" Oid ")" [function]
+        0  rule #@ResolveNativeError(@EvalErrorOid     ) => @EvalErrorProtoOid
+        0  rule #@ResolveNativeError(@RangeErrorOid    ) => @RangeErrorProtoOid
+      157  rule #@ResolveNativeError(@ReferenceErrorOid) => @ReferenceErrorProtoOid
+      204  rule #@ResolveNativeError(@SyntaxErrorOid   ) => @SyntaxErrorProtoOid
+      207  rule #@ResolveNativeError(@TypeErrorOid     ) => @TypeErrorProtoOid
+        0  rule #@ResolveNativeError(@URIErrorOid      ) => @URIErrorProtoOid
+           
+           // TODO: more elegantly
+           syntax KItem /* Oid */ ::= "@EvalError"      "(" K /* String */ "," K ")" [seqstrict(1)]
+           syntax KItem /* Oid */ ::= "@RangeError"     "(" K /* String */ "," K ")" [seqstrict(1)]
+           syntax KItem /* Oid */ ::= "@ReferenceError" "(" K /* String */ "," K ")" [seqstrict(1)]
+           syntax KItem /* Oid */ ::= "@SyntaxError"    "(" K /* String */ "," K ")" [seqstrict(1)]
+           syntax KItem /* Oid */ ::= "@TypeError"      "(" K /* String */ "," K ")" [seqstrict(1)]
+           syntax KItem /* Oid */ ::= "@URIError"       "(" K /* String */ "," K ")" [seqstrict(1)]
+        0  rule @EvalError     (Msg:String, KDebug:K) => @CreateNativeError(@EvalErrorOid     , Msg, KDebug)
+        0  rule @RangeError    (Msg:String, KDebug:K) => @CreateNativeError(@RangeErrorOid    , Msg, KDebug)
+      576  rule @ReferenceError(Msg:String, KDebug:K) => @CreateNativeError(@ReferenceErrorOid, Msg, KDebug)
+      504  rule @SyntaxError   (Msg:String, KDebug:K) => @CreateNativeError(@SyntaxErrorOid   , Msg, KDebug)
+      420  rule @TypeError     (Msg:String, KDebug:K) => @CreateNativeError(@TypeErrorOid     , Msg, KDebug)
+        0  rule @URIError      (Msg:String, KDebug:K) => @CreateNativeError(@URIErrorOid      , Msg, KDebug)
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 15.12 The JSON Object
+           
+           // NOTE: We do not need to have a Call or Construct for the JSON object:
+           // 15.12 The JSON object does not have a [[Construct]] internal property; it is not possible to use the JSON object as a constructor with the new operator.
+           // 15.12 The JSON object does not have a [[Call]] internal property; it is not possible to invoke the JSON object as a function.
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // APIs
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // An API name starts with '@'
+           syntax Bool ::= "#@IsAPIName" "(" Var ")" [function]
+        0  rule #@IsAPIName(X:Var) => findString(X:>String,"@",0) ==K 0
+           //
+           syntax Bool ::= "#@IsAPI" "(" Exp ")" [function]
+        0  rule #@IsAPI(%var(X:Var)) => #@IsAPIName(X)
+        0  rule #@IsAPI(E:Exp) => false when getKLabel(E) =/=KLabel '%var`(_`)
+           
+           // API Calls Redirection, Phase I
+           
+     4202  rule %call(%var("@IsObject"                 ), Es:Exps) => Call(@("IsObject"                 ), Undefined, Es)
+     1096  rule %call(%var("@ToObject"                 ), Es:Exps) => Call(@("ToObject"                 ), Undefined, Es)
+     1722  rule %call(%var("@ToString"                 ), Es:Exps) => Call(@("ToString"                 ), Undefined, Es)
+     5334  rule %call(%var("@ToNumber"                 ), Es:Exps) => Call(@("ToNumber"                 ), Undefined, Es)
+      198  rule %call(%var("@ToInteger"                ), Es:Exps) => Call(@("ToInteger"                ), Undefined, Es)
+      128  rule %call(%var("@ToUint32"                 ), Es:Exps) => Call(@("ToUint32"                 ), Undefined, Es)
+      102  rule %call(%var("@ToUint16"                 ), Es:Exps) => Call(@("ToUint16"                 ), Undefined, Es)
+     3008  rule %call(%var("@IsNaN"                    ), Es:Exps) => Call(@("IsNaN"                    ), Undefined, Es)
+      438  rule %call(%var("@IsPositiveZero"           ), Es:Exps) => Call(@("IsPositiveZero"           ), Undefined, Es)
+      950  rule %call(%var("@IsNegativeZero"           ), Es:Exps) => Call(@("IsNegativeZero"           ), Undefined, Es)
+     1320  rule %call(%var("@IsFunction"               ), Es:Exps) => Call(@("IsFunction"               ), Undefined, Es)
+       12  rule %call(%var("@IsCallable"               ), Es:Exps) => Call(@("IsCallable"               ), Undefined, Es)
+        0  rule %call(%var("@NoConstructor"            ), Es:Exps) => Call(@("NoConstructor"            ), Undefined, Es)
+     6822  rule %call(%var("@GetInternalProperty"      ), Es:Exps) => Call(@("GetInternalProperty"      ), Undefined, Es)
+      102  rule %call(%var("@SetInternalProperty"      ), Es:Exps) => Call(@("SetInternalProperty"      ), Undefined, Es)
+      374  rule %call(%var("@GetOwnProperty"           ), Es:Exps) => Call(@("GetOwnProperty"           ), Undefined, Es)
+      340  rule %call(%var("@DefineOwnProperty"        ), Es:Exps) => Call(@("DefineOwnProperty"        ), Undefined, Es)
+      374  rule %call(%var("@FromPropertyDescriptor"   ), Es:Exps) => Call(@("FromPropertyDescriptor"   ), Undefined, Es)
+      340  rule %call(%var("@ToPropertyDescriptor"     ), Es:Exps) => Call(@("ToPropertyDescriptor"     ), Undefined, Es)
+      354  rule %call(%var("@CheckObjectCoercible"     ), Es:Exps) => Call(@("CheckObjectCoercible"     ), Undefined, Es)
+        6  rule %call(%var("@ObjectGetOwnPropertyNames"), Es:Exps) => Call(@("ObjectGetOwnPropertyNames"), Undefined, Es)
+      192  rule %call(%var("@FunctionPrototypeToString"), Es:Exps) => Call(@("FunctionPrototypeToString"), Undefined, Es)
+      564  rule %call(%var("@FunctionPrototypeApply"   ), Es:Exps) => Call(@("FunctionPrototypeApply"   ), Undefined, Es)
+       44  rule %call(%var("@FunctionPrototypeBind"    ), Es:Exps) => Call(@("FunctionPrototypeBind"    ), Undefined, Es)
+        6  rule %call(%var("@NumberPrototypeToFixed"   ), Es:Exps) => Call(@("NumberPrototypeToFixed"   ), Undefined, Es)
+       84  rule %call(%var("@MathPow"                  ), Es:Exps) => Call(@("MathPow"                  ), Undefined, Es)
+       24  rule %call(%var("@MathFloor"                ), Es:Exps) => Call(@("MathFloor"                ), Undefined, Es)
+       20  rule %call(%var("@MathSin"                  ), Es:Exps) => Call(@("MathSin"                  ), Undefined, Es)
+       22  rule %call(%var("@DatePrototypeToString"    ), Es:Exps) => Call(@("DatePrototypeToString"    ), Undefined, Es)
+      354  rule %call(%var("@LengthString"             ), Es:Exps) => Call(@("LengthString"             ), Undefined, Es)
+        0  rule %call(%var("@Trim"                     ), Es:Exps) => Call(@("Trim"                     ), Undefined, Es)
+       16  rule %call(%var("@Int2Char"                 ), Es:Exps) => Call(@("Int2Char"                 ), Undefined, Es)
+        8  rule %call(%var("@Char2Int"                 ), Es:Exps) => Call(@("Char2Int"                 ), Undefined, Es)
+       22  rule %call(%var("@CharAt"                   ), Es:Exps) => Call(@("CharAt"                   ), Undefined, Es)
+      216  rule %call(%var("@FindString"               ), Es:Exps) => Call(@("FindString"               ), Undefined, Es)
+      104  rule %call(%var("@SubstrString"             ), Es:Exps) => Call(@("SubstrString"             ), Undefined, Es)
+       20  rule %call(%var("@NumberToString"           ), Es:Exps) => Call(@("NumberToString"           ), Undefined, Es)
+        0  rule %call(%var("@Print"                    ), Es:Exps) => Call(@("Print"                    ), Undefined, Es)
+        0  rule %call(%var("@CurrentTimeMillis"        ), Es:Exps) => Call(@("CurrentTimeMillis"        ), Undefined, Es)
+           
+           // API Calls Redirection, Phase II
+           
+     4202  rule Call(@("IsObject"),           Undefined, @Cons(V:Val,@Nil)) => @IsOid(V)
+     1096  rule Call(@("ToObject"),           Undefined, @Cons(V:Val,@Nil)) => ToObject(V)
+     1722  rule Call(@("ToString"),           Undefined, @Cons(V:Val,@Nil)) => ToString(V)
+     5334  rule Call(@("ToNumber"),           Undefined, @Cons(V:Val,@Nil)) => ToNumber(V)
+      198  rule Call(@("ToInteger"),          Undefined, @Cons(V:Val,@Nil)) => ToInteger(V)
+      128  rule Call(@("ToUint32"),           Undefined, @Cons(V:Val,@Nil)) => ToUint32(V)
+      102  rule Call(@("ToUint16"),           Undefined, @Cons(V:Val,@Nil)) => ToUint16(V)
+     1504  rule Call(@("IsNaN"),              Undefined, @Cons(V:Val,@Nil)) => V ==K @NaN
+      219  rule Call(@("IsPositiveZero"),     Undefined, @Cons(V:Val,@Nil)) => V ==K 0 orBool V ==K 0.0
+      475  rule Call(@("IsNegativeZero"),     Undefined, @Cons(V:Val,@Nil)) => V ==K @nz
+     1320  rule Call(@("IsFunction"),         Undefined, @Cons(V:Val,@Nil)) => IsCallable(V)
+       12  rule Call(@("IsCallable"),         Undefined, @Cons(V:Val,@Nil)) => IsCallable(V)
+           
+        0  rule <k> Call(@("NoConstructor"), Undefined, @Cons(O:Val,@Nil)) => Undefined ... </k>
+                <objs>
+                  <obj>
+                    <oid> O </oid>
+                    <properties>
+                      ("prototype" |-> @desc("Value" |-> P:Oid _) => .Map)
+                      _:Map
+                    </properties>
+                    <internalProperties>
+                      "Strict" |-> (_ => false)
+                      _:Map
+                    </internalProperties>
+                    _
+                  </obj>
+                  (<obj> <oid> P </oid> _ </obj> => .)
+                  _
+                </objs>
+           
+     3411  rule Call(@("GetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Nil)))
+     3411    => BEGIN
+    10233       Let $v = GetInternalProperty(O,P);
+    13644       If @AndBool(@EqVal(P,"Prototype"), @EqVal($v,@NullOid)) = true then {
+       16          Return @NullVal;
+                } else {
+     3409          Return $v;
+                }
+                END
+       51  rule Call(@("SetInternalProperty"), Undefined, @Cons(O:Val,@Cons(P:Val,@Cons(V:Val,@Nil))))
+       51    => BEGIN
+      255       If @AndBool(@EqVal(P,"Prototype"), @EqVal(V,@NullVal)) = true then {
+        2         Do SetInternalProperty(O,P,@NullOid);
+                } else {
+      100         Do SetInternalProperty(O,P,V);
+                }
+      153       Return Undefined;
+                END
+           
+      374  rule Call(@("GetOwnProperty"),         Undefined, @Cons(O:Val,@Cons(P:Val,                             @Nil  ))) => GetOwnProperty(O,P)
+      334  rule Call(@("DefineOwnProperty"),      Undefined, @Cons(O:Val,@Cons(P:Val,@Cons(V:Val,@Cons(Strict:Val,@Nil))))) => DefineOwnProperty(O,P,V,Strict)
+           
+      374  rule Call(@("FromPropertyDescriptor"), Undefined, @Cons(V:Val,@Nil)) => FromPropertyDescriptor(V)
+      340  rule Call(@(  "ToPropertyDescriptor"), Undefined, @Cons(V:Val,@Nil)) =>   ToPropertyDescriptor(V)
+           
+      531  rule Call(@("CheckObjectCoercible"),   Undefined, @Cons(V:Val,@Nil)) => CheckObjectCoercible(V) ~> Undefined
+           
+        6  rule Call(@("ObjectGetOwnPropertyNames"),  Undefined, @Cons(O:Val,@Nil)) => @ObjectGetOwnPropertyNames(O)
+           
+      192  rule Call(@("FunctionPrototypeToString"),  Undefined, @Cons(Func:Val,@Nil)) => @FunctionPrototypeToString(Func)
+      564  rule Call(@("FunctionPrototypeApply"   ),  Undefined, @Cons(Func:Val,@Cons(ThisArg:Val,@Cons(ArgArray:Val,@Nil)))) => @FunctionPrototypeApply(Func,ThisArg,ArgArray)
+       44  rule Call(@("FunctionPrototypeBind"    ),  Undefined, @Cons(Func:Val,@Cons(ThisArg:Val,@Cons(ArgArray:Val,@Nil)))) => @FunctionPrototypeBind(Func,ThisArg,ArgArray)
+           
+        9  rule Call(@("NumberPrototypeToFixed"), Undefined, @Cons(O:Val,@Cons(V:Val,@Nil))) => @NumberPrototypeToFixed(O, ToInteger(V))
+           
+       24  rule Call(@("MathFloor"),          Undefined, @Cons(N:Val,@Nil)) => @MathFloor(N)
+       84  rule Call(@("MathPow"),            Undefined, @Cons(N1:Val,@Cons(N2:Val,@Nil))) => @MathPow(N1, N2)
+       20  rule Call(@("MathSin"),            Undefined, @Cons(N:Val,@Nil)) => @MathSin(N)
+           
+       22  rule Call(@("DatePrototypeToString"), Undefined, @Cons(O:Val,@Nil)) => @DatePrototypeToString(O)
+           
+      177  rule Call(@("LengthString"),       Undefined, @Cons(S:Val,@Nil)) => lengthString(S:>String)
+        0  rule Call(@("Trim"),               Undefined, @Cons(S:Val,@Nil)) => trim(S:>String) // TODO:STD: check the builtin's trim has correct whitespaces and lineterminators.
+       16  rule Call(@("Int2Char"),           Undefined, @Cons(I:Val,@Nil)) => @Int2Char(I)
+        8  rule Call(@("Char2Int"),           Undefined, @Cons(S:Val,@Nil)) => @Char2Int(S)
+       22  rule Call(@("CharAt"),             Undefined, @Cons(S:Val,@Cons(N:Val,@Nil))) => @CharAt(S, N)
+      216  rule Call(@("FindString"),         Undefined, @Cons(S1:Val,@Cons(S2:Val,@Cons(I:Val,@Nil)))) => @FindString(S1, S2, I)
+      104  rule Call(@("SubstrString"),       Undefined, @Cons(S:Val,@Cons(I1:Val,@Cons(I2:Val,@Nil)))) => @SubstrString(S, I1, I2)
+           
+       20  rule Call(@("NumberToString"),     Undefined, @Cons(N:Val,@Cons(R:Val,@Nil))) => @NumberToString(N, R)
+           
+        0  rule Call(@("Print"),              Undefined, @Cons(V:Val,@Nil)) => @PrintNewline(V)
+           
+        0  rule Call(@("CurrentTimeMillis"),  Undefined, @Nil) => 0 // TODO:STD: do correctly
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // 16 Errors
+           //////////////////////////////////////////////////////////////////////////////
+           
+     7378  syntax KItem ::= "@CheckEarlyErrors" "(" K /* Bool */ "," Stmt ")" [seqstrict(1)]
+    12866  rule @CheckEarlyErrors(Strict:Bool, Code:Stmt) => @CEE(Strict, .Set, Code)
+           
+           syntax KItem ::= "@CEE" /* Check Early Errors */ "(" K /* Bool */ "," Set "," K /* Stmt or Exp or Exps */ ")" [seqstrict(1)]
+           //
+   267037  rule @CEE(Strict:Bool, Ls:Set, %fdecl(F:Var,Es:Exps,S:Stmt))            => @CheckReserved(Strict,F) ~> @SMRFun(Strict,F,Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
+   233691  rule @CEE(Strict:Bool, Ls:Set, %vdecl(N:Var))                           => @CheckReserved(Strict,N) ~> @SMRVar(Strict,N)
+   921957  rule @CEE(Strict:Bool, Ls:Set, %seq(S1:Stmt,S2:Stmt))                   => @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2)
+   394154  rule @CEE(Strict:Bool, Ls:Set, %exp(E))                                 => @CEE(Strict,Ls,E)
+   422836  rule @CEE(Strict:Bool, Ls:Set, %if(E:Exp,S1:Stmt,S2:Stmt))              => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2)
+      220  rule @CEE(Strict:Bool, Ls:Set, %do(S:Stmt,E:Exp))                       => @CEE(Strict,Ls,S) ~> @CEE(Strict,Ls,E)
+      135  rule @CEE(Strict:Bool, Ls:Set, %while(E:Exp,S:Stmt))                    => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S)
+    55640  rule @CEE(Strict:Bool, Ls:Set, %for  (S1:Stmt,E1:Exp,E2:Exp,S2:Stmt))   => @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2) ~> @CEE(Strict,Ls,S2)
+    28185  rule @CEE(Strict:Bool, Ls:Set, %forin(S1:Stmt,E1:Exp,E2:Exp,S2:Stmt))   => @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2) ~> @CEE(Strict,Ls,S2)
+      183  rule @CEE(Strict:Bool, Ls:Set, %continue(L:Var))                        => @CheckReserved(Strict,L) ~> @CheckGoto(Ls,L)
+     8688  rule @CEE(Strict:Bool, Ls:Set, %break(L:Var))                           => @CheckReserved(Strict,L) ~> @CheckGoto(Ls,L)
+    50931  rule @CEE(Strict:Bool, Ls:Set, %label(L:Var,S:Stmt))                    => @CheckReserved(Strict,L) ~> @CEE(Strict, SetItem(L) Ls, S)
+   115876  rule @CEE(Strict:Bool, Ls:Set, %return(E:Exp))                          => @CEE(Strict,Ls,E)
+    23234  rule @CEE(Strict:Bool, Ls:Set, %throw(E:Exp))                           => @CEE(Strict,Ls,E)
+    89371  rule @CEE(Strict:Bool, Ls:Set, %try(S1:Stmt,X:Var,S2:Stmt,S3:Stmt))     => @CheckReserved(Strict,X) ~> @SMRVar(Strict,X) ~> @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2) ~> @CEE(Strict,Ls,S3)
+      201  rule @CEE(Strict:Bool, Ls:Set, %try(S1:Stmt,              S3:Stmt))     =>                                                  @CEE(Strict,Ls,S1) ~>                       @CEE(Strict,Ls,S3)
+      704  rule @CEE(Strict:Bool, Ls:Set, %with(E:Exp,S:Stmt))                     => @CheckWith(Strict) ~> @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S)
+   128666  rule @CEE(Strict:Bool, Ls:Set, %emptyStmt)                              => .
+       55  rule @CEE(Strict:Bool, Ls:Set, %switch(E:Exp,S1:Stmt,S2:Stmt,S3:Stmt))  => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S1) ~> @CEE(Strict,Ls,S2) ~> @CEE(Strict,Ls,S3)
+      120  rule @CEE(Strict:Bool, Ls:Set, %case(E:Exp,S:Stmt))                     => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,S)
+       18  rule @CEE(Strict:Bool, Ls:Set, %default(S:Stmt))                        => @CEE(Strict,Ls,S)
+        0  rule @CEE(Strict:Bool, Ls:Set, %debugger)                               => .
+           //
+   363265  rule @CEE(Strict:Bool, Ls:Set, %con(_:Const))                           => .
+  1347108  rule @CEE(Strict:Bool, Ls:Set, %var(N:Var))                             => @CheckReserved(Strict,N)
+     5580  rule @CEE(Strict:Bool, Ls:Set, %arr(Es:Exps))                           => @CEE(Strict,Ls,Es)
+    29102  rule @CEE(Strict:Bool, Ls:Set, %obj(Es:Exps))                           => @CheckDuplicatedProp(Strict,Es) ~> @CEE(Strict,Ls,Es)
+    15332  rule @CEE(Strict:Bool, Ls:Set, %prop(P:Var,E:Exp))                      => /* @CheckReserved(Strict,P) ~> */ @CEE(Strict,Ls,E)
+       32  rule @CEE(Strict:Bool, Ls:Set, %get(P:Var,      S:Stmt))                => /* @CheckReserved(Strict,P) ~> */                                                                       @CEE(Strict orBool #@IsStrict(S), .Set, S)
+       75  rule @CEE(Strict:Bool, Ls:Set, %set(P:Var,X:Var,S:Stmt))                => /* @CheckReserved(Strict,P) ~> */ @CheckReserved(Strict,X) ~> @SMRVar(Strict orBool #@IsStrict(S), X) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
+   395736  rule @CEE(Strict:Bool, Ls:Set, %mem(E1:Exp,E2:Exp))                     => @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
+    32748  rule @CEE(Strict:Bool, Ls:Set, %new(E:Exp,Es:Exps))                     => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
+   283420  rule @CEE(Strict:Bool, Ls:Set, %call(E:Exp,Es:Exps))                    => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
+      129  rule @CEE(Strict:Bool, Ls:Set, %comma(E1:Exp,E2:Exp))                   => @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
+   165619  rule @CEE(Strict:Bool, Ls:Set, %pre(O:Op,E:Exp))                        => @CheckInvalidLValue(Strict,%pre(O,E))           ~> @CEE(Strict,Ls,E)
+    33781  rule @CEE(Strict:Bool, Ls:Set, %post(E:Exp,O:Op))                       => @CheckInvalidLValue(Strict,%post(E,O))          ~> @CEE(Strict,Ls,E)
+  1311016  rule @CEE(Strict:Bool, Ls:Set, %bop(O:Op,E1:Exp,E2:Exp))                => @CheckInvalidLValue(Strict,%bop(O,E1,E2))       ~> @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
+     5206  rule @CEE(Strict:Bool, Ls:Set, %bopassign(O:Op,E1:Exp,E2:Exp))          => @CheckInvalidLValue(Strict,%bopassign(O,E1,E2)) ~> @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2)
+      188  rule @CEE(Strict:Bool, Ls:Set, %cond(E1:Exp,E2:Exp,E3:Exp))             => @CEE(Strict,Ls,E1) ~> @CEE(Strict,Ls,E2) ~> @CEE(Strict,Ls,E3)
+       76  rule @CEE(Strict:Bool, Ls:Set, %emptyExp)                               => .
+      198  rule @CEE(Strict:Bool, Ls:Set, %fun(X:Var,Es:Exps,S:Stmt))              => @CheckReserved(Strict,X) ~> @SMRFun(Strict,X, Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
+    40406  rule @CEE(Strict:Bool, Ls:Set, %fun(      Es:Exps,S:Stmt))              =>                             @SMRFun(Strict,"",Es,S) ~> @CEE(Strict,Ls,Es) ~> @CEE(Strict orBool #@IsStrict(S), .Set, S)
+           //
+   577043  rule @CEE(Strict:Bool, Ls:Set, %cons(E:Exp,Es:Exps))                    => @CEE(Strict,Ls,E) ~> @CEE(Strict,Ls,Es)
+   181382  rule @CEE(Strict:Bool, Ls:Set, %nil)                                    => .
+           
+           syntax KItem ::= "@CheckDuplicatedProp" "(" K /* Bool */ "," Exps ")" [seqstrict(1)]
+     9704  rule @CheckDuplicatedProp(Strict:Bool, Es:Exps)
+     9704    => BEGIN
+    19408       If @DuplicatedProp(Strict,Es) = true then {
+       30         Do @Throw(@SyntaxError("Duplicated properties",Es));
+                };
+                END
+           //
+           syntax KItem ::= "@DuplicatedProp" "(" K /* Bool */ "," Exps ")" [seqstrict(1)]
+    19408  rule @DuplicatedProp(Strict:Bool,Es:Exps) => @DuplicatedPropAux(Strict,Es,.Set,.Set,.Set)
+           //
+           syntax KItem ::= "@DuplicatedPropAux" "(" K /* Bool */ "," Exps "," Set "," Set "," Set ")" [seqstrict(1)]
+        2  rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => true when D in GS orBool D in SS
+        2  rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => true when D in DS andBool Strict
+    15340  rule @DuplicatedPropAux(Strict:Bool, %cons(%prop(D:Var,_), Es:Exps), DS:Set, GS:Set, SS:Set) => @DuplicatedPropAux(Strict, Es, SetItem(D) DS, GS, SS) when notBool(D in GS orBool D in SS)
+                                                                                                                                                              andBool notBool(D in DS andBool Strict)
+           //
+        3  rule @DuplicatedPropAux(Strict:Bool, %cons(%get(G:Var,_),  Es:Exps), DS:Set, GS:Set, SS:Set) => true when G in GS orBool G in DS
+       40  rule @DuplicatedPropAux(Strict:Bool, %cons(%get(G:Var,_),  Es:Exps), DS:Set, GS:Set, SS:Set) => @DuplicatedPropAux(Strict, Es, DS, SetItem(G) GS, SS) when notBool(G in GS orBool G in DS)
+           //
+        3  rule @DuplicatedPropAux(Strict:Bool, %cons(%set(S:Var,_,_),Es:Exps), DS:Set, GS:Set, SS:Set) => true when S in SS orBool S in DS
+       48  rule @DuplicatedPropAux(Strict:Bool, %cons(%set(S:Var,_,_),Es:Exps), DS:Set, GS:Set, SS:Set) => @DuplicatedPropAux(Strict, Es, DS, GS, SetItem(S) SS) when notBool(S in SS orBool S in DS)
+           //
+     9694  rule @DuplicatedPropAux(Strict:Bool, %nil, _, _, _) => false
+           
+           syntax KItem ::= "@CheckInvalidLValue" "(" K /* Bool */ "," Exp ")" [seqstrict(1)]
+   395550  rule @CheckInvalidLValue(Strict:Bool, E:Exp)
+   395550    => BEGIN
+   791100       If @InvalidLValue(Strict,E) = true then {
+      168         Do @Throw(@SyntaxError("In strict mode, 'eval' or 'arguments' cannot be updated",E));
+                };
+                END
+           //
+           syntax KItem /* Bool */ ::= "@InvalidLValue" "(" K /* Bool */ "," Exp ")" [seqstrict(1)]
+       16  rule @InvalidLValue(true, %bop(%assign,%var("eval"     ),_)) => true
+        7  rule @InvalidLValue(true, %bop(%assign,%var("arguments"),_)) => true
+           //
+       12  rule @InvalidLValue(true, %bopassign(_,%var("eval"     ),_)) => true
+       11  rule @InvalidLValue(true, %bopassign(_,%var("arguments"),_)) => true
+           //
+        1  rule @InvalidLValue(true, %pre(%inc,%var("eval"     ))) => true
+        1  rule @InvalidLValue(true, %pre(%inc,%var("arguments"))) => true
+           //
+        1  rule @InvalidLValue(true, %pre(%dec,%var("eval"     ))) => true
+        2  rule @InvalidLValue(true, %pre(%dec,%var("arguments"))) => true
+           //
+        1  rule @InvalidLValue(true, %post(%var("eval"     ),%inc)) => true
+        2  rule @InvalidLValue(true, %post(%var("arguments"),%inc)) => true
+           //
+        1  rule @InvalidLValue(true, %post(%var("eval"     ),%dec)) => true
+        1  rule @InvalidLValue(true, %post(%var("arguments"),%dec)) => true
+           //
+   395494  rule @InvalidLValue(_,_) => false [owise]
+           
+           
+           syntax KItem ::= "@CheckWith" "(" K /* Bool */ ")" [seqstrict]
+      183  rule @CheckWith(Strict:Bool)
+      183    => BEGIN
+      183       If Strict = true then {
+       42         Do @Throw(@SyntaxError("In strict mode, with cannot be used",""));
+                };
+                END
+           
+           syntax KItem ::= "@CheckGoto" "(" Set "," K /* Var */ ")" [seqstrict(2)]
+     2957  rule @CheckGoto(Ls:Set, L:Var)
+     2957    => BEGIN
+     2957       If notBool(L in Ls) = true then {
+       60         Do @Throw(@SyntaxError("continue or break without nested iteration or switch stmt",L));
+                };
+                END
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Strict Mode Restrictions
+           //////////////////////////////////////////////////////////////////////////////
+           
+           // 11.1.5, PropertyAssignment : set PropertyName ( PropertySetParameterList ) { FunctionBody } 
+           // 12.2.1 Strict Mode Restrictions
+           // 12.10.1 Strict Mode Restrictions
+           // 12.14.1 Strict Mode Restrictions
+           // 13.1 Strict Mode Restrictions
+           
+   127138  syntax KItem ::= "@SMRVar" "(" K /* Bool */ "," K /* Var */ ")" [seqstrict]
+   241722  rule @SMRVar(Strict:Bool, P:Var)
+   241722    => BEGIN
+   725166       If @AndBool(Strict, @OrBool(P ==K "eval", P ==K "arguments")) = true then {
+      186         Do @Throw(@SyntaxError("Strict Mode Restrictions, eval or arguments as a variable",P));
+                };
+                END
+           
+           syntax KItem ::= "@SMRFun" "(" K /* Bool */ "," K /* Var */ "," Exps "," Stmt ")" [seqstrict(1,2)]
+    63569  rule @SMRFun(Strict:Bool, F:Var, Ps:Exps, FB:Stmt)
+    63569    => BEGIN
+   127138       Let $strict = #@IsStrict(FB) orBool Strict;
+   190707       Do @SMRVar($strict,F);
+   190668       Do @SMRVars($strict,Ps);
+   127084       Do @SMRParams($strict,Ps);
+                END
+           //
+   127112  syntax KItem ::= "@SMRVars" "(" K /* Bool */ "," Exps ")" [seqstrict(1)]
+   256030  rule @SMRVars(Strict:Bool, %cons(%var(X:Var),Ps:Exps)) => @SMRVar(Strict,X) ~> @SMRVars(Strict,Ps)
+    63542  rule @SMRVars(Strict:Bool, %nil) => .
+           //
+   127084  syntax KItem ::= "@SMRParams" "(" K /* Bool */ "," Exps ")" [seqstrict(1)]
+    63542  rule @SMRParams(Strict:Bool, Ps:Exps)
+    63542    => BEGIN
+   190626       If @AndBool(Strict, @DuplicatedParams(Ps)) = true then {
+       60         Do @Throw(@SyntaxError("Strict Mode Restrictions, duplicated parameters",Ps));
+                };
+                END
+           //
+           syntax KItem ::= "@DuplicatedParams" "(" Exps ")"
+   127084  rule @DuplicatedParams(Ps:Exps) => @DuplicatedParamsAux(Ps,.Set)
+           //
+           syntax KItem ::= "@DuplicatedParamsAux" "(" Exps "," Set ")"
+       26  rule @DuplicatedParamsAux(%cons(%var(X:Var),Ps:Exps),S:Set) => true when X in S
+   170602  rule @DuplicatedParamsAux(%cons(%var(X:Var),Ps:Exps),S:Set) => @DuplicatedParamsAux(Ps, SetItem(X) S) when notBool(X in S)
+    63516  rule @DuplicatedParamsAux(%nil,_) => false
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Pseudo-code evaluation
+           //////////////////////////////////////////////////////////////////////////////
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Pseudo-code evaluation
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax PseudoCodes ::= PseudoCode PseudoCodes
+                                | PseudoCode
+  3211401  syntax PseudoCode  ::= "Let" Id "=" K ";" [seqstrict(2)]
+                                | "Do"  K ";"
+                                | "DoI" K ";"
+ 10743854                       | "If" K "=" K "then" "{" PseudoCodes "}" "else" "{" PseudoCodes "}" [seqstrict(1,2)]
+  2683718                       | "If" K "=" K "then" "{" PseudoCodes "}" ";"                        [seqstrict(1,2)]
+  1777618                       | "Return" K ";" [seqstrict(1)]
+                                | "Return"   ";"
+                                | "Nop" ";"
+           syntax Exp ::= Id
+           
+  2832851  rule PC:PseudoCode PCs:PseudoCodes => PC ~> PCs
+           
+           //rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => PCs[V / X]
+           
+           /*
+        0  rule Let X:Id = V:KResult; ~> PCs:PseudoCodes => #visit(PCs, '#@Replace`(_`,_`), V, '_==K_, X)
+           //
+           syntax KItem ::= "#@Replace" "(" K "," K ")" [function]
+        0  rule #@Replace(_, K) => K
+           */
+           
+  1795679  rule <k> Let X:Id = V:KResult; => .K ... </k>
+                <pseudoEnv> (.Map => X |-> V) _:Map </pseudoEnv>
+  3815085  rule <k> X:Id => V ... </k>
+                <pseudoEnv> X |-> V _:Map </pseudoEnv>
+           
+  2238115  rule Do  K; => K
+   144062  rule DoI K; => K ~> @Ignore
+  1429825  rule If V1:KResult = V2:KResult then { PCs } else { _   } => PCs when V1 ==K  V2
+  3994740  rule If V1:KResult = V2:KResult then { _   } else { PCs } => PCs when V1 =/=K V2
+   314611  rule If V1:KResult = V2:KResult then { PCs } ;            => PCs when V1 ==K  V2
+  2055225  rule If V1:KResult = V2:KResult then { _   } ;            => .K  when V1 =/=K V2
+  1577689  rule Return V:KResult; => V
+      525  rule Return; => .K
+     4730  rule Nop; => .K
+           
+           syntax KItem ::= "BEGIN" PseudoCodes "END"
+           syntax PseudoCode ::= "Exit" ";"
+           
+  6992371  rule <k> BEGIN PCs:PseudoCodes END ~> K => PCs ~> Exit; </k>
+                <pseudoCtx>
+                  <pseudoStack> (.List => ListItem(@pseudo(K,E))) _:List </pseudoStack>
+                  <pseudoEnv> E:Map => .Map </pseudoEnv>
+                </pseudoCtx>
+           
+  2981736  rule <k> V:KResult ~> Exit; ~> _ => V ~> K </k> <pseudoCtx> <pseudoStack> (ListItem(@pseudo(K,E)) => .List) _:List </pseudoStack> <pseudoEnv> _ => E </pseudoEnv> </pseudoCtx>
+  2004607  rule <k>              Exit; ~> _ =>      K </k> <pseudoCtx> <pseudoStack> (ListItem(@pseudo(K,E)) => .List) _:List </pseudoStack> <pseudoEnv> _ => E </pseudoEnv> </pseudoCtx>
+           
+           //////////////////////////////////////////////////////////////////////////////
+           // Utils
+           //////////////////////////////////////////////////////////////////////////////
+           
+           syntax KItem /* .K */ ::= "@True?" | "@False?"
+        0  rule true  ~> @True?  => .
+    73666  rule false ~> @False? => .
+           
+           syntax KItem /* .K */ ::= "@Ignore"
+   226129  rule _:Val ~> @Ignore => .
+           
+           syntax KItem /* Int */ ::= "@Length" "(" Exps ")"
+        0  rule @Length(Es:Exps) => #@Length(Es)
+           //
+           syntax Int ::= "#@Length" "(" Exps ")" [function]
+        0  rule #@Length(%cons(_,Es)) => 1 +Int #@Length(Es)
+        0  rule #@Length(%nil) => 0
+           
+           syntax KItem /* Int */ ::= "@LengthVals" "(" K /* Vals */ ")" [seqstrict]
+        0  rule @LengthVals(Vs:Vals) => #@LengthVals(Vs)
+           //
+           syntax Int ::= "#@LengthVals" "(" Vals ")" [function]
+        0  rule #@LengthVals(@Cons(_,Vs)) => 1 +Int #@LengthVals(Vs)
+        0  rule #@LengthVals(@Nil) => 0
+           
+           // TODO: remove
+           syntax Val ::= PropertyDescriptor ".." Var [function]
+        0  rule @desc(X |-> V:Val _) .. X:Var => V
+        0  rule @desc(M:Map        ) .. X:Var => Undefined when notBool(X in keys(M))
+           
+  1812432  syntax KItem /* Val */ ::= K /* PropertyDescriptor */ "." Var [seqstrict(1)]
+  1108482  rule @desc(X |-> V:Val _) . X:Var => V
+   806682  rule @desc(M:Map        ) . X:Var => Undefined when notBool(X in keys(M))
+           
+           syntax KItem /* Bool */ ::= "@SubDesc" "(" K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict]
+        0  rule @SubDesc(@desc(M1:Map), @desc(M2:Map)) => @SubDescAux(keys(M1), @desc(M1), @desc(M2))
+           //
+           syntax KItem /* Bool */ ::= "@SubDescAux" "(" Set "," K /* PropertyDescriptor */ "," K /* PropertyDescriptor */ ")" [seqstrict(2,3)]
+        0  rule @SubDescAux(                    .Set , @desc( _:Map), @desc( _:Map)) => true
+        0  rule @SubDescAux((SetItem(X:String) S:Set), @desc(M1:Map), @desc(M2:Map)) => @AndBool(@SubDescAuxSingle(X,M1,M2), @SubDescAux(S,@desc(M1),@desc(M2)))
+           //
+           syntax KItem /* Bool */ ::= "@SubDescAuxSingle" "(" K /* String */ "," Map "," Map ")" [seqstrict(1)]
+        0  rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => SameValue(M1[X], M2[X]) when X in keys(M2)
+        0  rule @SubDescAuxSingle(X:String,M1:Map,M2:Map) => false [owise]
+           
+           /*
+           syntax Bool ::= "@SubDesc" "(" PropertyDescriptor "," PropertyDescriptor ")" [function]
+        0  rule @SubDesc(@desc(                 .Map), @desc(               _     )) => true
+        0  rule @SubDesc(@desc(               M1:Map), @desc(                 .Map)) => false                         when M1 =/=Map .Map
+        0  rule @SubDesc(@desc((X |-> V1:Val) M1:Map), @desc((X |-> V2:Val) M2:Map)) => @SubDesc(@desc(M1),@desc(M2)) when         SameValue(V1,V2)
+        0  rule @SubDesc(@desc((X |-> V1:Val) _     ), @desc((X |-> V2:Val) _     )) => false                         when notBool(SameValue(V1,V2))
+        0  rule @SubDesc(@desc((X |-> _     ) _     ), @desc(               M2:Map)) => false                         when notBool(X in keys(M2))
+        0  rule @SubDesc(@desc(               M1:Map), @desc((X |-> V2:Val) M2:Map)) => @SubDesc(@desc(M1),@desc(M2)) when notBool(X in keys(M2))
+           */
+           
+           syntax Map ::= "#@AddMap" "(" K "," K "," Map ")" [function]
+        0  rule #@AddMap(X, V,           M:Map) => (X |-> V) M when notBool(X in keys(M))
+        0  rule #@AddMap(X, V, (X |-> _) M:Map) => (X |-> V) M when notBool(X in keys(M))
+           
+     1282  syntax KItem /* .K */ ::= "@AddDesc" "(" K /* Var */ "," K /* Val */ "," K /* PropertyDescriptor */ ")" [seqstrict]
+     3929  rule @AddDesc(X:Var,V:Val,@desc(Desc)) => @desc(#@AddMap(X,V,Desc))
+           
+           syntax KItem /* Bool */ ::= "@MemDesc" "(" K /* PropertyDescriptor */ "," K /* Var */ ")" [seqstrict]
+        5  rule @MemDesc(@desc(Desc),X:Var) => X in keys(Desc)
+           
+           syntax KItem ::= "@GenDesc" "(" K "," K                                     ")" [seqstrict]
+                      | "@GenDesc" "(" K "," K "," K "," K                         ")" [seqstrict]
+    24678             | "@GenDesc" "(" K "," K "," K "," K "," K "," K             ")" [seqstrict]
+    25676             | "@GenDesc" "(" K "," K "," K "," K "," K "," K "," K "," K ")" [seqstrict]
+        0  rule @GenDesc(X1:Var,V1:Val                                          ) => @desc(X1 |-> V1                              )
+        0  rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val                            ) => @desc(X1 |-> V1 X2 |-> V2                    )
+    12366  rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val,X3:Var,V3:Val              ) => @desc(X1 |-> V1 X2 |-> V2 X3 |-> V3          )
+    25679  rule @GenDesc(X1:Var,V1:Val,X2:Var,V2:Val,X3:Var,V3:Val,X4:Var,V4:Val) => @desc(X1 |-> V1 X2 |-> V2 X3 |-> V3 X4 |-> V4)
+           
+           // NOTE: Set of Values => Vals
+           syntax KItem /* Vals */ ::= "@Set2Vals" "(" Set ")"
+        3  rule @Set2Vals(S:Set) => #@Set2Vals(S)
+           //
+           syntax Vals ::= "#@Set2Vals" "(" Set ")" [function]
+        3  rule #@Set2Vals(SetItem(V:Val) Vs:Set) => @Cons(V, #@Set2Vals(Vs))
+        0  rule #@Set2Vals(                 .Set) => @Nil
+           
+       40  syntax KItem /* Vals */ ::= "@AppendVals" "(" K /* Vals */ "," K /* Vals */ ")" [seqstrict]
+       20  rule @AppendVals(Vs1:Vals,Vs2:Vals) => #@AppendVals(Vs1,Vs2)
+           //
+           syntax Vals ::= "#@AppendVals" "(" Vals "," Vals ")" [function]
+        0  rule #@AppendVals(@Cons(V1:Val,Vs1:Vals), Vs2:Vals) => @Cons(V1, #@AppendVals(Vs1,Vs2))
+        0  rule #@AppendVals(@Nil, Vs:Vals) => Vs
+           
+           syntax KItem ::= "@Print" "(" K ")" [seqstrict]
+        0  rule <k> @Print(S:String) => Undefined ... </k>
+                <out> _:List (.List => ListItem(S)) </out>
+           
+           syntax KItem ::= "@PrintNewline" "(" K ")" [seqstrict]
+        0  rule @PrintNewline(S:String) => @Print(S +String "\n")
+           
+           syntax KItem ::= "@LOG" "(" K ")"
+        0  rule <k> @LOG(K) => . ... </k>
+                <log> _:List (.List => ListItem(K)) </log>
+           
+     4540  syntax KItem /* Bool */ ::= "@IsPrimitive" "(" K /* Val */ ")" [seqstrict]
+     2270  rule @IsPrimitive(V:Val) => #@IsBool(V) orBool #@IsString(V) orBool #@IsNumber(V)
+           
+           syntax Bool ::= "#@IsBool" "(" Val ")" [function]
+        0  rule #@IsBool(Undefined) => false
+        0  rule #@IsBool(@NullVal  ) => false
+        0  rule #@IsBool(_:Bool    ) => true
+        0  rule #@IsBool(_:String  ) => false
+        0  rule #@IsBool(_:Number  ) => false
+        0  rule #@IsBool(_:Oid     ) => false
+           
+           syntax Bool ::= "#@IsString" "(" Val ")" [function]
+        0  rule #@IsString(Undefined) => false
+        0  rule #@IsString(@NullVal  ) => false
+        0  rule #@IsString(_:Bool    ) => false
+        0  rule #@IsString(_:String  ) => true
+        0  rule #@IsString(_:Number  ) => false
+        0  rule #@IsString(_:Oid     ) => false
+           
+           syntax Bool ::= "#@IsNumber" "(" Val ")" [function]
+        0  rule #@IsNumber(Undefined) => false
+        0  rule #@IsNumber(@NullVal  ) => false
+        0  rule #@IsNumber(_:Bool    ) => false
+        0  rule #@IsNumber(_:String  ) => false
+        0  rule #@IsNumber(_:Number  ) => true
+        0  rule #@IsNumber(_:Oid     ) => false
+           
+     1250  syntax KItem /* Bool */ ::= "@IsOid" "(" K /* Val */ ")" [seqstrict]
+     4303  rule @IsOid(V:Val) => #@IsOid(V)
+           //
+           syntax Bool ::= "#@IsOid" "(" Val ")" [function]
+        0  rule #@IsOid(Undefined) => false
+        0  rule #@IsOid(@NullVal  ) => false
+        0  rule #@IsOid(_:Bool    ) => false
+        0  rule #@IsOid(_:String  ) => false
+        0  rule #@IsOid(_:Number  ) => false
+        0  rule #@IsOid(_:Oid     ) => true
+           
+  3909488  syntax KItem /* Bool */ ::= "@AndBool" "(" K /* Bool */ "," K /* Bool */ ")" [seqstrict]
+  1130004  rule @AndBool(B1:Bool,B2:Bool) => B1 andBool B2
+           
+  1754340  syntax KItem /* Bool */ ::= "@OrBool" "(" K /* Bool */ "," K /* Bool */ ")" [seqstrict]
+   680307  rule @OrBool(B1:Bool,B2:Bool) => B1 orBool B2
+           
+    12456  syntax KItem /* Bool */ ::= "@XorBool" "(" K /* Bool */ "," K /* Bool */ ")" [seqstrict]
+     3114  rule @XorBool(B1:Bool,B2:Bool) => B1 ==K B2
+           
+   202192  syntax KItem /* Bool */ ::= "@NotBool" "(" K /* Bool */ ")" [seqstrict]
+   101096  rule @NotBool(B:Bool) => notBool(B)
+           
+  1436252  syntax KItem /* Bool */ ::= "@EqVal" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+   722203  rule @EqVal(V1:Val,V2:Val) => V1 ==K V2
+           
+   201870  syntax KItem /* Bool */ ::= "@NeqVal" "(" K /* Val */ "," K /* Val */ ")" [seqstrict]
+   100935  rule @NeqVal(V1:Val,V2:Val) => V1 =/=K V2
+           
+        4  syntax KItem /* String */ ::= "@CharAt" "(" K /* String */ "," K /* Number */ ")" [seqstrict]
+       12  rule @CharAt(S:String,I:Int) => substrString(S, I, I +Int 1)
+        2  rule @CharAt(S:String,@nz  ) => @CharAt(S,0)
+           
+           syntax KItem /* String */ ::= "@Int2Char" "(" K /* Int */ ")" [seqstrict]
+        8  rule @Int2Char(I:Int) => chrChar(I)
+           
+           syntax KItem /* Int */ ::= "@Char2Int" "(" K /* String */ ")" [seqstrict]
+        4  rule @Char2Int(S:String) => ordChar(S)
+           
+       16  syntax KItem /* String */ ::= "@LengthString" "(" K /* String */ ")" [seqstrict]
+        8  rule @LengthString(S:String) => lengthString(S)
+           
+           syntax KItem /* String */ ::= "@SubstrString" "(" K /* String */ "," K /* Int */ "," K /* Int */ ")" [seqstrict]
+     5077  rule @SubstrString(S:String,I1:Int,I2:Int) => substrString(S,I1,I2)
+           
+           syntax KItem /* Int */ ::= "@String2Int" "(" K /* String */ ")" [seqstrict]
+     3406  rule @String2Int(S:String) => String2Int(S)
+           
+           syntax KItem /* Float */ ::= "@String2Float" "(" K /* String */ ")" [seqstrict]
+       73  rule @String2Float(S:String) => String2Float(S)
+           
+       92  syntax KItem ::= "@String2Base" "(" K /* String */ "," K /* Int */ ")" [seqstrict]
+       46  rule @String2Base(S:String,B:Int) => String2Base(S,B)
+           
+           syntax KItem /* Int */ ::= "@FindString" "(" K /* String */ "," K /* String */ "," K /* Int */ ")" [seqstrict]
+      108  rule @FindString(S1:String,S2:String,I:Int) => findString(S1,S2,I)
+           
+           syntax KItem /* String */ ::= "@NumberToString" "(" K /* Number */ "," K /* Int */ ")" [seqstrict]
+           // TODO:STD: consider radix other then 10
+       20  rule @NumberToString(N:Number, 10) => ToString(N)
+           
+           syntax KItem ::= "@Cond" "(" K /* Bool */ "," K "," K ")" [seqstrict(1)]
+        0  rule @Cond(true,  K:K, _) => K
+        0  rule @Cond(false, _, K:K) => K
+           
+           syntax KItem ::= "@Min" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+        0  rule @Min(N1:Number,N2:Number)
+             => BEGIN
+        0       If %bop(%lt,N1,N2) = true then {
+        0         Return N1;
+                } else {
+        0         Return N2;
+                }
+                END
+           
+           syntax KItem ::= "@Max" "(" K /* Number */ "," K /* Number */ ")" [seqstrict]
+        0  rule @Max(N1:Number,N2:Number)
+             => BEGIN
+        0       If %bop(%gt,N1,N2) = true then {
+        0         Return N1;
+                } else {
+        0         Return N2;
+                }
+                END
+           
+           syntax Float ::= "#@Int2Float" "(" Int ")" [function]
+        0  rule #@Int2Float(I:Int) => Int2Float(I, 53, 11)
+           
+           syntax String ::= "#@PWD" [function]
+        0  rule #@PWD => "/home/daejunpark/tmp/javascript-semantics11"
+           
+           // XXX: Copied from "include/builtins/string.k"
+        0  rule ltrim(S:String) => ltrim(replaceFirst(S, " ", "")) when findString(S, " ", 0) ==Int 0
+        0  rule ltrim(S:String) => S when findString(S, " ", 0) =/=Int 0
+        0  rule ltrim("") => ""
+           //
+        0  rule rtrim(S:String) => rtrim(substrString(S,0, lengthString(S) -Int 1)) when substrString(S, lengthString(S) -Int 1, lengthString(S)) ==String " "
+        0  rule rtrim(S:String) => S when substrString(S, lengthString(S) -Int 1, lengthString(S)) =/=String " "
+        0  rule rtrim("") => ""
+           //
+        0  rule trim(S:K) => ltrim(rtrim(S))
+           
+           syntax KItem ::= "#external" "(" String ")" [function]
+        0  rule #external(Cmd:String) => #externalAux(#system(Cmd))
+           syntax KItem ::= "#externalAux" "(" K ")" [function]
+        0  rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => Stdout            when ExitCode ==Int 0
+        0  rule #externalAux(#systemResult(ExitCode:Int,Stdout:String,Stderr:String)) => #externalError(Stderr) when ExitCode =/=Int 0
+           syntax KItem ::= "#externalError" "(" String ")"
+           
+    10758  syntax KItem /* Exp */ ::= "@Bop" "(" OpNormal "," K /* Val */ "," K /* Val */ ")" [seqstrict(2,3)]
+     5824  rule @Bop(OP:OpNormal,V1:Val,V2:Val) => %bop(OP,V1,V2)
+           
+        6  syntax KItem /* Vals */ ::= "@MakeCons" "(" K /* Val */ "," K /* Vals */ ")" [seqstrict]
+       15  rule @MakeCons(V:Val,Vs:Vals) => @Cons(V,Vs)
+           
+           syntax Int ::= "@MAX_INT"
+                        | "@MIN_INT"
+        0  rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
+        0  rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
+           
+           endmodule
+           
