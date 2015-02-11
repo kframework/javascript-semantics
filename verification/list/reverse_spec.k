@@ -1,7 +1,7 @@
-require "../../js.k"
+require "../patterns/tree_string/js-verifier.k"
 
 module REVERSE-SPEC
-imports JS
+imports JS-VERIFIER
 
 rule [loop-inv]:
   <lexicalEnv> @e(I:Int) </lexicalEnv>

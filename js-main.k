@@ -2,26 +2,16 @@ require "js-trans.k"
 require "js-str-numeric-literal.k"
 require "js-prelude.k"
 
-require "modules/verification_lemmas.k"
-
-//require "verification/patterns/float_set.k"
-//require "verification/patterns/float_tree_pattern.k"
-require "verification/patterns/string_set.k"
-require "verification/patterns/string_tree_pattern.k"
-//require "verification/patterns/list_pattern.k"
-
 module JS-SYNTAX
 imports JS-ORIG-SYNTAX
 imports JS-STR-NUMERIC-LITERAL
 endmodule
 
-module JS-MAIN
+module JS
 
 imports JS-SYNTAX
 imports JS-TRANS
 imports JS-PRELUDE
-
-imports VERIFICATION_LEMMAS
 
 //////////////////////////////////////////////////////////////////////////////
 // Configuration
@@ -4143,14 +4133,4 @@ syntax Int ::= "@MAX_INT"
 rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
 rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
 
-endmodule
-
-
-module JS
-imports JS-MAIN
-//imports FLOAT-TREE-PATTERN
-imports STRING-TREE-PATTERN
-//imports LIST-PATTERN
-syntax NullableObject ::= Oid | NullType
-syntax Val ::= NullableObject
 endmodule

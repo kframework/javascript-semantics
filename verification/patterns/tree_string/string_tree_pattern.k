@@ -1,6 +1,6 @@
 module STRING-TREE-PATTERN
   imports MAP
-  imports JS-MAIN
+  imports JS
   imports STRING-SET
 
   syntax StringTree ::= "string_node" "(" String "," StringTree "," StringTree ")"

@@ -1,7 +1,7 @@
-require "../../js.k"
+require "../patterns/tree_string/js-verifier.k"
 
 module AVL-SPEC
-imports JS
+imports JS-VERIFIER
 
 rule
   <envs>...

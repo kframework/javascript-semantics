@@ -1,0 +1,39 @@
+krun -d patterns/list        --smt none                        --prove list/reverse_spec.k       list/reverse.js 
+true
+[]
+true
+
+krun -d patterns/list        --smt none                        --prove list/append_spec.k        list/append.js
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_delete_spec.k  bst/delete.js 
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js 
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js 
+true
+[]
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js 
+true
+[]
+true

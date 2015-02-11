@@ -1,6 +1,6 @@
 module FLOAT-TREE-PATTERN
   imports MAP
-  imports JS-MAIN
+  imports JS
   imports FLOAT-SET
 
   syntax FloatTree ::= "node" "(" Float "," FloatTree "," FloatTree ")"

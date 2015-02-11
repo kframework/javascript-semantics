@@ -1,6 +1,6 @@
 module LIST-PATTERN
   imports MAP
-  imports JS-MAIN
+  imports JS
 
   syntax List ::= rev(List)                       [function]
   rule rev(L1:List L2:List) => rev(L2) rev(L1)    [lemma]
