@@ -1,5 +1,7 @@
+require "../patterns/list/js-verifier.k"
 
 module APPEND-SPEC
+imports JS-VERIFIER
 
 rule [loop-inv]:
   <lexicalEnv> @e(I:Int) </lexicalEnv>
