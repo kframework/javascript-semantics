@@ -14,7 +14,7 @@ You can prove all the example programs by using `prover.sh`:
 $ ./prover.sh
 ```
 
-### Programs to be verified
+### Programs
 
 We have the following example programs to be verified:
 
