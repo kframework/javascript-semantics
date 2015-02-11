@@ -9,10 +9,36 @@ $ krun --prove <specification.k> <program.js>
 The specification `<specification.k>` essentially describes a pre-/post-condition,
 and it should be given as a reachability rule written in K.
 
-You can prove all the example programs by using `prover.sh`:
+For the sake of clear explanation, we provide a separate verification module for each (algebraic) data types such as tree and list. As shown in the following template, each verification module contains the original semantics `<js.k>` and verification specific modules such as data type abstractions `<pattern.k>` and `<PATTERN>`.
+```
+require "<js.k>"
+require "modules/verification_lemmas.k"
+require "<pattern.k>"
+
+module JS-VERIFIER
+
+  imports JS
+  imports VERIFICATION_LEMMAS
+  imports <PATTERN>
+
+  syntax NullableObject ::= Oid | NullType
+  syntax Val ::= NullableObject
+
+endmodule
+```
+
+In order to prove all the example programs,
+you will first compile all the verification modules:
+```
+$ make
+```
+and then prove the programs:
 ```
 $ ./prover.sh
 ```
+
+
+
 
 ### Programs
 
