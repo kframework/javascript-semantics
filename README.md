@@ -7,14 +7,14 @@ Being executable, KJS has been tested against the
 and passes all 2,782 core language tests.
 
 In addition to a reference implementation for JavaScript, KJS also yields a
-simple coverage metric for a test suite: the set of semantic rules it
+semantic coverage metric for a test suite: the set of semantic rules it
 exercises.
 See [test262-coverage](test262-coverage/README.md) for details.
 
 Being symbolically executable, KJS can also be used for
 formal analysis and verification of JavaScript programs.
 This is demonstrated by verifying non-trivial programs
-([verification](verification/README.md)).
+([verification](verification/README.md)),
 and finding known security vulnerabilities
 ([security-attack](security-attack/README.md)).
 
@@ -22,85 +22,103 @@ and finding known security vulnerabilities
 
 ## How to Run Semantics
 
-The following instructions are for Debian/Ubuntu.
+The following instructions are for standard Debian/Ubuntu distributions.
 
 ### 1. Install K
 
-This version of semantics is compatible with the latest version 3.4.1 of the K framework.
-(https://github.com/kframework/k/releases/tag/v3.4.1).
-See http://kframework.org for download and installation details.
-
-### 2. Install SAFE
-
-We pre-process the input JavaScript program using the SAFE framework
-for automatic semicolon insertion.
-We slightly modified the SAFE framework, given as [jsaf.patch](jsaf.patch).
+This semantics is compatible with a customized version of the lastest K framework.
+You can install the version of K as follows:
 ```
-$ git clone git://plrg.kaist.ac.kr/jsaf.git
-$ cd jsaf
-$ git reset --hard 6926a7e9e19c466408650d2f27a0d805fd722609
-$ patch -p1 <../jsaf.patch
-$ wget http://cs.nyu.edu/rgrimm/xtc/xtc.jar
-$ mv xtc.jar bin/
-$ export JS_HOME=`pwd`
-$ ant clean compile
+$ git clone https://github.com/kframework/k.git
+$ cd k
+$ git checkout -b kjs origin/kjs
+$ mvn package
 ```
 
-### 3. Install Node.js
+Ensure `kompile` and `krun` are included in your `$PATH`:
+```
+$ export PATH=$PATH:<path-to-k>/k-distribution/target/release/k/bin
+```
 
-We use the Node.js implementation
-of `Math.sin`, `Number.toFixed`, and
+### 2. Install Node.js
+
+We use Node.js implementation
+for `Math.sin`, `Number.toFixed`, and
 `Number.toString` to test programs modulo the unsupported libraries.
 ```
 $ sudo apt-get install nodejs
 ```
 
-### 4. Install test262 (Optional)
+### 3. Install KJS
 
+You can compile the semantics using Makefile:
 ```
-$ git clone https://github.com/tc39/test262.git
-$ cd test262
-$ git reset --hard 9b669da66c78bd583bc130a7ca3151258e4681a1
-```
-
-### 5. Install KJS
-
-Compile the semantics:
-```
-./build.sh
-```
-and run your programs:
-```
-./run.sh <your-javascript-program>.js
+$ make
 ```
 
-### 6. Run [test262](http://test262.ecmascript.org)
+### 4. Run KJS
 
-You can run all of ECMAScript conformance test suite (11,566 tests in total):
+You can run a JavaScript program using `kjs.sh`:
 ```
-./run-test262-all.sh
-```
-or selectively run its core part (2,782 tests in total):
-```
-./run-test262-core.sh
-```
-or run separately each positive and negative part of it:
-```
-./run-test262-core-positive.sh
-```
-```
-./run-test262-core-negative.sh
+$ ./kjs.sh <your-javascript-program>.js
 ```
 
-## Test Results
+For a 'hello-world' example,
+```
+$ cat >hello-world.js <<EOL
+console.log("hello world!");
+EOL
 
-The results of each of positive and negative core test are given as follows:
+$ ./kjs.sh hello-world.js
+hello world!
+```
 
- * [run-test262-core-positive.sh.out](run-test262-core-positive.sh.out): Test result of positive core test262
- * [run-test262-core-negative.sh.out](run-test262-core-negative.sh.out): Test result of negative core test262
+Note that, however, KJS support only a part of standard libraries,
+and may fail to run a program with unsupported libraries
+such as `Math`, `Date`, `RegExp`, and `JSON`.
+For example, 
+KJS fails to run the following program,
+getting stuck at the unsupported library function call: `Date.now()`:
+```
+$ cat >time.js <<EOL
+console.log(Date.now());
+EOL
 
-The positive tests are supposed to succeed, while the negative tests are supposed to fail.
-The [positive test result](run-test262-core-positive.sh.out) reports all `succeed`, except the following invalid tests, and the [negative test result](run-test262-core-negative.sh.out) reports all `failed`, as expected.
+$ ./kjs.sh time.js
+Error: failed to run the program: time.js
+Check the dumped output: /tmp/kjs.bd7uNgkKud.out
+
+$ cat /tmp/kjs.bd7uNgkKud.out
+<T>
+    <k>
+        Call ( @ ( "Date.now" ) , @DateOid , @Nil ) ~> Exit ;
+    </k>
+...
+```
+
+### 5. Run ECMAScript conformance test suite([test262](http://test262.ecmascript.org))
+
+You can run the core ECMAScript conformance test suite (2,782 tests in total) as follows:
+(where `N` is a number of parallel processes to be used)
+```
+$ make -k -j N test262-core
+```
+Running all the tests will take 2 hours using 4 parallel processes in a machine with
+Intel Xeon CPU 3.40GHz and DDR3 RAM 8GB 1600MHz.
+
+You can also selectively run a part of the tests by using the environment variables:
+```
+$ TEST262_CORE_POSITIVE=<list-of-positive-tests> make test262-core-positive
+$ TEST262_CORE_NEGATIVE=<list-of-negative-tests> make test262-core-negative
+```
+
+
+## Test Result of test262
+
+We provide a test result of the core test262, [test262-core.out](test262-core.out).
+For each test, it reports `succeed` when passed the test, and `failed` when failed.
+
+Note that there are two types of tests: positive and negative tests. A negative test is identified by `@negative`  in its preamble. The negative tests should be failed to run.
 
 ### Invalid Tests
 
@@ -122,9 +140,12 @@ test262-9b669da66c78/test/suite/ch12/12.8/S12.8_A4_T2.js
 test262-9b669da66c78/test/suite/ch12/12.8/S12.8_A4_T3.js
 ```
 
+Note that we consider the above tests as negative tests, so that it will report `succeed`.
+
+
 ## Built-in Objects Support
 
-Currently, the standard built-in objects are supported as follows:
+Currently, KJS supports the standard built-in objects as follows:
 
 * Fully defined:
   [`Object`](http://es5.github.io/#x15.2), 
@@ -148,12 +169,14 @@ Currently, the standard built-in objects are supported as follows:
 * Semantics
  * [js-main.k](js-main.k): Core semantics
  * [js-orig-syntax.k](js-orig-syntax.k): JavaScript syntax
+ * [js-orig-syntax-util.k](js-orig-syntax-util.k): JavaScript syntax preprocessor
  * [js-core-syntax.k](js-core-syntax.k): IR syntax
  * [js-trans.k](js-trans.k): Translation from JavaScript to IR
  * [js-pseudo-code.k](js-pseudo-code.k): Pseudo-code semantics
- * [js-str-numeric-literal.k](js-str-numeric-literal.k): Conversion semantics from strings to numbers
+ * [js-str-numeric-literal.k](js-str-numeric-literal.k): Paring numeric literals
  * [js-init-configuration.k](js-init-configuration.k): Initial configuration
- * [js-standard-builtin-objects.k](js-standard-builtin-objects.k): Standard built-in objects's constructor semantics
+ * [js-prelude.k](js-prelude.k): K built-in modules
+ * [js-standard-builtin-objects.k](js-standard-builtin-objects.k): Standard built-in objects' constructor semantics
  * [stdlib/](stdlib/): Standard built-in objects' methods semantics written in JavaScript itself
 
 * Applications
@@ -162,25 +185,20 @@ Currently, the standard built-in objects are supported as follows:
  * [verification](verification/README.md): Program verification based on the semantics
 
 * Build semantics
- * [build.sh](build.sh): Compile semantics
- * [kbuild.sh](kbuild.sh): Wrapper of `kompile`
- * [autoinclude-java.k](autoinclude-java.k): Include built-in K functions
+ * [Makefile](Makefile): Compile semantics
  * [kpp.py](kpp.py): Create a single K file from the multiple files
- * [jsaf.patch](jsaf.patch): Patch for SAFE framework
 
 * Run semantics
- * [run.sh](run.sh): Run normal JavaScript programs
- * [run-test262.sh](run-test262.sh): Run test262 programs
- * [run-test262-core.sh](run-test262-core.sh): Run core of test262
- * [run-test262-core-positive.sh](run-test262-core-positive.sh): Run positive core of test262
- * [run-test262-core-negative.sh](run-test262-core-negative.sh): Run negative core of test262
- * [run-test262-all.sh](run-test262-all.sh): Run all of test262
+ * [kjs.sh](kjs.sh): Run JavaScript programs
+ * [Makefile.test262](Makefile.test262): Run test262 programs
+ * [test262-core.out](test262-core.out): Test result of the core test262
  * [prelude.js](prelude.js): Prelude of test262
  * [jsmassage.sh](jsmassage.sh): Wrapper of SAFE framework
  * [pp.sh](pp.sh): Preprocessor
+ * [list-invalid-tests.txt](list-invalid-tests.txt): Invalid tests (See [the above](README.md#invalid-tests))
 
 
 ----
 
 Note:
-The applications use a customized version of K, which is not publicly availabile yet. It will be available soon.
+A virtual machine, in which all of the required programs and libraries have been installed and configured, is provided at:

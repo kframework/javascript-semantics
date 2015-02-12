@@ -2,7 +2,7 @@
 
 cmd=`basename "$0"`
 dir=`dirname "$0"`
-jsaf="$dir"/jsaf
+jsaf="$dir"/jsaf/jsaf
 
 tmp=`mktemp -d /tmp/"$cmd".XXXXXXXXXX`
 cleanup() { rm -rf "$tmp"; }

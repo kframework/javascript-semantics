@@ -1,0 +1,18 @@
+--- a/js.k	2015-02-12 15:10:09.000000000 -0600
++++ b/js.k	2015-02-12 15:53:30.000000000 -0600
+@@ -2022,10 +2022,15 @@
+         <obj>
+             <oid>
+                 @ObjectProtoOid
+             </oid>
+             <properties>
++                ?P:String |-> @desc ( 
++                    "Value" |-> ?V:UserVal
++                    "Writable" |-> true
++                    "Enumerable" |-> true
++                    "Configurable" |-> true )
+                 "constructor" |-> @desc ( 
+                     "Configurable" |-> true
+                     "Enumerable" |-> false
+                     "Value" |-> @ObjectOid
+                     "Writable" |-> true )

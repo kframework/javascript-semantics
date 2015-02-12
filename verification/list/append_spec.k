@@ -1,26 +1,16 @@
-require "../../js.k"
+require "../patterns/list/js-verifier.k"
 
 module APPEND-SPEC
-imports JS
+imports JS-VERIFIER
 
 rule [loop-inv]:
-  <ctrl>
-    <ctx>
-      <activeStack>... ACTIVESTACK:List </activeStack>
-      <running>
-        <lexicalEnv> EID:Eid </lexicalEnv>
-        <thisBinding> THISBINDING:Val </thisBinding>
-        <lastNonEmptyValue> LASTNONEMPTYVALUE:Val </lastNonEmptyValue>
-      </running>
-    </ctx>
-    <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
-  </ctrl>
+  <lexicalEnv> @e(I:Int) </lexicalEnv>
+  <lastNonEmptyValue> _:Val => ?_:Val </lastNonEmptyValue>
   <envs>...
     <env>
-      <eid> EID </eid>
+      <eid> @e(I) </eid>
       <outer> _:Eid </outer>
-      <strict> false </strict>
+      <strict> _:Bool </strict>
       <declEnvRec>...
         "x" |-> @ve(OX:NullableObject,         true, true, false)
         "p" |-> @ve(@o(P1:Int) => @o(?P2:Int), true, true, false)
@@ -29,7 +19,6 @@ rule [loop-inv]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    OBJS:Bag
     (
       lseg(OX, @o(P1:Int))(A:List)
       lseg(@o(P1:Int), @NullVal)(B:List)
@@ -48,6 +37,7 @@ rule [loop-inv]:
         </internalProperties>
       </obj>
     )
+    OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
@@ -59,47 +49,28 @@ rule [loop-inv]:
   ensures A B ==K ?C ListItem(?V)
 
 rule [func-spec]:
-  <ctrl>
-    <ctx>
-      <activeStack> ACTIVESTACK:List ...</activeStack>
-      <running>
-        <lexicalEnv> EID:Eid </lexicalEnv>
-        <thisBinding> THISBINDING:Val </thisBinding>
-        <lastNonEmptyValue> LASTNONEMPTYVALUE:Val </lastNonEmptyValue>
-      </running>
-    </ctx>
-    <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
-  </ctrl>
   <envs>...
-    <env>
-      <eid> @GlobalEid </eid>
-      <outer> @NullEid </outer>
-      <strict> false </strict>
-      <objEnvRec>
-        <bindingObj> @GlobalOid </bindingObj>
-        <provideThis> false </provideThis>
-      </objEnvRec>
-    </env>
+    ENVS:Bag
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    OBJS:Bag
     (
       lseg(OX, @NullVal)(A:List)
       lseg(OY, @NullVal)(B:List)
     =>
       lseg(?OP, @NullVal)(A B)
     )
+    OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
-    %call(
-      %var("append"),
+    Call(
+      // %var("append"),
+      @o(2),
+      Undefined,
       @Cons(OX:NullableObject, @Cons(OY:NullableObject, @Nil)))
   =>
     ?OP:NullableObject
   ...</k>
-
 endmodule
 

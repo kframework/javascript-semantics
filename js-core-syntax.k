@@ -1,4 +1,14 @@
+require "builtins/bool.k"
+require "builtins/int.k"
+require "builtins/float.k"
+require "builtins/string.k"
+
 module JS-CORE-SYNTAX
+
+imports BOOL-SYNTAX-HOOKS
+imports INT-SYNTAX-HOOKS
+imports FLOAT-SYNTAX-HOOKS
+imports STRING-SYNTAX-HOOKS
 
 syntax Pgm ::= Stmt
 
@@ -23,6 +33,7 @@ syntax Stmt ::= "%fdecl" "(" Var "," Exps "," Stmt ")"
               | "%switch" "(" Exp "," Stmt "," Stmt "," Stmt ")" // switch ( _ ) { _ _ _ }
               | "%case" "(" Exp "," Stmt ")" // case _ : _
               | "%default" "(" Stmt ")" // default : _
+              | "%debugger"
 
 syntax Exp ::= "%con" "(" Const ")"
              | "%var" "(" Var ")"

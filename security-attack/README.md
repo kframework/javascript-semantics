@@ -55,7 +55,7 @@ as follows:
 Then we execute [the `send` program](send.js) using K's search mode, asking to reach
 a state where the message was sent, as follows:
 ```
-$ krun --search send.js
+$ krun  -d ../ --smt none --search send.js
 ```
 
 The symbolic search execution then returns the constraints, as follows,

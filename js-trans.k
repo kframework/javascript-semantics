@@ -1,10 +1,13 @@
 require "js-orig-syntax.k"
+require "js-orig-syntax-util.k"
 require "js-core-syntax.k"
 
 module JS-TRANS
 
 imports JS-ORIG-SYNTAX
 imports JS-CORE-SYNTAX
+
+imports JS-ORIG-SYNTAX-UTIL
 
 // top-level
 syntax Stmt ::= "^SourceElements" "(" SourceElements ")" [function]
@@ -110,7 +113,7 @@ rule ^Statement(try { Ss1:Statements } catch ( X:Name ) { Ss2:Statements }      
 rule ^Statement(try { Ss1:Statements }                                     finally { Ss3:Statements }) => %try(^Statements(Ss1),                             ^Statements(Ss3))
 
 // debugger
-// TODO:
+rule ^Statement(debugger ;) => %debugger
 
 // comma expressions
 syntax Exp ::= "^ExpressionS2Comma" "(" ExpressionS ")" [function]
