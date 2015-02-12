@@ -70,7 +70,10 @@ Final(search): ... <out>ListItem('#buffer(String(#""Sent msg to http://www.evil.
 ```
 which essentially means the following constraint:
 ```
-P = "http://www.evil.com" and (V = true or V is a non-empty string or V is a non-zero number or V is an object)
+P = "http://www.evil.com" and (V = true or 
+                               V is a non-empty string or 
+                               V is a non-zero number or 
+                               V is an object)
 ```
 
 Any global object poisoning scenario that satisfies the above constraint can attack the
