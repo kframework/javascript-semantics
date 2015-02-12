@@ -1,0 +1,30 @@
+--- a/js.k	2015-02-12 15:10:09.000000000 -0600
++++ b/js.k	2015-02-12 15:22:06.000000000 -0600
+@@ -1,8 +1,8 @@
+-require "js-trans.k"
+-require "js-str-numeric-literal.k"
+-require "js-prelude.k"
++require "../js-trans.k"
++require "../js-str-numeric-literal.k"
++require "../js-prelude.k"
+ 
+ module JS-SYNTAX
+ imports JS-ORIG-SYNTAX
+ imports JS-STR-NUMERIC-LITERAL
+ endmodule
+@@ -2022,10 +2022,15 @@
+         <obj>
+             <oid>
+                 @ObjectProtoOid
+             </oid>
+             <properties>
++                ?P:String |-> @desc ( 
++                    "Value" |-> ?V:UserVal
++                    "Writable" |-> true
++                    "Enumerable" |-> true
++                    "Configurable" |-> true )
+                 "constructor" |-> @desc ( 
+                     "Configurable" |-> true
+                     "Enumerable" |-> false
+                     "Value" |-> @ObjectOid
+                     "Writable" |-> true )
