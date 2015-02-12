@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    float_tree(O)(T:FloatTree)
+    tree(O)(T:FloatTree)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -20,8 +20,8 @@ rule
       Undefined,
       @Cons(V:Float{exponent(11), significand(53)}, @Cons(O:NullableObject, @Nil)))
   =>
-    V inFloatSet float_tree_keys(T)
+    V inFloatSet tree_keys(T)
   ...</k>
-  requires float_bst(T) andBool (notBool isNaN(V)) 
+  requires bst(T) andBool (notBool isNaN(V)) 
 endmodule
 

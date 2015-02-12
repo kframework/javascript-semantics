@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (float_tree(O1)(T1:FloatTree) => float_tree(?O2)(?T2:FloatTree))
+    (tree(O1)(T1:FloatTree) => tree(?O2)(?T2:FloatTree))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -22,7 +22,7 @@ rule
   =>
     ?O2:NullableObject
   ...</k>
-  requires float_bst(T1) andBool (notBool isNaN(V))
-  ensures float_bst(?T2) andBool float_tree_keys(?T2) ==K { V } U float_tree_keys(T1)
+  requires bst(T1) andBool (notBool isNaN(V))
+  ensures bst(?T2) andBool tree_keys(?T2) ==K { V } U tree_keys(T1)
 endmodule
 

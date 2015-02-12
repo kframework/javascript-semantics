@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    float_tree(O)(T:FloatTree)
+    tree(O)(T:FloatTree)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -22,8 +22,8 @@ rule
   =>
     ?M:Float{exponent(11), significand(53)}
   ...</k>
-  requires float_bst(T)
-  ensures (?M inFloatSet float_tree_keys(T)) andBool ({ ?M } <=FloatSet float_tree_keys(T)) andBool (notBool isNaN(?M))
+  requires bst(T)
+  ensures (?M inFloatSet tree_keys(T)) andBool ({ ?M } <=FloatSet tree_keys(T)) andBool (notBool isNaN(?M))
 
 rule
   <envs>...
@@ -31,7 +31,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (float_tree(O1)(T1:FloatTree) => float_tree(?O2)(?T2:FloatTree))
+    (tree(O1)(T1:FloatTree) => tree(?O2)(?T2:FloatTree))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -44,7 +44,7 @@ rule
   =>
     ?O2:NullableObject
   ...</k>
-  requires float_bst(T1) andBool (notBool isNaN(V))
-  ensures float_bst(?T2) andBool float_tree_keys(?T2) ==K float_tree_keys(T1) -FloatSet { V }
+  requires bst(T1) andBool (notBool isNaN(V))
+  ensures bst(?T2) andBool tree_keys(?T2) ==K tree_keys(T1) -FloatSet { V }
 endmodule
 

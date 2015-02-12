@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (string_tree(O1)(T1:StringTree)(P:Oid) => string_tree(?O2)(?T2:StringTree)(P:Oid))
+    (tree(O1)(T1:StringTree)(P:Oid) => tree(?O2)(?T2:StringTree)(P:Oid))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -22,7 +22,7 @@ rule
   =>
     ?O2:NullableObject
   ...</k>
-  requires string_bst(T1)
-  ensures string_bst(?T2) andBool string_tree_keys(?T2) ==K { V } U string_tree_keys(T1)
+  requires bst(T1)
+  ensures bst(?T2) andBool tree_keys(?T2) ==K { V } U tree_keys(T1)
 endmodule
 

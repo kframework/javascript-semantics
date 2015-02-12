@@ -10,7 +10,7 @@ rule
   ...</envs>
   <objs>...
     OBJS:Bag
-    string_htree(O)(T:StringTree)
+    htree(O)(T:StringTree)
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
@@ -20,7 +20,7 @@ rule
       Undefined,
       @Cons(V:String, @Cons(O:NullableObject, @Nil)))
   =>
-    V inStringSet string_tree_keys(T)
+    V inStringSet tree_keys(T)
   ...</k>
-  requires string_avl(T)
+  requires avl(T)
 endmodule

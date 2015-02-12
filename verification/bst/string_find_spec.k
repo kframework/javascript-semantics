@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    string_tree(O)(T:StringTree)(_:Oid)
+    tree(O)(T:StringTree)(_:Oid)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -20,7 +20,7 @@ rule
       Undefined,
       @Cons(V:String, @Cons(O:NullableObject, @Nil)))
   =>
-    V inStringSet string_tree_keys(T)
+    V inStringSet tree_keys(T)
   ...</k>
-  requires string_bst(T)
+  requires bst(T)
 endmodule
