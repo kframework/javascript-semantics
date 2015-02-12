@@ -35,6 +35,8 @@ We have the following example programs and specifications to be verified:
 | AVL insert   | [avl/avl.js:insert](avl/avl.js#L102) | [avl/avl_insert_spec.k](avl/avl_insert_spec.k)       |
 | AVL delete   | [avl/avl.js:delete](avl/avl.js#L120) | [avl/avl_delete_spec.k](avl/avl_delete_spec.k)       |
 
+We have three different data structures of list, binary search tree, and AVL tree.
+For the binary search tree, we have two different implementations; one is written in C-like style (e.g., [bst/insert.js](bst/insert.js)) and another is written in OOP style (e.g., [bst-oop/bst.js](bst-oop/bst.js)).
 
 ### Specifications
 
