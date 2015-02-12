@@ -21,6 +21,9 @@ prove:
 	krun -d patterns/tree_string --smt_prelude $(K_Z3)/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
 	krun -d patterns/tree_string --smt_prelude $(K_Z3)/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
 	krun -d patterns/tree_string --smt_prelude $(K_Z3)/string.smt2 --prove bst/string_delete_spec.k  bst/delete.js 
+	@echo "BST OOP String"
+	krun -d patterns/tree_string --smt_prelude $(K_Z3)/string.smt2 --prove bst-oop/bst_find_spec.k   bst-oop/bst.js 
+	krun -d patterns/tree_string --smt_prelude $(K_Z3)/string.smt2 --prove bst-oop/bst_insert_spec.k bst-oop/bst.js 
 	@echo "BST Float"
 	krun -d patterns/tree_float  --smt_prelude $(K_Z3)/float.smt2  --prove bst/float_find_spec.k     bst/find.js 
 	krun -d patterns/tree_float  --smt_prelude $(K_Z3)/float.smt2  --prove bst/float_insert_spec.k   bst/insert.js 
