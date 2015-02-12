@@ -21,7 +21,7 @@ rule
   =>
     maxInt(X,Y)
   ...</k>
-  requires (X <Int 4294967296) andBool (Y <Int 4294967296) andBool (X >Int -4294967296) andBool (Y >Int -4294967296)
+  requires (X <Int @MAX_INT) andBool (Y <Int @MAX_INT) andBool (X >Int @MIN_INT) andBool (Y >Int @MIN_INT)
 
 rule
   <envs>...
@@ -42,7 +42,7 @@ rule
   =>
     string_tree_height(T)
   ...</k>
-  requires string_avl(T) andBool (string_tree_height(T) <Int 4294967296)
+  requires string_avl(T) andBool (string_tree_height(T) <Int @MAX_INT)
 
 rule
   <envs>...
@@ -79,8 +79,8 @@ rule
     Undefined
   ...</k>
   requires (string_avl(TL)) andBool (string_avl(TR))
-    andBool (string_tree_height(TL) <Int (4294967296 -Int 1))
-    andBool (string_tree_height(TR) <Int (4294967296 -Int 1))
+    andBool (string_tree_height(TL) <Int (@MAX_INT -Int 1))
+    andBool (string_tree_height(TR) <Int (@MAX_INT -Int 1))
 
 rule
   <envs>...
@@ -104,7 +104,7 @@ rule
   =>
     ?O2:NullableObject
   ...</k>
-  requires string_avl(T1) andBool (string_tree_height(T1) <Int (4294967296 -Int 1))
+  requires string_avl(T1) andBool (string_tree_height(T1) <Int (@MAX_INT -Int 1))
   ensures string_avl(?T2) andBool string_tree_keys(?T2) ==K { V } U string_tree_keys(T1)
     andBool string_tree_height(T1) <=Int  string_tree_height(?T2)
     andBool string_tree_height(?T2) <=Int string_tree_height(T1) +Int 1
