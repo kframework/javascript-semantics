@@ -8,6 +8,9 @@ build: js.k
 js.k: ../js.k
 	cp -f ../js.k .
 	patch -p1 <js.k.patch
+	ln -s ../js-trans.k
+	ln -s ../js-str-numeric-literal.k
+	ln -s ../js-prelude.k
 
 .PHONY: run
 run:
