@@ -82,3 +82,8 @@ Any global object poisoning scenario that satisfies the above constraint can att
  * `Object.prototype["http://www.evil.com"] = "string";`
  * `Object.prototype["http://www.evil.com"] = 1;`
  * `Object.prototype["http://www.evil.com"] = Object;`
+
+You can simply reproduce this result by using [Makefile](Makefile):
+```
+$ make
+```
