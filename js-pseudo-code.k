@@ -32,10 +32,10 @@ rule <k> X:Id => V ... </k>
 
 rule Do  K; => K
 rule DoI K; => K ~> @Ignore
-rule If V1:KResult = V2:KResult then { PCs } else { _   } => PCs when V1 ==K  V2
-rule If V1:KResult = V2:KResult then { _   } else { PCs } => PCs when V1 =/=K V2
-rule If V1:KResult = V2:KResult then { PCs } ;            => PCs when V1 ==K  V2
-rule If V1:KResult = V2:KResult then { _   } ;            => .K  when V1 =/=K V2
+rule If V1:KResult = V2:KResult then { PCs } else { _   } => PCs when V1 ==K  V2 [pseudoIf]
+rule If V1:KResult = V2:KResult then { _   } else { PCs } => PCs when V1 =/=K V2 [pseudoIf]
+rule If V1:KResult = V2:KResult then { PCs } ;            => PCs when V1 ==K  V2 [pseudoIf]
+rule If V1:KResult = V2:KResult then { _   } ;            => .K  when V1 =/=K V2 [pseudoIf]
 rule Return V:KResult; => V
 rule Return; => .K
 rule Nop; => .K
