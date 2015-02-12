@@ -140,7 +140,7 @@ endmodule
 
  * [patterns](patterns) - definitions of the abstractions used in the specifications (list, tree, etc) given in K syntax
  * [list](list)     - the source code and specifications for the list examples
- * [bst](bst)      - the source code and specifications for the binary search tree example
+ * [bst](bst)      - the source code and specifications for the binary search tree (written in C-like style) example
  * [bst-oop](bst-oop)      - the source code and specifications for the binary search tree (written in OOP style) example
  * [avl](avl)      - the source code and specifications for the AVL tree example
 
