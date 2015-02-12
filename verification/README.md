@@ -78,6 +78,7 @@ Specifically
    in the `<objs>` cell that says that after a function call there may be some
    dead objects left over, since the semantics does not garbage collect (`?\_` is a
    existentially quantified anonymous variable)
+ * the internal reference to the `insert` function, `@o(19)`, will be automatically generated.
 
 The parts of this rule specific to the avl insert routine are
  * the `<k>` cell, which says that the call to insert takes a string `V` and an
@@ -111,26 +112,10 @@ We did not implement this transformation yet. However a similar transformation
 available online at
     http://fsl.cs.illinois.edu/index.php/Special:MatchCOnline 
 
-### Run
 
-The following bash command verifies the avl insert example:
+### Wrapper Module for Verification
 
-```
-$ krun --prove verification/avl/insert_spec.k verification/avl/insert.js --smt_prelude=<k_root>/include/z3/string.smt2
-```
-
-
-### Directory Structure
-
- * [patterns](patterns) - definitions of the abstractions used in the specifications (list, tree, etc) given in K syntax
- * [list](list)     - the source code and specifications for the list examples
- * [bst](bst)      - the source code and specifications for the bst example
- * [avl](avl)      - the source code and specifications for the avl example
-
-
-### Verification Modules
-
-For the sake of clear explanation, we provide a separate verification module for each (algebraic) data types such as tree and list. As shown in the following template, each verification module consists of the JavaScript semantics `JS`, verification lemmas `VERIFICATION_LEMMAS`, and a data type abstraction `<PATTERN>`.
+The K verifier requires a wrapper module that combines the original language semantics with several verification specific libraries. A wrapper module can be written by simply importing several sub-modules such as the JavaScript semantics `JS`, verification lemmas `VERIFICATION_LEMMAS`, and a data type abstraction `<PATTERN>`, as follows:
 ```
 require "js.k"
 require "modules/verification_lemmas.k"
@@ -144,3 +129,11 @@ module JS-VERIFIER
 
 endmodule
 ```
+
+### Directory Structure
+
+ * [patterns](patterns) - definitions of the abstractions used in the specifications (list, tree, etc) given in K syntax
+ * [list](list)     - the source code and specifications for the list examples
+ * [bst](bst)      - the source code and specifications for the bst example
+ * [avl](avl)      - the source code and specifications for the avl example
+
