@@ -29,7 +29,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    string_htree(O)(T:StringTree)
+    htree(O)(T:StringTree)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -40,9 +40,9 @@ rule
       Undefined,
       @Cons(O:NullableObject, @Nil))
   =>
-    string_tree_height(T)
+    tree_height(T)
   ...</k>
-  requires string_avl(T) andBool (string_tree_height(T) <Int 4294967296)
+  requires avl(T) andBool (tree_height(T) <Int 4294967296)
 
 rule
   <envs>...
@@ -53,10 +53,10 @@ rule
     <obj>
       <oid> O </oid>
       <properties>
-        "value"  |-> @desc("Value" |-> S:String                                                                                                                                     "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-        "height" |-> @desc((("Value" |-> _:Int) => ("Value" |-> string_tree_height(string_node(S:String, TL:StringTree, TR:StringTree)))) "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-        "left"   |-> @desc("Value" |-> OL:NullableObject                                                                                                                             "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-        "right"  |-> @desc("Value" |-> OR:NullableObject                                                                                                                             "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "value"  |-> @desc("Value" |-> S:String                                                                             "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "height" |-> @desc((("Value" |-> _:Int) => ("Value" |-> tree_height(node(S:String, TL:StringTree, TR:StringTree)))) "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "left"   |-> @desc("Value" |-> OL:NullableObject                                                                    "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "right"  |-> @desc("Value" |-> OR:NullableObject                                                                    "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
       </properties>
       <internalProperties>
         "Class"      |-> "Object"
@@ -64,8 +64,8 @@ rule
         "Prototype"  |-> @ObjectProtoOid
       </internalProperties>
     </obj>
-    string_htree(OL)(TL:StringTree)
-    string_htree(OR)(TR:StringTree)
+    htree(OL)(TL:StringTree)
+    htree(OR)(TR:StringTree)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -78,9 +78,9 @@ rule
   =>
     Undefined
   ...</k>
-  requires (string_avl(TL)) andBool (string_avl(TR))
-    andBool (string_tree_height(TL) <Int (4294967296 -Int 1))
-    andBool (string_tree_height(TR) <Int (4294967296 -Int 1))
+  requires avl(TL) andBool avl(TR)
+    andBool (tree_height(TL) <Int (4294967296 -Int 1))
+    andBool (tree_height(TR) <Int (4294967296 -Int 1))
 
 rule
   <envs>...
@@ -88,7 +88,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    string_htree(O)(T:StringTree)
+    htree(O)(T:StringTree)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -101,8 +101,8 @@ rule
   =>
     ?M:String
   ...</k>
-  requires string_avl(T)
-  ensures (?M inStringSet string_tree_keys(T)) andBool ({ ?M } <=StringSet string_tree_keys(T))
+  requires avl(T)
+  ensures (?M inStringSet tree_keys(T)) andBool ({ ?M } <=StringSet tree_keys(T))
 
 rule
   <envs>...
@@ -110,7 +110,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (string_htree(O1)(T1:StringTree) => string_htree(?O2)(?T2:StringTree))
+    (htree(O1)(T1:StringTree) => htree(?O2)(?T2:StringTree))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -123,9 +123,9 @@ rule
   =>
     ?O2:NullableObject
   ...</k>
-  requires string_avl(T1) andBool (string_tree_height(T1) <Int 4294967296)
-  ensures string_avl(?T2) andBool string_tree_keys(?T2) ==K string_tree_keys(T1) -StringSet { V }
-    andBool string_tree_height(T1) -Int 1 <=Int  string_tree_height(?T2)
-    andBool string_tree_height(?T2) <=Int string_tree_height(T1)
+  requires avl(T1) andBool (tree_height(T1) <Int 4294967296)
+  ensures avl(?T2) andBool tree_keys(?T2) ==K tree_keys(T1) -StringSet { V }
+    andBool tree_height(T1) -Int 1 <=Int  tree_height(?T2)
+    andBool tree_height(?T2) <=Int tree_height(T1)
 endmodule
 
