@@ -21,6 +21,7 @@ true
 []
 true
 ```
+Note that the verifier will simply crash or not terminate when the program is not correct. We will improve usability of the verifier.
 
 
 ### List of Programs and Specifications
