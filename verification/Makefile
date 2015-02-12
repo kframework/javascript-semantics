@@ -3,6 +3,9 @@ SHELL=/bin/bash
 K?=../k
 K_Z3=$(K)/k-distribution/include/z3
 
+.PHONY: all
+all: build prove
+
 .PHONY: build
 build: clean
 	kompile -d patterns/tree_string --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_string/js-verifier.k
