@@ -614,6 +614,7 @@ rule <k> GetOwnProperty@Default(O:Oid,P:Var) => V ... </k>
        <properties> P |-> V:Val _:Map </properties>
        _
      </obj>
+     [getOwnProperty]
 rule <k> GetOwnProperty@Default(O:Oid,P:Var) => Undefined ... </k>
      <obj>
        <oid> O </oid>
@@ -621,6 +622,7 @@ rule <k> GetOwnProperty@Default(O:Oid,P:Var) => Undefined ... </k>
        _
      </obj>
      when notBool(P in keys(Prop))
+     [getOwnProperty]
 
 // 8.12.? [[GetInternalProperty]] (P)
 
@@ -1142,16 +1144,16 @@ rule ToPrimitive(O:Oid, PreferredType:String) => DefaultValue(O,PreferredType)
 
 syntax KItem /* Bool */ ::= "ToBoolean" "(" K /* Val */ ")" [seqstrict]
 
-rule ToBoolean(Undefined) => false
-rule ToBoolean(@NullVal  ) => false
-rule ToBoolean(B:Bool    ) => B
-rule ToBoolean(S:String  ) => true when S =/=String ""
-rule ToBoolean(""        ) => false
-rule ToBoolean(N:Number  ) => true when N =/=K 0 andBool N =/=K @NaN andBool N =/=K @nz
-rule ToBoolean(0         ) => false
-rule ToBoolean(@nz       ) => false
-rule ToBoolean(@NaN      ) => false
-rule ToBoolean(O:Oid     ) => true
+rule ToBoolean(Undefined) => false                                                      [toBoolean]
+rule ToBoolean(@NullVal ) => false                                                      [toBoolean]
+rule ToBoolean(B:Bool   ) => B                                                          [toBoolean]
+rule ToBoolean(S:String ) => true when S =/=String ""                                   [toBoolean]
+rule ToBoolean(""       ) => false                                                      [toBoolean]
+rule ToBoolean(N:Number ) => true when N =/=K 0 andBool N =/=K @NaN andBool N =/=K @nz  [toBoolean]
+rule ToBoolean(0        ) => false                                                      [toBoolean]
+rule ToBoolean(@nz      ) => false                                                      [toBoolean]
+rule ToBoolean(@NaN     ) => false                                                      [toBoolean]
+rule ToBoolean(O:Oid    ) => true                                                       [toBoolean]
 
 // 9.3 ToNumber
 
@@ -4132,6 +4134,8 @@ syntax Int ::= "@MAX_INT"
              | "@MIN_INT"
 rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
 rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
+
+syntax UserVal ::= UndefinedType | NullType | Primitive | Oid
 
 endmodule
 
