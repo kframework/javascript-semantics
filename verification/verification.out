@@ -1,40 +1,48 @@
-krun -d patterns/list        --smt none                        --prove list/reverse_spec.k       list/reverse.js 
-true
-[]
+kompile -d patterns/tree_string --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_string/js-verifier.k
+kompile -d patterns/tree_float  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_float/js-verifier.k
+kompile -d patterns/list        --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/list/js-verifier.k
+
+List
+krun -d patterns/list        --smt none                        --prove list/reverse_spec.k       list/reverse.js
 true
 
 krun -d patterns/list        --smt none                        --prove list/append_spec.k        list/append.js
 true
-[]
-true
 
+BST String
 krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
-true
-[]
 true
 
 krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
 true
-[]
-true
 
 krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst/string_delete_spec.k  bst/delete.js 
 true
-[]
+
+BST OOP String
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst-oop/bst_find_spec.k   bst-oop/bst.js 
 true
 
-krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js 
-true
-[]
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove bst-oop/bst_insert_spec.k bst-oop/bst.js 
 true
 
-krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js 
-true
-[]
+BST Float
+krun -d patterns/tree_float  --smt_prelude ../k/k-distribution/include/z3/float.smt2  --prove bst/float_find_spec.k     bst/find.js
 true
 
-krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js 
+krun -d patterns/tree_float  --smt_prelude ../k/k-distribution/include/z3/float.smt2  --prove bst/float_insert_spec.k   bst/insert.js
 true
-[]
+
+krun -d patterns/tree_float  --smt_prelude ../k/k-distribution/include/z3/float.smt2  --prove bst/float_delete_spec.k   bst/delete.js
+true
+
+AVL String
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js
+true
+
+krun -d patterns/tree_string --smt_prelude ../k/k-distribution/include/z3/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js
 true
 
