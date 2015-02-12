@@ -9,37 +9,15 @@ $ krun --prove <specification.k> <program.js>
 The specification `<specification.k>` essentially describes a pre-/post-condition,
 and it should be given as a reachability rule written in K.
 
-For the sake of clear explanation, we provide a separate verification module for each (algebraic) data types such as tree and list. As shown in the following template, each verification module consists of the JavaScript semantics `JS`, verification lemmas `VERIFICATION_LEMMAS`, and a data type abstraction `<PATTERN>`.
-```
-require "js.k"
-require "modules/verification_lemmas.k"
-require "<pattern.k>"
-
-module JS-VERIFIER
-
-  imports JS
-  imports VERIFICATION_LEMMAS
-  imports <PATTERN>
-
-endmodule
-```
-
-In order to prove all the example programs,
-you will first compile all the verification modules:
+You can quickly run all of the verification examples using the [Makefile](Makefile):
 ```
 $ make
 ```
-and then prove the programs:
-```
-$ ./prover.sh
-```
 
 
+### List of Programs and Specifications
 
-
-### Programs
-
-We have the following example programs to be verified:
+We have the following example programs and specifications to be verified:
 
 | Programs     | Source Codes                         | Specifications                                       |
 |--------------|--------------------------------------|------------------------------------------------------|
@@ -63,50 +41,25 @@ For example, the rule below from the
 file captures the behavior of the avl insert routine:
 ```
 rule
-  <ctrl>
-    <ctx>
-      <activeStack> ACTIVESTACK:List ...</activeStack>
-      <running>
-        <lexicalEnv> EID:Eid </lexicalEnv>
-        <thisBinding> THISBINDING:Val </thisBinding>
-        <lastNonEmptyValue> LASTNONEMPTYVALUE:Val </lastNonEmptyValue>
-      </running>
-    </ctx>
-    <excStack> EXCSTACK:List </excStack>
-    <pseudoStack> PSEUDOSTACK:List </pseudoStack>
-  </ctrl>
   <envs>...
-    <env>
-      <eid> EID </eid>
-      <outer> @GlobalEid </outer>
-      <strict> false </strict>
-      <declEnvRec> Record:Map </declEnvRec>
-    </env>
-    <env>
-      <eid> @GlobalEid </eid>
-      <outer> @NullEid </outer>
-      <strict> false </strict>
-      <objEnvRec>
-        <bindingObj> @GlobalOid </bindingObj>
-        <provideThis> false </provideThis>
-      </objEnvRec>
-    </env>
+    ENVS:Bag
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    OBJS:Bag
     (string_htree(O1)(T1:StringTree) => string_htree(?O2)(?T2:StringTree))
+    OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
   <k>
-    %call(
-      %var("insert"),
+    Call(
+      // %var("insert"),
+      @o(19),
+      Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>
     ?O2:NullableObject
   ...</k>
-  requires ("insert" in keys(Record) ==K false) andBool (EID =/=K @NullEid) andBool string_avl(T1)
-    andBool (string_tree_height(T1) <Int (4294967296 -Int 1))
+  requires string_avl(T1) andBool string_tree_height(T1) <Int (4294967296 -Int 1)
   ensures string_avl(?T2) andBool string_tree_keys(?T2) ==K { V } U string_tree_keys(T1)
     andBool string_tree_height(T1) <=Int  string_tree_height(?T2)
     andBool string_tree_height(?T2) <=Int string_tree_height(T1) +Int 1
@@ -116,32 +69,20 @@ While the rule is fairly verbose (due to operating on the configuration used to
 give semantics to JavaScript), most of it can be automatically generated.
 Specifically
  * the variables with the same names as cells but with capital letters (e.g.
-   `OBJS:Bag`) are placeholders for the parts of the configuration that are
+   `ENVS:Bag` and `OBJS:Bag`) are placeholders for the parts of the configuration that are
    statically computed by running the semantics on the functions being verified
    (e.g. `OBJS:Bags` stands for all the builtin objects and the objects associated
    to the functions being verified).
- * the parts that are needed for the symbolic execution of any code fragment,
-   regardless of what the code the code does; e.g. the global environment:
-```
-  <env>
-    <eid> @GlobalEid </eid>
-    <outer> @NullEid </outer>
-    <strict> false </strict>
-    <objEnvRec>
-      <bindingObj> @GlobalOid </bindingObj>
-      <provideThis> false </provideThis>
-    </objEnvRec>
-  </env>
-```
  * the parts that captures general JavaScript behavior; e.g. the line
    `(.Bag => ?_:Bag)`
    in the `<objs>` cell that says that after a function call there may be some
    dead objects left over, since the semantics does not garbage collect (`?\_` is a
    existentially quantified anonymous variable)
+ * the internal reference to the `insert` function, `@o(19)`, will be automatically generated.
 
 The parts of this rule specific to the avl insert routine are
  * the `<k>` cell, which says that the call to insert takes a string `V` and an
-   object reference O1 and returns another object reference `?O2`
+   object reference `O1` and returns another object reference `?O2`
  * the line
    `(string_htree(O1)(T1:StringTree) => string_htree(?O2)(?T2:StringTree))`
    in the `<objs>` cell which says that before the call to insert, there is a tree
@@ -171,14 +112,23 @@ We did not implement this transformation yet. However a similar transformation
 available online at
     http://fsl.cs.illinois.edu/index.php/Special:MatchCOnline 
 
-### Run
 
-The following bash command verifies the avl insert example:
+### Wrapper Module for Verification
 
+The K verifier requires a wrapper module that combines the original language semantics with several verification specific libraries. A wrapper module can be written by simply importing several sub-modules such as the JavaScript semantics `JS`, verification lemmas `VERIFICATION_LEMMAS`, and a data type abstraction `<PATTERN>`, as follows:
 ```
-$ krun --prove verification/avl/insert_spec.k verification/avl/insert.js --smt_prelude=<k_root>/include/z3/string.smt2
-```
+require "js.k"
+require "modules/verification_lemmas.k"
+require "<pattern.k>"
 
+module JS-VERIFIER
+
+  imports JS
+  imports VERIFICATION_LEMMAS
+  imports <PATTERN>
+
+endmodule
+```
 
 ### Directory Structure
 
@@ -186,3 +136,4 @@ $ krun --prove verification/avl/insert_spec.k verification/avl/insert.js --smt_p
  * [list](list)     - the source code and specifications for the list examples
  * [bst](bst)      - the source code and specifications for the bst example
  * [avl](avl)      - the source code and specifications for the avl example
+
