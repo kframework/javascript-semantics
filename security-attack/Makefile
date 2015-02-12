@@ -16,6 +16,6 @@ js.k: ../js.k
 run:
 	krun -w none --smt none --search send.js >send.js.out
 
-.PHONY: cleean
+.PHONY: clean
 clean:
 	rm -rf js-kompiled js.k js-prelude.k js-str-numeric-literal.k js-trans.k
