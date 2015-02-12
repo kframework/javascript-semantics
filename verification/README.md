@@ -14,6 +14,14 @@ You can quickly run all of the verification examples using the [Makefile](Makefi
 $ make
 ```
 
+We provide the verification results, [verification.out](verification.out).
+For each program, the verifier simply outputs the following triple when it succeeds in verifying the program:
+```
+true
+[]
+true
+```
+
 
 ### List of Programs and Specifications
 
