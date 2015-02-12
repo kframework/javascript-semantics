@@ -29,6 +29,8 @@ We have the following example programs and specifications to be verified:
 | BST find     | [bst/find.js](bst/find.js)           | [bst/string_find_spec.k](bst/string_find_spec.k)     |
 | BST insert   | [bst/insert.js](bst/insert.js)       | [bst/string_insert_spec.k](bst/string_insert_spec.k) |
 | BST delete   | [bst/delete.js](bst/delete.js)       | [bst/string_delete_spec.k](bst/string_delete_spec.k) |
+| BST find (in OOP style)   | [bst-oop/bst.js:find](bst-oop/bst.js#L47)   | [bst-oop/bst_find_spec.k](bst-oop/bst_find_spec.k) |
+| BST insert (in OOP style) | [bst-oop/bst.js:insert](bst-oop/bst.js#L31) | [bst-oop/bst_insert_spec.k](bst-oop/bst_insert_spec.k) |
 | AVL find     | [avl/avl.js:find](avl/avl.js#L90)    | [avl/avl_find_spec.k](avl/avl_find_spec.k)           |
 | AVL insert   | [avl/avl.js:insert](avl/avl.js#L102) | [avl/avl_insert_spec.k](avl/avl_insert_spec.k)       |
 | AVL delete   | [avl/avl.js:delete](avl/avl.js#L120) | [avl/avl_delete_spec.k](avl/avl_delete_spec.k)       |
