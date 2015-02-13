@@ -59,7 +59,7 @@ $ krun --search send.js
 ```
 
 The symbolic search execution then returns the constraints:
-(Refer to [send.js.out](send.js.out) for a complete result.)
+(Refer to [security-attack.out](security-attack.out) for a complete result.)
 ```
 ...
 Final(search): ... <out>ListItem('#buffer(String(#""Sent msg to http://www.evil.com\n"")))  </out> ... /\ '_andBool_('_==K_(_20450:UserVal,, Bool(#"true")),, '_andBool_('_==K_(_20448:String,, String(#""http://www.evil.com"")),, '_==K_(_66670:Bool,, Bool(#"true"))))

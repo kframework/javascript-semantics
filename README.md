@@ -115,7 +115,7 @@ $ TEST262_CORE_NEGATIVE=<list-of-negative-tests> make test262-core-negative
 
 ## Test Result of test262
 
-We provide a test result of the core test262, [test262-core.out](test262-core.out).
+We provide a test result of the core test262, [test262.out](test262.out).
 For each test, it reports `succeed` when passed the test, and `failed` when failed.
 
 Note that there are two types of tests: positive and negative tests. A negative test is identified by `@negative`  in its preamble. The negative tests should be failed to run.
@@ -191,7 +191,7 @@ Currently, KJS supports the standard built-in objects as follows:
 * Run semantics
  * [kjs.sh](kjs.sh): Run JavaScript programs
  * [Makefile.test262](Makefile.test262): Run test262 programs
- * [test262-core.out](test262-core.out): Test result of the core test262
+ * [test262.out](test262.out): Test result of the core test262
  * [prelude.js](prelude.js): Prelude of test262
  * [jsmassage.sh](jsmassage.sh): Wrapper of SAFE framework
  * [pp.sh](pp.sh): Preprocessor

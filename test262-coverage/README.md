@@ -17,11 +17,11 @@ $ make -k -j N test262-core-coverage
 ```
 and then generate a coverage report from the trace outputs:
 ```
-$ ./coverage.sh
+$ ./coverage.sh >test262-coverage.out
 ```
-The above command will generate a coverage report `js.k` in the current directory.
+The above command will generate a coverage report `test262-coverage.out` in the current directory.
 
-In the coverage report [`js.k`](js.k), each semantic rule is annotated with a number
+In the coverage report [`test262-coverage.out`](test262-coverage.out), each semantic rule is annotated with a number
 of how many times it was executed by the test suite.
 The number `0` means that the corresponding semantic rule is not covered by any test.
 
@@ -30,25 +30,25 @@ semantics which are not covered by the test suite, each corresponding to the
 language standard as shown in the following:
 (Note that we only consider rules that directly correspond to the core part of the standard, but ignore auxiliary rules and standard library rules.)
 
-Section# - Step# of [Standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf) | Line# of [Formal Semantics](js.k) | Feasible?
+Section# - Step# of [Standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf) | Line# of [Formal Semantics](test262-coverage.out) | Feasible?
 ---------------------------------------------------------------------------------------------------------------------------|-------------------------|-----------------------
-[8.7.1 GetValue (V)                       - [[Get]], Step 6                             ](http://es5.github.io/#x8.7.1)  |  [5917](js.k#L5917)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.a                           ](http://es5.github.io/#x8.7.2)  |  [5951](js.k#L5951)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.b                           ](http://es5.github.io/#x8.7.2)  |  [5953](js.k#L5953)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.a                           ](http://es5.github.io/#x8.7.2)  |  [5960](js.k#L5960)                                            |  X  
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.b                           ](http://es5.github.io/#x8.7.2)  |  [5962](js.k#L5962)                                            |  X  
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)  |  [5967](js.k#L5967),[5968](js.k#L5967)                         |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 7.a                           ](http://es5.github.io/#x8.7.2)  |  [5972](js.k#L5972)                                            |  O 
-[8.12.4 \[[CanPut]\] (P)                    - Step 8.a                                  ](http://es5.github.io/#x8.12.4)  |  [6332](js.k#L6332)                                           |  O 
-[10.2.1.1.3 SetMutableBinding (N,V,S)     - Step 4                                      ](http://es5.github.io/#x10.2.1.1.3)  |  [6978](js.k#L6978)                                       |  O 
-[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [7004](js.k#L7004),[7008](js.k#L7008),[7006](js.k#L7006) |  X  
-[10.2.1.1.5 DeleteBinding (N)             - Step 2                                      ](http://es5.github.io/#x10.2.1.1.5)  |  [7051](js.k#L7051)                                       |  X  
-[10.2.1.1.5 DeleteBinding (N)             - Step 4 \& 5                                 ](http://es5.github.io/#x10.2.1.1.5)  |  [7039](js.k#L7039)                                       |  O 
-[10.2.1.2.4 GetBindingValue(N,S)          - Step 4.a                                    ](http://es5.github.io/#x10.2.1.2.4)  |  [7021](js.k#L7021),[7024](js.k#L7024),[7022](js.k#L7022) |  X  
-[10.5 Declaration Binding Instantiation   - Step 5.e.iii.1                              ](http://es5.github.io/#x10.5)  |  [7351](js.k#L7351)                                             |  O 
-[10.5 Declaration Binding Instantiation   - Step 5.e.iv, 1st condition is true          ](http://es5.github.io/#x10.5)  |  [7354](js.k#L7354)                                             |  O 
-[10.5 Declaration Binding Instantiation   - Step 5.e.iv, 2nd condition is true          ](http://es5.github.io/#x10.5)  |  [7357](js.k#L7357)                                             |  O 
-[10.6 Arguments Object                    - [[DefineOwnProperty]], Step 4.a, else-branch](http://es5.github.io/#x10.6)  |  [7532](js.k#L7532)                                             |  X  
+[8.7.1 GetValue (V)                       - [[Get]], Step 6                             ](http://es5.github.io/#x8.7.1)  |  [5917](test262-coverage.out#L5917)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.a                           ](http://es5.github.io/#x8.7.2)  |  [5951](test262-coverage.out#L5951)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.b                           ](http://es5.github.io/#x8.7.2)  |  [5953](test262-coverage.out#L5953)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.a                           ](http://es5.github.io/#x8.7.2)  |  [5960](test262-coverage.out#L5960)                                            |  X  
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.b                           ](http://es5.github.io/#x8.7.2)  |  [5962](test262-coverage.out#L5962)                                            |  X  
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)  |  [5967](test262-coverage.out#L5967),[5968](test262-coverage.out#L5967)                         |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 7.a                           ](http://es5.github.io/#x8.7.2)  |  [5972](test262-coverage.out#L5972)                                            |  O 
+[8.12.4 \[[CanPut]\] (P)                    - Step 8.a                                  ](http://es5.github.io/#x8.12.4)  |  [6332](test262-coverage.out#L6332)                                           |  O 
+[10.2.1.1.3 SetMutableBinding (N,V,S)     - Step 4                                      ](http://es5.github.io/#x10.2.1.1.3)  |  [6978](test262-coverage.out#L6978)                                       |  O 
+[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [7004](test262-coverage.out#L7004),[7008](test262-coverage.out#L7008),[7006](test262-coverage.out#L7006) |  X  
+[10.2.1.1.5 DeleteBinding (N)             - Step 2                                      ](http://es5.github.io/#x10.2.1.1.5)  |  [7051](test262-coverage.out#L7051)                                       |  X  
+[10.2.1.1.5 DeleteBinding (N)             - Step 4 \& 5                                 ](http://es5.github.io/#x10.2.1.1.5)  |  [7039](test262-coverage.out#L7039)                                       |  O 
+[10.2.1.2.4 GetBindingValue(N,S)          - Step 4.a                                    ](http://es5.github.io/#x10.2.1.2.4)  |  [7021](test262-coverage.out#L7021),[7024](test262-coverage.out#L7024),[7022](test262-coverage.out#L7022) |  X  
+[10.5 Declaration Binding Instantiation   - Step 5.e.iii.1                              ](http://es5.github.io/#x10.5)  |  [7351](test262-coverage.out#L7351)                                             |  O 
+[10.5 Declaration Binding Instantiation   - Step 5.e.iv, 1st condition is true          ](http://es5.github.io/#x10.5)  |  [7354](test262-coverage.out#L7354)                                             |  O 
+[10.5 Declaration Binding Instantiation   - Step 5.e.iv, 2nd condition is true          ](http://es5.github.io/#x10.5)  |  [7357](test262-coverage.out#L7357)                                             |  O 
+[10.6 Arguments Object                    - [[DefineOwnProperty]], Step 4.a, else-branch](http://es5.github.io/#x10.6)  |  [7532](test262-coverage.out#L7532)                                             |  X  
 
 
 We succeeded to manually write test programs that hit 11 out of 17 behaviors:
