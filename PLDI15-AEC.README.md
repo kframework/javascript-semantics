@@ -10,7 +10,7 @@ The artifact consists of:
    * [Finding a known security attack](security-attack/README.md)
    * [Verifying JavaScript programs](verification/README.md)
 
-You can simply reproduce all of the results by using `run-all.sh`:
+You can simply reproduce all of the results by using [`run-all.sh`](run-all.sh):
 ```
 $ ./run-all.sh
 ```
