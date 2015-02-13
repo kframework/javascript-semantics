@@ -19,7 +19,7 @@ echo "Running core test262 with measuring semantic coverage..."
 echo "The result was saved at: test262-coverage/test262-coverage.out"
 
 echo
-echo "Finding security attack..."
+echo "Detecting security attack..."
 ( cd security-attack
   make clean
   make >security-attack.out
