@@ -4,7 +4,7 @@
 
 ### Artifact Submission
 
- * Accepted paper: [[pdf]]() (~500KB)
+ * Accepted paper: [[pdf]]()
  * VM image: [[ova]]() (~2GB)
    * login: kjs, passwd: kjs
    * artifact location: `/home/kjs/javascript-semantics`
