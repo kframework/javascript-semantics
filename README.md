@@ -26,7 +26,18 @@ The following instructions are for standard Debian/Ubuntu distributions.
 
 ### 0. Install Basic Dependencies
 
-Install `git`, `maven`, and `JDK 1.8`.
+Install `git` and `maven`:
+```
+$ sudo apt-get install git
+$ sudo apt-get install maven
+```
+
+Install JDK 1.8:
+```
+$ sudo add-apt-repository ppa:webupd8team/java
+$ sudo apt-get update
+$ sudo apt-get install oracle-java8-installer
+```
 
 
 ### 1. Install K
