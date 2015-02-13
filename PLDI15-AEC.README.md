@@ -5,7 +5,7 @@
 ### Artifact Submission
 
  * Accepted paper: [[pdf]](http://fsl.cs.illinois.edu/kjs/pldi15-paper194.pdf)
- * VM image: [[ova]](http://fsl.cs.illinois.edu/kjs/kjs.ova) (~2GB)
+ * VM image: [[ova]](http://fsl.cs.illinois.edu/kjs/kjs.ova) (~3.5GB)
    * login: kjs, passwd: kjs
    * artifact location: `/home/kjs/javascript-semantics`
 
