@@ -14,7 +14,7 @@ js.k: ../js.k
 
 .PHONY: run
 run:
-	krun -w none --smt none --search send.js >send.js.out
+	krun -w none --smt none --search send.js
 
 .PHONY: clean
 clean:

@@ -8,4 +8,4 @@ echo "Generating coverage report..."
 ./report.py coverage ../js.k | \
 sed 's/^[ ]\([ ]*0[ ][ ]*\)\(rule\|Let\|Do\|If\|Return\|Nop\|Exit\)/!\1\2/' | \
 sed 's/^\([ ][ ]*\)0/\1 /' | \
-sed 's/^!/ /' >coverage.k
+sed 's/^!/ /'
