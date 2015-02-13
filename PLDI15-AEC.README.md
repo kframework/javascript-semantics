@@ -7,18 +7,21 @@
  * Accepted paper: [[pdf]]() (~500KB)
  * VM image: [[ova]]() (~2GB)
    * login: kjs, passwd: kjs
+   * Refer to `/home/kjs/javascript-semantics`
 
 ### Instruction
 
-Our artifact consists of: (the link provides README for each artifact)
- * Formal semantics: [[js-main.k]](js-main.k) [[js-orig-syntax.k]](js-orig-syntax.k) [[stdlib]](stdlib) [[...]](README.md#directory-structure)
+Our artifact consists of:
+ * Formal semantics: [[core]](js-main.k) [[stdlib]](stdlib) [[...]](README.md#directory-structure)
+   * Running the semantics: [[README]](README.md)
    * Testing the semantics against test262: [[README]](README.md#5-run-ecmascript-conformance-test-suitetest262) [[Result]](test262.out)
  * Applications
    * Measuring the semantic coverage of test262: [[README]](test262-coverage/README.md) [[Result]](test262-coverage/test262-coverage.out)
    * Finding a known security attack: [[README]](security-attack/README.md) [[Result]](security-attack/security-attack.out)
    * Verifying JavaScript programs: [[README]](verification/README.md) [[Result]](verification/verification.out)
 
-You can simply reproduce all of the results by using [`run-all.sh`](run-all.sh):
+All of the results can be simply reproduced by using [`run-all.sh`](run-all.sh):
 ```
+$ cd /home/kjs/javascript-semantics
 $ ./run-all.sh
 ```
