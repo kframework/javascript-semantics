@@ -24,6 +24,11 @@ and finding known security vulnerabilities
 
 The following instructions are for standard Debian/Ubuntu distributions.
 
+### 0. Install Basic Dependencies
+
+Install `git`, `maven`, `JDK 1.8`.
+
+
 ### 1. Install K
 
 This semantics is compatible with a customized version of the lastest K framework.
