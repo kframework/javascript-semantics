@@ -12,7 +12,7 @@
 ### Instruction
 
 Our artifact consists of:
- * Formal semantics: [[core]](js-main.k) [[stdlib]](stdlib) [[...]](README.md#directory-structure)
+ * Formal semantics: [[core]](js-main.k) [[stdlib]](stdlib) [[etc]](README.md#directory-structure)
    * Running the semantics: [[README]](README.md)
    * Testing the semantics against [test262](http://test262.ecmascript.org): [[README]](README.md#5-run-ecmascript-conformance-test-suitetest262) [[Result]](test262.out)
  * Applications
