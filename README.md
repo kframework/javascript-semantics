@@ -26,7 +26,7 @@ The following instructions are for standard Debian/Ubuntu distributions.
 
 ### 0. Install Basic Dependencies
 
-Install `git`, `maven`, `JDK 1.8`.
+Install `git`, `maven`, and `JDK 1.8`.
 
 
 ### 1. Install K
