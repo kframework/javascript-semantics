@@ -31,16 +31,16 @@ language standard as shown in the following:
 
 Section# - Step# of [Standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf) | Line# of [Formal Semantics](test262-coverage.out) | Feasible?
 ---------------------------------------------------------------------------------------------------------------------------|-------------------------|-----------------------
-[8.7.1 GetValue (V)                       - [[Get]], Step 6                             ](http://es5.github.io/#x8.7.1)  |  [5917](test262-coverage.out#L5917)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.a                           ](http://es5.github.io/#x8.7.2)  |  [5951](test262-coverage.out#L5951)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.b                           ](http://es5.github.io/#x8.7.2)  |  [5953](test262-coverage.out#L5953)                                            |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.a                           ](http://es5.github.io/#x8.7.2)  |  [5960](test262-coverage.out#L5960)                                            |  X  
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.b                           ](http://es5.github.io/#x8.7.2)  |  [5962](test262-coverage.out#L5962)                                            |  X  
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)  |  [5967](test262-coverage.out#L5967),[5968](test262-coverage.out#L5967)                         |  O 
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 7.a                           ](http://es5.github.io/#x8.7.2)  |  [5972](test262-coverage.out#L5972)                                            |  O 
-[8.12.4 \[[CanPut]\] (P)                    - Step 8.a                                  ](http://es5.github.io/#x8.12.4)  |  [6332](test262-coverage.out#L6332)                                           |  O 
-[10.2.1.1.3 SetMutableBinding (N,V,S)     - Step 4                                      ](http://es5.github.io/#x10.2.1.1.3)  |  [6978](test262-coverage.out#L6978)                                       |  O 
-[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [7004](test262-coverage.out#L7004),[7008](test262-coverage.out#L7008),[7006](test262-coverage.out#L7006) |  X  
+[8.7.1 GetValue (V)                       - [[Get]], Step 6                             ](http://es5.github.io/#x8.7.1)  |  [5770](test262-coverage.out#L5770)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.a                           ](http://es5.github.io/#x8.7.2)  |  [5806](test262-coverage.out#L5951)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 2.b                           ](http://es5.github.io/#x8.7.2)  |  [5808](test262-coverage.out#L5953)                                            |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.a                           ](http://es5.github.io/#x8.7.2)  |  [5815](test262-coverage.out#L5960)                                            |  X  
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 4.b                           ](http://es5.github.io/#x8.7.2)  |  [5817](test262-coverage.out#L5962)                                            |  X  
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)  |  [5822](test262-coverage.out#L5967),[5823](test262-coverage.out#L5967)                         |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 7.a                           ](http://es5.github.io/#x8.7.2)  |  [5827](test262-coverage.out#L5972)                                            |  O 
+[8.12.4 \[[CanPut]\] (P)                    - Step 8.a                                  ](http://es5.github.io/#x8.12.4)  |  [6205](test262-coverage.out#L6332)                                           |  O 
+[10.2.1.1.3 SetMutableBinding (N,V,S)     - Step 4                                      ](http://es5.github.io/#x10.2.1.1.3)  |  [6870](test262-coverage.out#L6978)                                       |  O 
+[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [6902](test262-coverage.out#L7004),[6905](test262-coverage.out#L7008),[6907](test262-coverage.out#L7006) |  X  
 [10.2.1.1.5 DeleteBinding (N)             - Step 2                                      ](http://es5.github.io/#x10.2.1.1.5)  |  [7051](test262-coverage.out#L7051)                                       |  X  
 [10.2.1.1.5 DeleteBinding (N)             - Step 4 \& 5                                 ](http://es5.github.io/#x10.2.1.1.5)  |  [7039](test262-coverage.out#L7039)                                       |  O 
 [10.2.1.2.4 GetBindingValue(N,S)          - Step 4.a                                    ](http://es5.github.io/#x10.2.1.2.4)  |  [7021](test262-coverage.out#L7021),[7024](test262-coverage.out#L7024),[7022](test262-coverage.out#L7022) |  X  
