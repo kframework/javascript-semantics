@@ -19,7 +19,6 @@ and then generate a coverage report from the trace outputs:
 ```
 $ ./coverage.sh >test262-coverage.out
 ```
-The above command will generate a coverage report `test262-coverage.out` in the current directory.
 
 In the coverage report [`test262-coverage.out`](test262-coverage.out), each semantic rule is annotated with a number
 of how many times it was executed by the test suite.
