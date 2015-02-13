@@ -36,19 +36,14 @@ Section# - Step# of [Standard](http://www.ecma-international.org/publications/fi
 [8.7.2 PutValue (V, W)                    - [[Put]], Step 2.b                           ](http://es5.github.io/#x8.7.2)       |  [5808](test262-coverage.out#L5808)         |  O 
 [8.7.2 PutValue (V, W)                    - [[Put]], Step 4.a                           ](http://es5.github.io/#x8.7.2)       |  [5815](test262-coverage.out#L5815)         |  X  
 [8.7.2 PutValue (V, W)                    - [[Put]], Step 4.b                           ](http://es5.github.io/#x8.7.2)       |  [5817](test262-coverage.out#L5817)         |  X  
-[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)       |  [5822](test262-coverage.out#L5822),
-                                                                                                                                 [5823](test262-coverage.out#L5823)         |  O 
+[8.7.2 PutValue (V, W)                    - [[Put]], Step 6.a \& 6.b                    ](http://es5.github.io/#x8.7.2)       |  [5822](test262-coverage.out#L5822), [5823](test262-coverage.out#L5823)         |  O 
 [8.7.2 PutValue (V, W)                    - [[Put]], Step 7.a                           ](http://es5.github.io/#x8.7.2)       |  [5827](test262-coverage.out#L5827)         |  O 
 [8.12.4 \[[CanPut]\] (P)                    - Step 8.a                                  ](http://es5.github.io/#x8.12.4)      |  [6205](test262-coverage.out#L6205)         |  O 
 [10.2.1.1.3 SetMutableBinding (N,V,S)     - Step 4                                      ](http://es5.github.io/#x10.2.1.1.3)  |  [6870](test262-coverage.out#L6870)         |  O 
-[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [6902](test262-coverage.out#L6902),
-                                                                                                                                 [6905](test262-coverage.out#L6905),
-                                                                                                                                 [6907](test262-coverage.out#L6907)         |  X  
+[10.2.1.1.4 GetBindingValue(N,S)          - Step 3.a                                    ](http://es5.github.io/#x10.2.1.1.4)  |  [6902](test262-coverage.out#L6902), [6905](test262-coverage.out#L6905), [6907](test262-coverage.out#L6907)         |  X  
 [10.2.1.1.5 DeleteBinding (N)             - Step 2                                      ](http://es5.github.io/#x10.2.1.1.5)  |  [6953](test262-coverage.out#L6953)         |  X  
 [10.2.1.1.5 DeleteBinding (N)             - Step 4 \& 5                                 ](http://es5.github.io/#x10.2.1.1.5)  |  [6941](test262-coverage.out#L6941)         |  O 
-[10.2.1.2.4 GetBindingValue(N,S)          - Step 4.a                                    ](http://es5.github.io/#x10.2.1.2.4)  |  [6922](test262-coverage.out#L6922),
-                                                                                                                                 [6925](test262-coverage.out#L6925),
-                                                                                                                                 [6923](test262-coverage.out#L6923)         |  X  
+[10.2.1.2.4 GetBindingValue(N,S)          - Step 4.a                                    ](http://es5.github.io/#x10.2.1.2.4)  |  [6922](test262-coverage.out#L6922), [6925](test262-coverage.out#L6925), [6923](test262-coverage.out#L6923)         |  X  
 [10.5 Declaration Binding Instantiation   - Step 5.e.iii.1                              ](http://es5.github.io/#x10.5)        |  [7263](test262-coverage.out#L7263)         |  O 
 [10.5 Declaration Binding Instantiation   - Step 5.e.iv, 1st condition is true          ](http://es5.github.io/#x10.5)        |  [7266](test262-coverage.out#L7266)         |  O 
 [10.5 Declaration Binding Instantiation   - Step 5.e.iv, 2nd condition is true          ](http://es5.github.io/#x10.5)        |  [7269](test262-coverage.out#L7269)         |  O 
