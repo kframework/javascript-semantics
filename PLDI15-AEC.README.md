@@ -28,8 +28,9 @@ Our artifact consists of:
    * Verifying JavaScript programs: [[README]](verification/README.md) [[Result]](verification/verification.out)
 
 All of the results can be simply reproduced by using [`run-all.sh`](run-all.sh):
+(NOTE: It will take several hours even in a native machine.)
 ```
 $ cd /home/kjs/javascript-semantics
 $ ./run-all.sh
 ```
-NOTE: It will take several hours in a native machine.
+
