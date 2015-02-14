@@ -24,6 +24,22 @@ and finding known security vulnerabilities
 
 The following instructions are for standard Debian/Ubuntu distributions.
 
+### 0. Install Basic Dependencies
+
+Install JDK 1.8:
+```
+$ sudo add-apt-repository ppa:webupd8team/java
+$ sudo apt-get update
+$ sudo apt-get install oracle-java8-installer
+```
+
+Install `git` and `maven`:
+```
+$ sudo apt-get install git
+$ sudo apt-get install maven
+```
+
+
 ### 1. Install K
 
 This semantics is compatible with a customized version of the latest K framework.
@@ -118,15 +134,15 @@ $ TEST262_CORE_NEGATIVE=<list-of-negative-tests> make test262-core-negative
 We provide a test result of the core test262, [test262.out](test262.out).
 For each test, it reports `succeed` when passed the test, and `failed` when failed.
 
-Note that there are two types of tests: positive and negative tests. A negative test is identified by `@negative`  in its preamble. The negative tests should be failed to run.
+Note that there are two types of tests: positive and negative tests. A negative test is identified by `@negative` in its preamble. The negative tests should fail to run.
 
 ### Invalid Tests
 
 Among the 2,782 core tests, our semantics reports parsing errors for the following 6 programs,
-which is, however, a correct behavior according to the language standard
+which is the correct behavior according to the language standard
 [ECMAScript 5.1 specification](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-262.pdf).
-These programs have function declarations inside the local block such as `try` or `while` loop,
-while the function declaration is only allowed in the top-level
+These programs have function declarations inside a local block such as `try` or `while` loop,
+while function declaration is only allowed at top-level
 (refer to the grammar specification [Annex A.5 Functions and Programs](http://es5.github.io/#A.5)).
 This grammar mismatch problem was already admitted by the standard committee, and will be corrected in the next standard:
 [Draft Specification of Ecma-262 Edition 6](http://wiki.ecmascript.org/doku.php?id=harmony:specification_drafts).
@@ -140,7 +156,7 @@ test262-9b669da66c78/test/suite/ch12/12.8/S12.8_A4_T2.js
 test262-9b669da66c78/test/suite/ch12/12.8/S12.8_A4_T3.js
 ```
 
-Note that we consider the above tests as negative tests, so that it will report `succeed`.
+Note that we consider the above tests as negative tests, such that it will report `succeed`.
 
 
 ## Built-in Objects Support

@@ -4,10 +4,17 @@
 
 ### Artifact Submission
 
- * Accepted paper: [[pdf]](http://web.engr.illinois.edu/~dpark69/kjs/pldi15-paper194.pdf)
- * VM image: [[ova]](http://web.engr.illinois.edu/~dpark69/kjs/kjs.ova) (~2GB)
+ * Accepted paper: [[pdf]](http://fslweb.cs.illinois.edu/kjs/pldi15-paper194.pdf)
+ * VM image: 
+   * VMWare: [[ova]](http://fslweb.cs.illinois.edu/kjs/kjs.vmware.ova) (~3.5GB) |
+             [[md5]](http://fslweb.cs.illinois.edu/kjs/kjs.vmware.ova.md5)
+   * VirtualBox: [[ova]](http://fslweb.cs.illinois.edu/kjs/kjs.virtualbox.ova) (~2.8GB) |
+                 [[md5]](http://fslweb.cs.illinois.edu/kjs/kjs.virtualbox.ova.md5)
    * login: kjs, passwd: kjs
    * artifact location: `/home/kjs/javascript-semantics`
+
+NOTE: Since the VM images contain a **64-bit** guest OS (Ubuntu 14.04), it may not work if your system does not support a proper virtualization. For example, you may not able to run it in VirtualBox if the CPU does not support hardware virtualization such as AMD-V or VT-x.
+
 
 ### Instruction
 

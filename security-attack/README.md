@@ -1,7 +1,7 @@
 ## Security Attack Detection using Symbolic Execution
 
-Being symbolically executable, KJS can be used to detect a known security attack.
-For example, consider a secure message sending program [`send.js`](send.js):
+We use the symbolic execution capabilities of KJS to detect a known security attack.
+For example, consider the secure message sending program [`send.js`](send.js):
 ```
 function mkSend(rawSend) {
   var whiteList = { "http://www.microsoft.com/mail": true,
