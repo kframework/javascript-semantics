@@ -6,8 +6,8 @@
 
  * Accepted paper: [[pdf]](http://fslweb.cs.illinois.edu/kjs/pldi15-paper194.pdf)
  * VM image: 
-   [[VMWare]](http://fslweb.cs.illinois.edu/kjs/kjs.vmware.ova) |
-   [[VirtualBox]](http://fslweb.cs.illinois.edu/kjs/kjs.virtualbox.ova) 
+   [[ova (VMWare)]](http://fslweb.cs.illinois.edu/kjs/kjs.vmware.ova) |
+   [[ova (VirtualBox)]](http://fslweb.cs.illinois.edu/kjs/kjs.virtualbox.ova) 
    (~3.5GB)
    * login: kjs, passwd: kjs
    * artifact location: `/home/kjs/javascript-semantics`
