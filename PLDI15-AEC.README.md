@@ -32,3 +32,4 @@ All of the results can be simply reproduced by using [`run-all.sh`](run-all.sh):
 $ cd /home/kjs/javascript-semantics
 $ ./run-all.sh
 ```
+NOTE: It will take several hours in a native machine.
