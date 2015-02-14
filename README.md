@@ -22,7 +22,7 @@ and finding known security vulnerabilities
 
 ## How to Run Semantics
 
-The following instructions are for standard Debian/Ubuntu distributions.
+The following instructions are for standard Debian/Ubuntu distributions, especially for Ubuntu 14.04 LTS 64-bit.
 
 ### 0. Install Basic Dependencies
 
