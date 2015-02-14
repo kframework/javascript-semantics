@@ -13,6 +13,9 @@
    * login: kjs, passwd: kjs
    * artifact location: `/home/kjs/javascript-semantics`
 
+NOTE: Since the VM images contain Ubuntu 14.04 **64-bit** as a guest OS, it may not work if your system does not support a proper virtualization. For example, you may not able to run a 64-bit guest in VirtualBox if the CPU does not support virtualization (i.e., AMD-V or VT-x).
+
+
 ### Instruction
 
 Our artifact consists of:
