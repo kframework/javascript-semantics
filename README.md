@@ -63,6 +63,7 @@ for `Math.sin`, `Number.toFixed`, and
 `Number.toString` to test programs modulo the unsupported libraries.
 ```
 $ sudo apt-get install nodejs
+$ (cd $(dirname `which nodejs`); ln -s nodejs node)
 ```
 
 ### 3. Install KJS
