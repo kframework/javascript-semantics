@@ -1,6 +1,6 @@
 # KJS: A Complete Formal Semantics of JavaScript
 
-We present KJS, the most complete and throughly tested formal
+KJS is the most complete and throughly tested formal
 semantics of JavaScript to date.
 Being executable, KJS has been tested against the
 [ECMAScript conformance test suite](http://test262.ecmascript.org),
