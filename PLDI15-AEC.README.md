@@ -28,9 +28,8 @@ Our artifact consists of:
    * Verifying JavaScript programs: [[README]](verification/README.md) [[Result]](verification/verification.out)
 
 All of the results can be simply reproduced by using [`run-all.sh`](run-all.sh):
-(NOTE: It will take several hours even in a native machine.)
 ```
 $ cd /home/kjs/javascript-semantics
 $ ./run-all.sh
 ```
-
+NOTE: Running all of the test will take several hours even in a native machine. Thus, running it in a virtual machine would be too heavy. We recommend you to install KJS in a native machine so that you can save time to reproduce all of the results.
