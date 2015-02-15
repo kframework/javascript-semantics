@@ -33,8 +33,9 @@ $ sudo apt-get update
 $ sudo apt-get install oracle-java8-installer
 ```
 
-Install `git` and `maven`:
+Install `build-essential`, `git`, and `maven`:
 ```
+$ sudo apt-get install build-essential
 $ sudo apt-get install git
 $ sudo apt-get install maven
 ```
