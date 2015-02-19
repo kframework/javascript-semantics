@@ -32,4 +32,7 @@ All of the results can be simply reproduced by using [`run-all.sh`](run-all.sh):
 $ cd /home/kjs/javascript-semantics
 $ ./run-all.sh
 ```
-NOTE: Running all of the test will take several hours even in a native machine. Thus, running it in a virtual machine would be too heavy. We recommend you to install KJS in a native machine so that you can save time to reproduce all of the results. (Minimum RAM requirement: 4GB).
+NOTE: Running all of the test will take several hours even in a native machine. Thus, running it in a virtual machine would be too heavy. 
+(For example, `run-all.sh` took ~35 hours in the given VirtualBox VM
+on the top of a machine with Intel Xeon CPU 3.40GHz and DDR3 RAM 8GB 1600MHz.)
+We recommend you to install KJS in a native machine so that you can save time to reproduce all of the results. (Minimum RAM requirement: 4GB).
