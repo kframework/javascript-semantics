@@ -1627,6 +1627,7 @@ rule <k> GetIdentifierReference(E:Eid,N:Var,Strict:Bool)
        <outer> E' </outer>
        _
      </env>
+//   when E =/=K @NullEid // NOTE: Redundant: there is no <env> with @NullEid as <eid>
 
 // 10.2.2.2 NewDeclarativeEnvironment (E)
 
@@ -1642,7 +1643,6 @@ rule <k> NewDeclarativeEnvironment(E:Eid, Strict:Bool) => @e(!N) ... </k>
              </env>)
        _
      </envs>
-
 
 // 10.2.2.3 NewObjectEnvironment (O, E)
 
