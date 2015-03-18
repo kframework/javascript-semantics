@@ -4,14 +4,14 @@ module LIST-PATTERN
 
   syntax List ::= rev(List)                       [function]
   rule rev(L1:List L2:List) => rev(L2) rev(L1)    [lemma]
-  rule rev(ListItem(V:Val)) => ListItem(V)        [lemma]
+  rule rev(ListItem(V:UserVal)) => ListItem(V)        [lemma]
   rule rev(.List) => .List                        [lemma]
 
   /* list pattern */
   syntax Bag ::= "list" "(" Val ")" "(" List ")"    [pattern(1)]
   rule
     <objs>...
-      list(@o(O:Int))(ListItem(V:Val) L:List)
+      list(@o(O:Int))(ListItem(V:UserVal) L:List)
     =>
       <obj>
         <oid> @o(O) </oid>
@@ -35,7 +35,7 @@ module LIST-PATTERN
   syntax Bag ::= "lseg" "(" Val "," Val ")" "(" List ")"    [pattern(2)]
   rule
     <objs>...
-      lseg(@o(O:Int), P:NullableObject)(ListItem(V:Val) L:List)
+      lseg(@o(O:Int), P:NullableObject)(ListItem(V:UserVal) L:List)
     =>
       <obj>
         <oid> @o(O) </oid>

@@ -66,7 +66,7 @@ rule [func-spec]:
   <k>
     Call(
       // %var("append"),
-      @o(2),
+      @o(20),
       Undefined,
       @Cons(OX:NullableObject, @Cons(OY:NullableObject, @Nil)))
   =>

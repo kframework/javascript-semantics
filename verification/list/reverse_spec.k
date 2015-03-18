@@ -43,7 +43,7 @@ rule [func-spec]:
   <k>
     Call(
       // %var("reverse"),
-      @o(2),
+      @o(18),
       Undefined,
       @Cons(O1:NullableObject, @Nil))
   =>

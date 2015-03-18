@@ -9,6 +9,13 @@ build: clean
 	kompile -d patterns/tree_float  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_float/js-verifier.k
 	kompile -d patterns/list        --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/list/js-verifier.k
 
+.PHONY: list
+list:
+	@echo "List"
+	krun -d patterns/list        --smt none                                     --prove list/head_spec.k          list/list.js
+	krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/list.js
+	krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/list.js
+
 .PHONY: prove
 prove:
 	@echo "List"
