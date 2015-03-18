@@ -2,10 +2,40 @@ module LIST-PATTERN
   imports MAP
   imports JS
 
+  rule size(L1:List L2:List) => size(L1) +Int size(L2)    [lemma]
+  rule size(ListItem(_)) => 1                             [lemma]
+  rule size(.List) => 0                                   [lemma]
+
+  syntax Int ::= sum(List)                            [function, smtlib(smt_seq_sum)]
+/*
+  rule sum(L1:List L2:List) => sum(L1) +Int sum(L2)   [lemma]
+  rule sum(ListItem(I:Int)) => I                      [lemma]
+  rule sum(.List) => 0                                [lemma]
+*/
+
   syntax List ::= rev(List)                       [function]
   rule rev(L1:List L2:List) => rev(L2) rev(L1)    [lemma]
   rule rev(ListItem(V:UserVal)) => ListItem(V)        [lemma]
   rule rev(.List) => .List                        [lemma]
+
+/*
+  syntax IntSet ::= list2set(List)   [function, smtlib(smt_seq2set)]
+  rule list2set(L1:List L2:List) => list2set(L1) U list2set(L2)
+    [lemma, smt-lemma]
+  rule list2set(ListItem(V:UserVal)) => { V }   [lemma, smt-lemma]
+  rule list2set(.List) => .IntSet           [lemma, smt-lemma]
+*/
+
+  syntax Bool ::= sorted(List)    [function, smtlib(smt_seq_sorted)]
+/*
+  // TODO(AndreiS): add support for specifying Z3 triggers
+  //rule sorted(L1 @ L2)
+  //  => intseq2intset(L1) <=IntSet intseq2intset(L2) andBool sorted(L1) andBool sorted(L2)
+  //  [smt-lemma]
+  rule sorted(ListItem(I)) => true    [smt-lemma]
+  rule sorted(.List) => true          [smt-lemma]
+*/
+
 
   /* list pattern */
   syntax Bag ::= "list" "(" Val ")" "(" List ")"    [pattern(1)]

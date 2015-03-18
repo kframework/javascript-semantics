@@ -12,9 +12,32 @@ build: clean
 .PHONY: list
 list:
 	@echo "List"
-	krun -d patterns/list        --smt none                                     --prove list/head_spec.k          list/list.js
-	krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/list.js
-	krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/list.js
+	krun -d patterns/list        --smt none          --prove list/head_spec.k          list/list.js
+	krun -d patterns/list        --smt none          --prove list/tail_spec.k          list/list.js
+	krun -d patterns/list        --smt none          --prove list/add_spec.k           list/list.js
+	krun -d patterns/list        --smt none          --prove list/swap_spec.k          list/list.js
+#	krun -d patterns/list        --smt none          --prove list/length_recursive_spec.k       list/list.js
+#	krun -d patterns/list        --smt none          --prove list/length_iterative_spec.k       list/list.js
+#	krun -d patterns/list        --smt none          --prove list/sum_recursive_spec.k          list/list.js
+#	krun -d patterns/list        --smt none          --prove list/sum_iterative_spec.k          list/list.js
+	krun -d patterns/list        --smt none          --prove list/reverse_spec.k       list/list.js
+	krun -d patterns/list        --smt none          --prove list/append_spec.k        list/list.js
+#	krun -d patterns/list        --smt none          --prove list/copy.k               list/list.js
+
+.PHONY: list-smt
+list-smt:
+	@echo "List"
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/head_spec.k          list/list.js
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/tail_spec.k          list/list.js
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/add_spec.k           list/list.js
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/swap_spec.k          list/list.js
+#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_recursive_spec.k       list/list.js
+#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_iterative_spec.k       list/list.js
+#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_recursive_spec.k          list/list.js
+#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_iterative_spec.k          list/list.js
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/reverse_spec.k       list/list.js
+	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/append_spec.k        list/list.js
+#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/copy.k               list/list.js
 
 .PHONY: prove
 prove:

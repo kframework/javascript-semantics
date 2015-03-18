@@ -112,7 +112,8 @@ syntax KItem ::= "@pseudo" "(" K "," Map ")"
 // 8.8 The List Specification Type
 syntax Vals ::= "@Cons" "(" Val "," Vals ")"
               | "@Nil"
-syntax Val  ::= UndefinedType // "Undefined" // 8.1 The Undefined Type
+syntax Val  ::= UserVal
+syntax UserVal ::= UndefinedType // "Undefined" // 8.1 The Undefined Type
               | NullType // "@NullVal" // 8.2 The Null Type
               | Primitive
               | Oid
@@ -4134,8 +4135,6 @@ syntax Int ::= "@MAX_INT"
              | "@MIN_INT"
 rule @MAX_INT =>  4294967296 /* 2^32 */ [macro]
 rule @MIN_INT => -4294967296 /* 2^32 */ [macro]
-
-syntax UserVal ::= UndefinedType | NullType | Primitive | Oid
 
 endmodule
 
