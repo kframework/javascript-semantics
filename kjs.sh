@@ -7,7 +7,7 @@ trap cleanup INT TERM
 
 for i in "$@"; do
   "$dir"/jsmassage.sh -f "$i" >"$tmp".js && \
-  krun -d "$dir" --pattern-matching --output-file "$tmp".out "$tmp".js && \
+  krun -d "$dir" --output-file "$tmp".out "$tmp".js && \
   if [ "`sed -n '/<k>/,/<\/k>/{ p }' "$tmp".out | tr -d ' \n'`" = "<k>@Normal</k>" ]; then
     cleanup
   else

@@ -13,7 +13,7 @@ test262-core-coverage: $(TEST262_CORE_COVERAGE:%=%.coverage)
 define krun-test262
 ( cat ../prelude.js $(1) >$(1).prelude && \
   ../jsmassage.sh -f $(1).prelude >$(1).prelude.massage && \
-  krun -d ../ --pattern-matching --coverage-file $(CURDIR)/$(1).cov $(1).prelude.massage >$(1).out 2>$(1).err && \
+  krun -d ../ --coverage-file $(CURDIR)/$(1).cov $(1).prelude.massage >$(1).out 2>$(1).err && \
   test "`sed -n '/<k>/,/<\/k>/{ p }' $(1).out | tr -d ' \n'`" = "<k>@Normal</k>"; \
   echo $$? >$(1).exitcode )
 endef
