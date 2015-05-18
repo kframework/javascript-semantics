@@ -11,7 +11,7 @@ syntax RegularExpressionLiteral // TODO
 //////////////////////////////////////////////////////////////////////
 
 // IdentifierReference, BindingIdentifier, LabelIdentifier
-syntax Identifier ::= Token{[\_\$A-Za-z][\_\$A-Za-z0-9]*}   [notInRules]
+syntax Identifier ::= r"[\\_\\$A-Za-z][\\_\\$A-Za-z0-9]*"   [token]
 
 syntax PrimaryExpression ::= "this"
                            | Identifier                     /* IdentifierReference */
@@ -31,6 +31,11 @@ syntax Literal ::= NullLiteral
                  | String       // TODO: StringLiteral
 
 syntax NullLiteral ::= "null"
+
+syntax Bool
+syntax Int
+syntax Float
+syntax String
 
 // ElementList, Arguments, ArgumentList
 syntax Elements ::= List{Element, ","}
@@ -312,7 +317,7 @@ syntax ImportDeclaration ::= "import" Identifier                                
                            | "import"                                                      ModuleSpecifier ";"
 
 // ImportsList, ExportsList
-syntax ImportExportSpecifiers ::= List{ImportSpecifier, ","}
+syntax ImportExportSpecifiers ::= List{ImportExportSpecifier, ","}
 // ImportSpecifier, ExportSpecifier
 syntax ImportExportSpecifier ::=                 Identifier                      /* ImportedBinding for ImportSpecifier */ /* IdentifierName for ExportSpecifier */
                                | Identifier "as" Identifier /* IdentifierName */ /* ImportedBinding for ImportSpecifier */ /* IdentifierName for ExportSpecifier */
