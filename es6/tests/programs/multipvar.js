@@ -1,0 +1,1 @@
+var cat, dog;
