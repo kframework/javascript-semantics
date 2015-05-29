@@ -47,4 +47,6 @@
 (declare-fun smt_seq_filter (String StringSeq) StringSeq)
 (assert (forall ((v String) (e String)) (= (smt_seq_filter v (smt_seq_elem e)) (ite (= v e) smt_seq_nil (smt_seq_elem e)))))
 
+(assert (forall ((s StringSeq)) (>= (smt_seq_len s) 0)))
+
 ; end of list.smt2
