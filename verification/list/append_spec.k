@@ -27,8 +27,8 @@ rule [loop-inv]:
       <obj>
         <oid> @o(?P2:Int) </oid>
         <properties>
-          "value" |-> @desc("Value" |-> ?V:Val   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-          "next"  |-> @desc("Value" |-> @NullVal "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+          "value" |-> @desc("Value" |-> ?V:String "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+          "next"  |-> @desc("Value" |-> @NullVal  "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
         </properties>
         <internalProperties>
           "Class"      |-> "Object"

@@ -12,7 +12,7 @@ rule
     <obj>
       <oid> @o(O:Int) </oid>
       <properties>
-        "value" |-> @desc("Value" |-> _:UserVal          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+        "value" |-> @desc("Value" |-> _:String          "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
         "next"  |-> @desc("Value" |-> Tail:NullableObject "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
       </properties>
       <internalProperties>

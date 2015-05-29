@@ -17,7 +17,7 @@ rule
     Call(
       @o(6), // %var("add"),
       Undefined,
-      @Cons(V:UserVal, @Cons(O:NullableObject, @Nil))
+      @Cons(V:String, @Cons(O:NullableObject, @Nil))
     )
   =>
     ?O2:NullableObject

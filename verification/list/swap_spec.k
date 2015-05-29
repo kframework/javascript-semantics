@@ -10,7 +10,7 @@ rule
   ...</envs>
   <objs>...
     (
-      list(O)(ListItem(V1:UserVal) ListItem(V2:UserVal) L:List)
+      list(O)(ListItem(V1:String) ListItem(V2:String) L:List)
     =>
       list(?O2)(ListItem(V2) ListItem(V1) L)
     )
