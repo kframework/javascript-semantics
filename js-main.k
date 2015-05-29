@@ -3519,13 +3519,17 @@ rule <k> @FunctionExpressionRecursive(F:Var, Params:Exps, FunBody:Stmt)
 // NOTE: (from p.26 of Good Parts): Every function object is created with a 'prototype' property. Its value is an object with a 'constructor' property whose value is the function. This is distinct from the hidden link to 'Function.prototype'.
 
 syntax KItem /* Oid */ ::= "@CreateFunctionObject" "(" Exps "," Stmt "," K /* Eid */ "," K /* Bool */ ")" [seqstrict(3,4)]
-rule <k> @CreateFunctionObject(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool) => @CreateFunctionObjectAux(@o(!F), Strict) ... </k>
+rule <k> @CreateFunctionObject(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool) => @CreateFunctionObjectInt1(Params, FunBody, Scope, Strict, !P:Int) ... </k>
+syntax KItem /* Oid */ ::= "@CreateFunctionObjectInt1" "(" Exps "," Stmt "," Eid "," Bool "," Int ")"
+rule <k> @CreateFunctionObjectInt1(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool, P:Int) => @CreateFunctionObjectInt2(Params, FunBody, Scope, Strict, P:Int, !F:Int) ... </k>
+syntax KItem /* Oid */ ::= "@CreateFunctionObjectInt2" "(" Exps "," Stmt "," Eid "," Bool "," Int "," Int ")"
+rule <k> @CreateFunctionObjectInt2(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool, P:Int, F:Int) => @CreateFunctionObjectAux(@o(F), Strict) ... </k>
      <objs>
        (. => <obj>
-               <oid> @o(!F:Int) </oid>
+               <oid> @o(F) </oid>
                <properties>
                  "length"           |-> @desc("Value" |-> #@Length(Params) "Writable" |-> false "Enumerable" |-> false "Configurable" |-> false)
-                 "prototype"        |-> @desc("Value" |-> @o(!P)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false)
+                 "prototype"        |-> @desc("Value" |-> @o(P)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> false)
                </properties>
                <internalProperties>
                  "Prototype"        |-> @FunctionProtoOid
@@ -3538,9 +3542,9 @@ rule <k> @CreateFunctionObject(Params:Exps, FunBody:Stmt, Scope:Eid, Strict:Bool
                </internalProperties>
              </obj>)
        (. => <obj>
-               <oid> @o(!P:Int) </oid>
+               <oid> @o(P) </oid>
                <properties>
-                 "constructor"      |-> @desc("Value" |-> @o(!F)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true)
+                 "constructor"      |-> @desc("Value" |-> @o(F)           "Writable" |-> true  "Enumerable" |-> false "Configurable" |-> true)
                </properties>
                <internalProperties>
                  "Prototype"        |-> @ObjectProtoOid
