@@ -23,8 +23,8 @@ test262-core-negative: $(TEST262_CORE_NEGATIVE:%=%.out.negative)
 define krun-test262
 ( cat prelude.js $(1) >$(1).prelude && \
   ./jsmassage.sh -f $(1).prelude >$(1).prelude.massage && \
-  krun -d . $(1).prelude.massage >$(1).out 2>$(1).err && \
-  test "`sed -n '/<k>/,/<\/k>/{ p }' $(1).out | tr -d ' \n'`" = "<k>@Normal</k>"; \
+  krun -d . $(1).prelude.massage --output-file $(1).out 2>$(1).err && \
+  test "`sed -n '/<k>/,/<\/k>/{ p }' $(1).out`" = "`cat normal-completion-configuration.txt`"; \
   echo $$? >$(1).exitcode )
 @if [ $(2) = "positive" ]; then \
   if   [ `cat $(1).exitcode` -eq 0 ]; then echo "#### $(1) succeed"; else echo "#### $(1) failed"; exit 1; fi; \
