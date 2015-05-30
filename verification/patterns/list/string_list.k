@@ -11,7 +11,11 @@ module STRING-LIST
   syntax String ::= sum(List)                            [function, smtlib(smt_seq_sum)]
   rule sum(L1:List L2:List) => sum(L1) +String sum(L2)   [lemma]
   rule sum(ListItem(I:String)) => I                      [lemma]
-  rule sum(.List) => 0                                [lemma]
+  rule sum(.List) => ""                                [lemma]
+
+// TODO: make it rewrite instead of equality
+//rule S:String +String "" => S [lemma]
+//rule (S1:String +String S2:String) +String S3:String => S1 +String (S2 +String S3) [lemma]
 
   syntax List ::= rev(List)                       [function]
   rule rev(L1:List L2:List) => rev(L2) rev(L1)    [lemma]
