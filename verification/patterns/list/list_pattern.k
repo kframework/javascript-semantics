@@ -6,7 +6,7 @@ module LIST-PATTERN
   imports STRING-LIST
 
   /* list pattern */
-  syntax Bag ::= "list" "(" Val ")" "(" List ")"    [pattern(1)]
+  syntax Bag ::= "list" "(" NullableObject ")" "(" List ")"    [pattern(1)]
   rule
     <objs>...
       list(@o(O:Int))(ListItem(V:String) L:List)
@@ -30,7 +30,7 @@ module LIST-PATTERN
     [pattern]
 
   /* lseg pattern */
-  syntax Bag ::= "lseg" "(" Val "," Val ")" "(" List ")"    [pattern(2)]
+  syntax Bag ::= "lseg" "(" NullableObject "," NullableObject ")" "(" List ")"    [pattern(2)]
   rule
     <objs>...
       lseg(@o(O:Int), P:NullableObject)(ListItem(V:String) L:List)
@@ -57,7 +57,7 @@ module LIST-PATTERN
   rule
     <objs>...
        <obj>
-        <oid> O:NullableObject </oid>
+        <oid> @o(O:Int) </oid>
         <properties>
           "value" |-> @desc("Value" |-> V:String "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
           "next"  |-> @desc("Value" |-> @NullVal "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
@@ -69,17 +69,17 @@ module LIST-PATTERN
         </internalProperties>
       </obj>
     =>
-      lseg(O, @NullVal)(ListItem(V))
+      lseg(@o(O), @NullVal)(ListItem(V))
     ...</objs>
     [pattern-folding]
   rule
     <objs>...
       (
         <obj>
-          <oid> O:NullableObject </oid>
+          <oid> @o(O:Int) </oid>
           <properties>
             "value" |-> @desc("Value" |-> V:String         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-            "next"  |-> @desc("Value" |-> P:NullableObject "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+            "next"  |-> @desc("Value" |-> @o(P:Int)        "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
           </properties>
           <internalProperties>
             "Class"      |-> "Object"
@@ -88,16 +88,16 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(O, P)(ListItem(V))
+        lseg(@o(O), @o(P))(ListItem(V))
       )
-      <obj>... <oid> P </oid> ...</obj>
+      <obj>... <oid> @o(P) </oid> ...</obj>
     ...</objs>
     [pattern-folding]
   rule
     <objs>...
       (
         <obj>
-          <oid> O:NullableObject </oid>
+          <oid> @o(O:Int) </oid>
           <properties>
             "value" |-> @desc("Value" |-> V:String         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
             "next"  |-> @desc("Value" |-> P:NullableObject "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
@@ -109,7 +109,7 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(O, P)(ListItem(V))
+        lseg(@o(O), P)(ListItem(V))
       )
       lseg(P, @NullVal)(_:List)
     ...</objs>
@@ -118,7 +118,7 @@ module LIST-PATTERN
     <objs>...
       (
         <obj>
-          <oid> O:NullableObject </oid>
+          <oid> @o(O:Int) </oid>
           <properties>
             "value" |-> @desc("Value" |-> V:String         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
             "next"  |-> @desc("Value" |-> P:NullableObject "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
@@ -130,10 +130,10 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(O, P)(ListItem(V))
+        lseg(@o(O), P)(ListItem(V))
       )
-      lseg(P, Q:NullableObject)(_:List)
-      <obj>... <oid> Q </oid> ...</obj>
+      lseg(P, @o(Q:Int))(_:List)
+      <obj>... <oid> @o(Q) </oid> ...</obj>
     ...</objs>
     [pattern-folding]
   rule
@@ -148,11 +148,11 @@ module LIST-PATTERN
     <objs>...
       (
         lseg(O:NullableObject, P:NullableObject)(L1:List)
-        lseg(P, Q:NullableObject)(L2:List)
+        lseg(P, @o(Q:Int))(L2:List)
       =>
-        lseg(O, Q)(L1 L2)
+        lseg(O, @o(Q))(L1 L2)
       )
-      <obj>... <oid> Q </oid> ...</obj>
+      <obj>... <oid> @o(Q) </oid> ...</obj>
     ...</objs>
     [pattern-folding]
   rule

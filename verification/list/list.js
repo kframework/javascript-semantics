@@ -94,7 +94,7 @@ function copy(x) { // 22
   var y;
   var iterx;
   var itery;
-  var node;
+  var node = null;
 
   if (x === null)
     return null;
@@ -106,7 +106,7 @@ function copy(x) { // 22
 
   iterx = x.next;
   itery = y;
-  while(iterx) {
+  while(iterx !== null) {
     node = {
       value : iterx.value,
       next  : null
