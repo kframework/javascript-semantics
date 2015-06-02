@@ -43,7 +43,7 @@ list-smt:
 sorting:
 	@echo "Sorting"
 	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/bubble_sort_spec.k             sorting/bubble_sort.js
-#	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/insertion_sort_spec.k          sorting/insertion_sort.js
+	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/insertion_sort_spec.k          sorting/insertion_sort.js
 	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/quicksort_spec.k               sorting/quicksort.js
 #	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/merge_sort_spec.k              sorting/merge_sort.js
 
