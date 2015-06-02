@@ -81,7 +81,8 @@ rule [inner-loop-inv]:
   ...</k>
   requires sorted( L1a ListItem( V1)  L1b) andBool  V1 <String NV
   ensures  sorted(?L2a ListItem(?V2) ?L2b) andBool ?V2 <String NV
-   andBool list2set(L1a) U list2set(L1b) U { V1 } ==K list2set(?L2a) U list2set(?L2b) U { ?V2 } 
+   andBool list2set( L1a) U {  V1 } U list2set( L1b) ==K
+           list2set(?L2a) U { ?V2 } U list2set(?L2b)
    andBool list2set(?L2a) <StringSet { NV } andBool { NV } <=StringSet list2set(?L2b) 
 
 
