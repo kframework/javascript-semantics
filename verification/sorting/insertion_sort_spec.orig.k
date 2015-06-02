@@ -4,46 +4,6 @@ module INSERTION-SORT-SPEC
 imports JS-VERIFIER
 
 rule [inner-loop-inv]:
-  <k>
-    %while ( %bop ( %and , %bop ( %neqs , %mem ( %var ( "z" ) , %con ( "next" ) ) , %con ( %null ) ) , 
-                           %bop ( %lt , %mem ( %mem ( %var ( "z" ) , %con ( "next" ) ) , %con ( "value" ) ) , %mem ( %var ( "n" ) , %con ( "value" ) ) ) ) , 
-             %seq (                         // dummy
-                    %exp ( %bop ( %assign , %var ( "z" ) , %mem ( %var ( "z" ) , %con ( "next" ) ) ) ) 
-                  ,                         // dummy
-                    %labelContinue ( "" )   // dummy
-                  )                         // dummy
-           )
-    /*
-    ~>
-    //( #freezer 
-    %seq ( HOLE ,
-           %labelBreak ( "" )
-         )
-    //)(.KList)
-    ~>
-    //( #freezer 
-    %seq ( HOLE ,
-           %seq ( %exp ( %bop ( %assign , %mem ( %var ( "n" ) , %con ( "next" ) ) , %mem ( %var ( "z" ) , %con ( "next" ) ) ) ) , 
-                  %exp ( %bop ( %assign , %mem ( %var ( "z" ) , %con ( "next" ) ) , %var ( "n" ) ) ) )
-         )
-    //)(.KList)
-    */
-/*
-    '%while(_,_)('%bop(_,_,_)('%and(.KList),, '%bop(_,_,_)('%neqs(.KList),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%con(_)('%null(.KList))),, 
-                                              '%bop(_,_,_)('%lt(.KList),, '%mem(_,_)('%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%con(_)(String(#""value""))),, '%mem(_,_)('%var(_)(String(#""n"")),, '%con(_)(String(#""value""))))),,
-                 '%seq(_,_)(
-                             '%exp(_)('%bop(_,_,_)('%assign(.KList),, '%var(_)(String(#""z"")),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next"")))))
-                           ,, 
-                             '%labelContinue(_)(String(#""""))
-                           )
-                )
-    ~> (# '%seq(_,_)(HOLE,, '%labelBreak(_)(String(#""""))))(.KList)
-    ~> (# '%seq(_,_)(HOLE,, '%seq(_,_)('%exp(_)('%bop(_,_,_)('%assign(.KList),, '%mem(_,_)('%var(_)(String(#""n"")),, '%con(_)(String(#""next""))),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))))),, 
-                                       '%exp(_)('%bop(_,_,_)('%assign(.KList),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%var(_)(String(#""n"")))))))(.KList)
-*/
-  =>
-    @Normal
-  ...</k>
   <lexicalEnv> @e(E:Int) </lexicalEnv>
   <lastNonEmptyValue> _:Val => ?_:Val </lastNonEmptyValue>
   <envs>...
@@ -52,7 +12,7 @@ rule [inner-loop-inv]:
       <outer> _:Eid </outer>
       <strict> _:Bool </strict>
       <declEnvRec>...
-        "z" |-> @ve(@o(Z:Int) => @o(?Z2:Int), true, true, false)
+        "z" |-> @ve(@o(Z:Int) => ?_:NullableObject, true, true, false)
         "n" |-> @ve(@o(N:Int),                      true, true, false)
         "x" |-> @ve(_:NullableObject,               true, true, false)
         "y" |-> @ve(Y:NullableObject,               true, true, false)
@@ -76,13 +36,11 @@ rule [inner-loop-inv]:
         </internalProperties>
       </obj>
       lseg(O, @NullVal)(L1b:List)
-    =>
-      lseg(Y, @o(?Z2))(?L2a:List)
       <obj>
-        <oid> @o(?Z2) </oid>
+        <oid> @o(N) </oid>
         <properties>
-          "value" |-> @desc("Value" |-> ?V2:String         "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-          "next"  |-> @desc("Value" |-> ?O2:NullableObject "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+          "value" |-> @desc("Value" |-> NV:String  "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
+          "next"  |-> @desc("Value" |-> @NullVal   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
         </properties>
         <internalProperties>
           "Class"      |-> "Object"
@@ -90,27 +48,53 @@ rule [inner-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg(?O2, @NullVal)(?L2b:List)
+    =>
+      lseg(Y, @NullVal)(?L2:List)
     )
-    <obj>
-      <oid> @o(N) </oid>
-      <properties>
-        "value" |-> @desc("Value" |-> NV:String  "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-        "next"  |-> @desc("Value" |-> @NullVal   "Writable" |-> true "Enumerable" |-> true "Configurable" |-> true)
-      </properties>
-      <internalProperties>
-        "Class"      |-> "Object"
-        "Extensible" |-> true
-        "Prototype"  |-> @ObjectProtoOid
-      </internalProperties>
-    </obj>
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
+  <k>
+    %while ( %bop ( %and , %bop ( %neqs , %mem ( %var ( "z" ) , %con ( "next" ) ) , %con ( %null ) ) , 
+                           %bop ( %lt , %mem ( %mem ( %var ( "z" ) , %con ( "next" ) ) , %con ( "value" ) ) , %mem ( %var ( "n" ) , %con ( "value" ) ) ) ) , 
+             %seq (                         // dummy
+                    %exp ( %bop ( %assign , %var ( "z" ) , %mem ( %var ( "z" ) , %con ( "next" ) ) ) ) 
+                  ,                         // dummy
+                    %labelContinue ( "" )   // dummy
+                  )                         // dummy
+           )
+    ~>
+    //( #freezer 
+    %seq ( HOLE ,
+           %labelBreak ( "" )
+         )
+    //)(.KList)
+    ~>
+    //( #freezer 
+    %seq ( HOLE ,
+           %seq ( %exp ( %bop ( %assign , %mem ( %var ( "n" ) , %con ( "next" ) ) , %mem ( %var ( "z" ) , %con ( "next" ) ) ) ) , 
+                  %exp ( %bop ( %assign , %mem ( %var ( "z" ) , %con ( "next" ) ) , %var ( "n" ) ) ) )
+         )
+    //)(.KList)
+/*
+    '%while(_,_)('%bop(_,_,_)('%and(.KList),, '%bop(_,_,_)('%neqs(.KList),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%con(_)('%null(.KList))),, 
+                                              '%bop(_,_,_)('%lt(.KList),, '%mem(_,_)('%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%con(_)(String(#""value""))),, '%mem(_,_)('%var(_)(String(#""n"")),, '%con(_)(String(#""value""))))),,
+                 '%seq(_,_)(
+                             '%exp(_)('%bop(_,_,_)('%assign(.KList),, '%var(_)(String(#""z"")),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next"")))))
+                           ,, 
+                             '%labelContinue(_)(String(#""""))
+                           )
+                )
+    ~> (# '%seq(_,_)(HOLE,, '%labelBreak(_)(String(#""""))))(.KList)
+    ~> (# '%seq(_,_)(HOLE,, '%seq(_,_)('%exp(_)('%bop(_,_,_)('%assign(.KList),, '%mem(_,_)('%var(_)(String(#""n"")),, '%con(_)(String(#""next""))),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))))),, 
+                                       '%exp(_)('%bop(_,_,_)('%assign(.KList),, '%mem(_,_)('%var(_)(String(#""z"")),, '%con(_)(String(#""next""))),, '%var(_)(String(#""n"")))))))(.KList)
+*/
+  =>
+    @Normal
+  ...</k>
   requires sorted(L1a ListItem(V) L1b) andBool V <String NV
-  ensures  sorted(?L2a ListItem(?V2) ?L2b) andBool ?V2 <String NV
-   andBool list2set(L1a) U list2set(L1b) U { V } ==K list2set(?L2a) U list2set(?L2b) U { ?V2 } 
-   andBool list2set(?L2a) <StringSet { NV } andBool { NV } <=StringSet list2set(?L2b) 
+  ensures  sorted(?L2)
+   andBool list2set(L1a) U list2set(L1b) U { V } U { NV } ==K list2set(?L2)
 
 
 rule [outer-loop-inv]:
