@@ -81,6 +81,9 @@
 	:pattern ((smt_seq_sorted s1) (smt_seq_sorted s2))
 )))
 
+(assert (forall ((s String)) (= (smt_seq_sorted (smt_seq_elem s)) true)))
+(assert (= (smt_seq_sorted smt_seq_nil) true))
+
 ; (assert (forall ((e1 String) (e2 String) (s1 StringSeq) (s2 StringSeq)) (= (= (smt_seq_concat (smt_seq_elem e1) s1) (smt_seq_concat (smt_seq_elem e2) s2)) (and (= e1 e2) (= s1 s2)))))
 ; 
 ; (declare-fun smt_seq_filter (String StringSeq) StringSeq)
