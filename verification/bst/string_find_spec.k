@@ -16,7 +16,7 @@ rule
   <k>
     Call(
       // %var("find"),
-      @o(1),
+      @o(2),
       Undefined,
       @Cons(V:String, @Cons(O:NullableObject, @Nil)))
   =>

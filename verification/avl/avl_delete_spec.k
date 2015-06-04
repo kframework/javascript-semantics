@@ -15,7 +15,7 @@ rule
   <k>
     Call(
       // %var("max"),
-      @o(3),
+      @o(4),
       Undefined,
       @Cons(X:Int, @Cons(Y:Int, @Nil)))
   =>
@@ -36,7 +36,7 @@ rule
   <k>
     Call(
       // %var("height"),
-      @o(5),
+      @o(6),
       Undefined,
       @Cons(O:NullableObject, @Nil))
   =>
@@ -72,7 +72,7 @@ rule
   <k>
     Call(
       // %var("update_height"),
-      @o(7),
+      @o(8),
       Undefined,
       @Cons(O:Oid, @Nil))
   =>
@@ -95,7 +95,7 @@ rule
   <k>
     Call(
       // %var("find_min"),
-      @o(9),
+      @o(10),
       Undefined,
       @Cons(O:Oid, @Nil))
   =>
@@ -117,7 +117,7 @@ rule
   <k>
     Call(
       // %var("remove"),
-      @o(21),
+      @o(22),
       Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>

@@ -16,7 +16,7 @@ rule
   <k>
     Call(
       // %var("insert"),
-      @o(3),
+      @o(4),
       Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>

@@ -16,7 +16,7 @@ rule
   <k>
     Call(
       // %var("find_min"),
-      @o(1),
+      @o(2),
       Undefined,
       @Cons(O:Oid, @Nil))
   =>
@@ -38,7 +38,7 @@ rule
   <k>
     Call(
       // %var("remove"),
-      @o(3),
+      @o(4),
       Undefined,
       @Cons(V:String, @Cons(O1:NullableObject, @Nil)))
   =>

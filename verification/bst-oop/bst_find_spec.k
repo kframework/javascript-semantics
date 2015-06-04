@@ -14,19 +14,19 @@ rule
   <objs>
     ...
     OBJS:Bag
-    tree(O)(T:StringTree)(@o(8))
+    tree(O)(T:StringTree)(@o(7))
     (.Bag => ?_:Bag)
     ...
   </objs>
   <k>
-    Call(@o(11), O:Oid, @Cons(V:String, @Nil))
+    Call(@o(12), O:Oid, @Cons(V:String, @Nil))
   =>
     V inStringSet tree_keys(T)
     ...
   </k>
   requires bst(T)
 
-// @o(8)  : BST.Node.prototype
-// @o(11) : BST.Node.prototype.find
+// @o(7)  : BST.Node.prototype
+// @o(12) : BST.Node.prototype.find
 
 endmodule
