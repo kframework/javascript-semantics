@@ -49,9 +49,9 @@ sorting:
 
 .PHONY: prove
 prove:
-	@echo "List"
-	krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/reverse.js
-	krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/append.js
+#	@echo "List"
+#	krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/reverse.js
+#	krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/append.js
 	@echo "BST String"
 	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
 	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
