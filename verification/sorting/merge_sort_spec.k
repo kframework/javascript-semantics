@@ -55,8 +55,6 @@ rule [first-loop-inv]:
     @Normal
   ...</k>
   ensures list2set(A) U list2set(B1) U list2set(C1) ==K list2set(?B2) U list2set(?C2)
-[trusted]
-
 
 rule [second-loop-inv]:
   <lexicalEnv> @e(E:Int) </lexicalEnv>
@@ -134,11 +132,12 @@ rule [second-loop-inv]:
    andBool list2set(LX1) U {V1} <=StringSet list2set(LY1) U list2set(LZ1)
   ensures  sorted(?LX2 ListItem(?V2)) andBool sorted(?LY2) andBool sorted(?LZ2)
    andBool list2set(?LX2) U {?V2} <=StringSet list2set(?LY2) U list2set(?LZ2)
-           /*
+   //
    andBool sorted(?LX2 ListItem(?V2) ?LY2 ?LZ2)
    andBool list2set(LX1) U {V1} U list2set(LY1) U list2set(LZ1) ==K
            list2set(?LX2 ListItem(?V2) ?LY2 ?LZ2)
-           */
+   andBool (?Y2 ==K @NullVal orBool ?Z2 ==K @NullVal)
+   /*
    andBool 
    (
      ( ?Z2 ==K @NullVal
@@ -153,7 +152,7 @@ rule [second-loop-inv]:
                list2set(?LX2 ListItem(?V2) ?LZ2)
      )
    )
-  [trusted] 
+   */
 
 
 rule [func-spec]:
@@ -163,9 +162,9 @@ rule [func-spec]:
   ...</envs>
   <objs>...
     (
-      lseg( X1,@NullVal)( L1:List)
+      lseg(@o( X1),@NullVal)( L1:List)
     =>
-      lseg(?X2,@NullVal)(?L2:List)
+      lseg(@o(?X2),@NullVal)(?L2:List)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -174,12 +173,11 @@ rule [func-spec]:
     Call(
       @o(2), // %var("merge_sort"),
       Undefined,
-      @Cons(X1:NullableObject, @Nil))
+      @Cons(@o(X1:Int), @Nil))
   =>
-    ?X2:NullableObject
+    @o(?X2:Int)
   ...</k>
   ensures  sorted(?L2)
    andBool list2set(L1) ==K list2set(?L2)
-  [trusted] 
 
 endmodule
