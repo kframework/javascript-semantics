@@ -12,61 +12,61 @@ build: clean
 .PHONY: list
 list:
 	@echo "List"
-	krun -d patterns/list        --smt none          --prove list/head_spec.k          list/list.js
-	krun -d patterns/list        --smt none          --prove list/tail_spec.k          list/list.js
-	krun -d patterns/list        --smt none          --prove list/add_spec.k           list/list.js
-	krun -d patterns/list        --smt none          --prove list/swap_spec.k          list/list.js
-#	krun -d patterns/list        --smt none          --prove list/length_recursive_spec.k       list/list.js
-#	krun -d patterns/list        --smt none          --prove list/length_iterative_spec.k       list/list.js
-#	krun -d patterns/list        --smt none          --prove list/sum_recursive_spec.k          list/list.js
-#	krun -d patterns/list        --smt none          --prove list/sum_iterative_spec.k          list/list.js
-	krun -d patterns/list        --smt none          --prove list/reverse_spec.k       list/list.js
-	krun -d patterns/list        --smt none          --prove list/append_spec.k        list/list.js
-#	krun -d patterns/list        --smt none          --prove list/copy_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/head_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/tail_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/add_spec.k           list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/swap_spec.k          list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/length_recursive_spec.k       list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/length_iterative_spec.k       list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/sum_recursive_spec.k          list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/sum_iterative_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/reverse_spec.k       list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/append_spec.k        list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none          --prove list/copy_spec.k          list/list.js
 
 .PHONY: list-smt
 list-smt:
 	@echo "List"
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/head_spec.k          list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/tail_spec.k          list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/add_spec.k           list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/swap_spec.k          list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_recursive_spec.k       list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_iterative_spec.k       list/list.js
-#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_recursive_spec.k          list/list.js
-#	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_iterative_spec.k          list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/reverse_spec.k       list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/append_spec.k        list/list.js
-	krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/copy_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/head_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/tail_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/add_spec.k           list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/swap_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_recursive_spec.k       list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/length_iterative_spec.k       list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_recursive_spec.k          list/list.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/sum_iterative_spec.k          list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/reverse_spec.k       list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/append_spec.k        list/list.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/list.smt2          --prove list/copy_spec.k          list/list.js
 
 .PHONY: sorting
 sorting:
 	@echo "Sorting"
-	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/bubble_sort_spec.k             sorting/bubble_sort.js
-	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/insertion_sort_spec.k          sorting/insertion_sort.js
-	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/quicksort_spec.k               sorting/quicksort.js
-	krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/merge_sort_spec.k              sorting/merge_sort.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/bubble_sort_spec.k             sorting/bubble_sort.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/insertion_sort_spec.k          sorting/insertion_sort.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/quicksort_spec.k               sorting/quicksort.js
+	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/merge_sort_spec.k              sorting/merge_sort.js
 
 .PHONY: prove
 prove:
 #	@echo "List"
-#	krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/reverse.js
-#	krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/append.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/reverse.js
+#	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/append.js
 	@echo "BST String"
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_delete_spec.k  bst/delete.js 
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_find_spec.k    bst/find.js 
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_insert_spec.k  bst/insert.js 
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst/string_delete_spec.k  bst/delete.js 
 	@echo "BST OOP String"
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst-oop/bst_find_spec.k   bst-oop/bst.js 
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst-oop/bst_insert_spec.k bst-oop/bst.js 
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst-oop/bst_find_spec.k   bst-oop/bst.js 
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove bst-oop/bst_insert_spec.k bst-oop/bst.js 
 	@echo "BST Float"
-	krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_find_spec.k     bst/find.js
-	krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_insert_spec.k   bst/insert.js
-	krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_delete_spec.k   bst/delete.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_find_spec.k     bst/find.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_insert_spec.k   bst/insert.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_float  --smt_prelude patterns/tree_float/float.smt2   --prove bst/float_delete_spec.k   bst/delete.js
 	@echo "AVL String"
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js
-	krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js
 
 .PHONY: clean
 clean:
