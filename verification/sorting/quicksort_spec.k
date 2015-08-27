@@ -20,10 +20,10 @@ rule [append-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(OX, @o(P1:Int))(A:List)
-      lseg(@o(P1:Int), @NullVal)(B:List)
+      lseg(OX, @o(P1:Int))(A:StringSeq)
+      lseg(@o(P1:Int), @NullVal)(B:StringSeq)
     =>
-      lseg(OX, @o(?P2:Int))(?C:List)
+      lseg(OX, @o(?P2:Int))(?C:StringSeq)
       <obj>
         <oid> @o(?P2:Int) </oid>
         <properties>
@@ -46,7 +46,7 @@ rule [append-loop-inv]:
     @Normal
   ...</k>
   requires EID =/=K @NullEid
-  ensures A B ==K ?C ListItem(?V)
+  ensures A @ B ==K ?C @ StringSeqItem(?V)
 
 rule [append-func-spec]:
   <envs>...
@@ -55,10 +55,10 @@ rule [append-func-spec]:
   ...</envs>
   <objs>...
     (
-      lseg(OX, @NullVal)(A:List)
-      lseg(OY, @NullVal)(B:List)
+      lseg(OX, @NullVal)(A:StringSeq)
+      lseg(OY, @NullVal)(B:StringSeq)
     =>
-      lseg(?OP, @NullVal)(A B)
+      lseg(?OP, @NullVal)(A @ B)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -107,12 +107,12 @@ rule [quicksort-loop-inv]:
         </internalProperties>
       </obj>
     (
-      lseg(X,  @NullVal)(A:List)
-      lseg(Y1, @NullVal)(B1:List)
-      lseg(Z1, @NullVal)(C1:List)
+      lseg(X,  @NullVal)(A:StringSeq)
+      lseg(Y1, @NullVal)(B1:StringSeq)
+      lseg(Z1, @NullVal)(C1:StringSeq)
     =>
-      lseg(?Y2,@NullVal)(?B2:List)
-      lseg(?Z2,@NullVal)(?C2:List)
+      lseg(?Y2,@NullVal)(?B2:StringSeq)
+      lseg(?Z2,@NullVal)(?C2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -145,9 +145,9 @@ rule [quicksort-func-spec]:
   ...</envs>
   <objs>...
     (
-      lseg(X1, @NullVal)(L1:List)
+      lseg(X1, @NullVal)(L1:StringSeq)
     =>
-      lseg(?X2,@NullVal)(?L2:List)
+      lseg(?X2,@NullVal)(?L2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)

@@ -22,7 +22,7 @@ rule [inner-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(Y, @o(Z1))(L1a:List)
+      lseg(Y, @o(Z1))(L1a:StringSeq)
       <obj>
         <oid> @o(Z1) </oid>
         <properties>
@@ -35,9 +35,9 @@ rule [inner-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg(O1, @NullVal)(L1b:List)
+      lseg(O1, @NullVal)(L1b:StringSeq)
     =>
-      lseg(Y, @o(?Z2))(?L2a:List)
+      lseg(Y, @o(?Z2))(?L2a:StringSeq)
       <obj>
         <oid> @o(?Z2) </oid>
         <properties>
@@ -50,7 +50,7 @@ rule [inner-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg(?O2, @NullVal)(?L2b:List)
+      lseg(?O2, @NullVal)(?L2b:StringSeq)
     )
     <obj>
       <oid> @o(N) </oid>
@@ -79,8 +79,8 @@ rule [inner-loop-inv]:
   =>
     @Normal
   ...</k>
-  requires sorted( L1a ListItem( V1)  L1b) andBool  V1 <String NV
-  ensures  sorted(?L2a ListItem(?V2) ?L2b) andBool ?V2 <String NV
+  requires sorted( L1a @ StringSeqItem( V1) @  L1b) andBool  V1 <String NV
+  ensures  sorted(?L2a @ StringSeqItem(?V2) @ ?L2b) andBool ?V2 <String NV
    andBool list2set( L1a) U {  V1 } U list2set( L1b) ==K
            list2set(?L2a) U { ?V2 } U list2set(?L2b)
    andBool list2set(?L2a) <StringSet { NV } andBool { NV } <=StringSet list2set(?L2b) 
@@ -106,10 +106,10 @@ rule [outer-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(Y1, @NullVal)(L1a:List)
-      lseg(X,  @NullVal)(L1b:List)
+      lseg(Y1, @NullVal)(L1a:StringSeq)
+      lseg(X,  @NullVal)(L1b:StringSeq)
     =>
-      lseg(?Y2,@NullVal)(?L2:List)
+      lseg(?Y2,@NullVal)(?L2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -154,7 +154,7 @@ rule [func-spec]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (lseg(X1,@NullVal)(L1:List) => lseg(?X2,@NullVal)(?L2:List))
+    (lseg(X1,@NullVal)(L1:StringSeq) => lseg(?X2,@NullVal)(?L2:StringSeq))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>

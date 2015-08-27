@@ -22,7 +22,7 @@ rule [inner-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(X, @o(Y))(L1a:List)
+      lseg(X, @o(Y))(L1a:StringSeq)
       <obj>
         <oid> @o(Y) </oid>
         <properties>
@@ -35,9 +35,9 @@ rule [inner-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg(O, @NullVal)(L1b:List)
+      lseg(O, @NullVal)(L1b:StringSeq)
     =>
-      lseg(X, @NullVal)(?L2:List)
+      lseg(X, @NullVal)(?L2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -59,7 +59,7 @@ rule [inner-loop-inv]:
   =>
     @Normal
   ...</k>
-  requires sorted(L1a ListItem(V)) orBool C1 =/=K false
+  requires sorted(L1a @ StringSeqItem(V)) orBool C1 =/=K false
   ensures  (sorted(?L2) orBool ?C2 =/=K false)
    andBool list2set(L1a) U list2set(L1b) U { V } ==K list2set(?L2)
 
@@ -83,9 +83,9 @@ rule [outer-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(X, @NullVal)(L1:List)
+      lseg(X, @NullVal)(L1:StringSeq)
     =>
-      lseg(X, @NullVal)(?L2:List)
+      lseg(X, @NullVal)(?L2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -127,7 +127,7 @@ rule [func-spec]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (lseg(X1,@NullVal)(L1:List) => lseg(?X2,@NullVal)(?L2:List))
+    (lseg(X1,@NullVal)(L1:StringSeq) => lseg(?X2,@NullVal)(?L2:StringSeq))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>

@@ -24,12 +24,12 @@ rule [first-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(X,@NullVal)(A:List)
-      lseg(@o( Y1),@NullVal)( B1:List)
-      lseg(@o( Z1),@NullVal)( C1:List)
+      lseg(X,@NullVal)(A:StringSeq)
+      lseg(@o( Y1),@NullVal)( B1:StringSeq)
+      lseg(@o( Z1),@NullVal)( C1:StringSeq)
     =>
-      lseg(@o(?Y2),@NullVal)(?B2:List)
-      lseg(@o(?Z2),@NullVal)(?C2:List)
+      lseg(@o(?Y2),@NullVal)(?B2:StringSeq)
+      lseg(@o(?Z2),@NullVal)(?C2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -77,7 +77,7 @@ rule [second-loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg( X, @o(P1)  )( LX1:List)
+      lseg( X, @o(P1)  )( LX1:StringSeq)
       <obj>
         <oid> @o(P1) </oid>
         <properties>
@@ -90,10 +90,10 @@ rule [second-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg( Y1,@NullVal)( LY1:List)
-      lseg( Z1,@NullVal)( LZ1:List)
+      lseg( Y1,@NullVal)( LY1:StringSeq)
+      lseg( Z1,@NullVal)( LZ1:StringSeq)
     =>
-      lseg( X, @o(?P2) )(?LX2:List)
+      lseg( X, @o(?P2) )(?LX2:StringSeq)
       <obj>
         <oid> @o(?P2) </oid>
         <properties>
@@ -106,8 +106,8 @@ rule [second-loop-inv]:
           "Prototype"  |-> @ObjectProtoOid
         </internalProperties>
       </obj>
-      lseg(?Y2,@NullVal)(?LY2:List)
-      lseg(?Z2,@NullVal)(?LZ2:List)
+      lseg(?Y2,@NullVal)(?LY2:StringSeq)
+      lseg(?Z2,@NullVal)(?LZ2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -128,28 +128,28 @@ rule [second-loop-inv]:
   =>
     @Normal
   ...</k>
-  requires sorted(LX1 ListItem(V1)) andBool sorted(LY1) andBool sorted(LZ1)
+  requires sorted(LX1 @ StringSeqItem(V1)) andBool sorted(LY1) andBool sorted(LZ1)
    andBool list2set(LX1) U {V1} <=StringSet list2set(LY1) U list2set(LZ1)
-  ensures  sorted(?LX2 ListItem(?V2)) andBool sorted(?LY2) andBool sorted(?LZ2)
+  ensures  sorted(?LX2 @ StringSeqItem(?V2)) andBool sorted(?LY2) andBool sorted(?LZ2)
    andBool list2set(?LX2) U {?V2} <=StringSet list2set(?LY2) U list2set(?LZ2)
    //
-   andBool sorted(?LX2 ListItem(?V2) ?LY2 ?LZ2)
+   andBool sorted(?LX2 @ StringSeqItem(?V2) @ ?LY2 @ ?LZ2)
    andBool list2set(LX1) U {V1} U list2set(LY1) U list2set(LZ1) ==K
-           list2set(?LX2 ListItem(?V2) ?LY2 ?LZ2)
+           list2set(?LX2 @ StringSeqItem(?V2) @ ?LY2 @ ?LZ2)
    andBool (?Y2 ==K @NullVal orBool ?Z2 ==K @NullVal)
    /*
    andBool 
    (
      ( ?Z2 ==K @NullVal
-       andBool sorted(?LX2 ListItem(?V2) ?LY2)
+       andBool sorted(?LX2 StringSeqItem(?V2) ?LY2)
        andBool list2set(LX1) U {V1} U list2set(LY1) U list2set(LZ1) ==K
-               list2set(?LX2 ListItem(?V2) ?LY2)
+               list2set(?LX2 StringSeqItem(?V2) ?LY2)
      )
      orBool 
      ( ?Y2 ==K @NullVal
-       andBool sorted(?LX2 ListItem(?V2) ?LZ2)
+       andBool sorted(?LX2 StringSeqItem(?V2) ?LZ2)
        andBool list2set(LX1) U {V1} U list2set(LY1) U list2set(LZ1) ==K
-               list2set(?LX2 ListItem(?V2) ?LZ2)
+               list2set(?LX2 StringSeqItem(?V2) ?LZ2)
      )
    )
    */
@@ -162,9 +162,9 @@ rule [func-spec]:
   ...</envs>
   <objs>...
     (
-      lseg(@o( X1),@NullVal)( L1:List)
+      lseg(@o( X1),@NullVal)( L1:StringSeq)
     =>
-      lseg(@o(?X2),@NullVal)(?L2:List)
+      lseg(@o(?X2),@NullVal)(?L2:StringSeq)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)

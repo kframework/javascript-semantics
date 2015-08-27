@@ -6,10 +6,10 @@ module LIST-PATTERN
   imports STRING-LIST
 
   /* list pattern */
-  syntax Bag ::= "list" "(" NullableObject ")" "(" List ")"    [pattern(1)]
+  syntax Bag ::= "list" "(" NullableObject ")" "(" StringSeq ")"    [pattern(1)]
   rule
     <objs>...
-      list(@o(O:Int))(ListItem(V:String) L:List)
+      list(@o(O:Int))(StringSeqItem(V:String) @ L:StringSeq)
     =>
       <obj>
         <oid> @o(O) </oid>
@@ -26,14 +26,14 @@ module LIST-PATTERN
       list(?ON)(L)
     ...</objs>
     [pattern]
-  rule <objs>... list(@NullVal)(.List) => .Bag ...</objs>
+  rule <objs>... list(@NullVal)(.StringSeq) => .Bag ...</objs>
     [pattern]
 
   /* lseg pattern */
-  syntax Bag ::= "lseg" "(" NullableObject "," NullableObject ")" "(" List ")"    [pattern(2)]
+  syntax Bag ::= "lseg" "(" NullableObject "," NullableObject ")" "(" StringSeq ")"    [pattern(2)]
   rule
     <objs>...
-      lseg(@o(O:Int), P:NullableObject)(ListItem(V:String) L:List)
+      lseg(@o(O:Int), P:NullableObject)(StringSeqItem(V:String) @ L:StringSeq)
     =>
       <obj>
         <oid> @o(O) </oid>
@@ -51,7 +51,7 @@ module LIST-PATTERN
     ...</objs>
     requires @o(O) =/=K P
     [pattern]
-  rule <objs>... lseg(O:NullableObject, O)(.List) => .Bag ...</objs>
+  rule <objs>... lseg(O:NullableObject, O)(.StringSeq) => .Bag ...</objs>
     [pattern]
 
   rule
@@ -69,7 +69,7 @@ module LIST-PATTERN
         </internalProperties>
       </obj>
     =>
-      lseg(@o(O), @NullVal)(ListItem(V))
+      lseg(@o(O), @NullVal)(StringSeqItem(V))
     ...</objs>
     [pattern-folding]
   rule
@@ -88,7 +88,7 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(@o(O), @o(P))(ListItem(V))
+        lseg(@o(O), @o(P))(StringSeqItem(V))
       )
       <obj>... <oid> @o(P) </oid> ...</obj>
     ...</objs>
@@ -109,9 +109,9 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(@o(O), P)(ListItem(V))
+        lseg(@o(O), P)(StringSeqItem(V))
       )
-      lseg(P, @NullVal)(_:List)
+      lseg(P, @NullVal)(_:StringSeq)
     ...</objs>
     [pattern-folding]
   rule
@@ -130,27 +130,27 @@ module LIST-PATTERN
           </internalProperties>
         </obj>
       =>
-        lseg(@o(O), P)(ListItem(V))
+        lseg(@o(O), P)(StringSeqItem(V))
       )
-      lseg(P, @o(Q:Int))(_:List)
+      lseg(P, @o(Q:Int))(_:StringSeq)
       <obj>... <oid> @o(Q) </oid> ...</obj>
     ...</objs>
     [pattern-folding]
   rule
     <objs>...
-      lseg(O:NullableObject, P:NullableObject)(L1:List)
-      lseg(P, @NullVal)(L2:List)
+      lseg(O:NullableObject, P:NullableObject)(L1:StringSeq)
+      lseg(P, @NullVal)(L2:StringSeq)
     =>
-      lseg(O, @NullVal)(L1 L2)
+      lseg(O, @NullVal)(L1 @ L2)
     ...</objs>
     [pattern-folding]
   rule
     <objs>...
       (
-        lseg(O:NullableObject, P:NullableObject)(L1:List)
-        lseg(P, @o(Q:Int))(L2:List)
+        lseg(O:NullableObject, P:NullableObject)(L1:StringSeq)
+        lseg(P, @o(Q:Int))(L2:StringSeq)
       =>
-        lseg(O, @o(Q))(L1 L2)
+        lseg(O, @o(Q))(L1 @ L2)
       )
       <obj>... <oid> @o(Q) </oid> ...</obj>
     ...</objs>
@@ -158,12 +158,12 @@ module LIST-PATTERN
   rule
     <objs>...
       (
-        lseg(O:NullableObject, P:NullableObject)(L1:List)
-        lseg(P, Q:NullableObject)(L2:List)
+        lseg(O:NullableObject, P:NullableObject)(L1:StringSeq)
+        lseg(P, Q:NullableObject)(L2:StringSeq)
       =>
-        lseg(O, Q)(L1 L2)
+        lseg(O, Q)(L1 @ L2)
       )
-      lseg(Q, @NullVal)(_:List)
+      lseg(Q, @NullVal)(_:StringSeq)
     ...</objs>
     [pattern-folding]
 endmodule

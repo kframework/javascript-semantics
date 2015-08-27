@@ -20,7 +20,7 @@ rule [loop-inv]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (list(OX)(B:List) list(OP1)(C:List) => list(?OP2)(rev(B) C))
+    (list(OX)(B:StringSeq) list(OP1)(C:StringSeq) => list(?OP2)(rev(B) @ C))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>
@@ -36,7 +36,7 @@ rule [func-spec]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    (list(O1)(A:List) => list(?O2)(rev(A)))
+    (list(O1)(A:StringSeq) => list(?O2)(rev(A)))
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>

@@ -72,6 +72,10 @@
 (declare-fun smt_seq_nil () StringSeq)
 (declare-fun smt_seq_len (StringSeq) Int)
 
+(assert (forall ((s StringSeq)) (= (smt_seq_concat s smt_seq_nil) s))) ; right-unit
+(assert (forall ((s StringSeq)) (= (smt_seq_concat smt_seq_nil s) s))) ; left-unit
+(assert (forall ((s1 StringSeq) (s2 StringSeq) (s3 StringSeq)) (= (smt_seq_concat (smt_seq_concat s1 s2) s3) (smt_seq_concat s1 (smt_seq_concat s2 s3))))) ; associativity
+
 (declare-fun smt_seq_sum (StringSeq) String)
 (declare-fun smt_seq2set (StringSeq) StringSet)
 (declare-fun smt_seq_sorted (StringSeq) Bool)

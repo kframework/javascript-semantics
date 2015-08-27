@@ -20,10 +20,10 @@ rule [loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(OX, @o(P1:Int))(A:List)
-      lseg(@o(P1:Int), @NullVal)(B:List)
+      lseg(OX, @o(P1:Int))(A:StringSeq)
+      lseg(@o(P1:Int), @NullVal)(B:StringSeq)
     =>
-      lseg(OX, @o(?P2:Int))(?C:List)
+      lseg(OX, @o(?P2:Int))(?C:StringSeq)
       <obj>
         <oid> @o(?P2:Int) </oid>
         <properties>
@@ -46,7 +46,7 @@ rule [loop-inv]:
     @Normal
   ...</k>
   requires EID =/=K @NullEid
-  ensures A B ==K ?C ListItem(?V)
+  ensures A @ B ==K ?C @ StringSeqItem(?V)
 
 rule [func-spec]:
   <envs>...
@@ -55,10 +55,10 @@ rule [func-spec]:
   ...</envs>
   <objs>...
     (
-      lseg(OX, @NullVal)(A:List)
-      lseg(OY, @NullVal)(B:List)
+      lseg(OX, @NullVal)(A:StringSeq)
+      lseg(OY, @NullVal)(B:StringSeq)
     =>
-      lseg(?OP, @NullVal)(A B)
+      lseg(?OP, @NullVal)(A @ B)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
