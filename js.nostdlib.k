@@ -5953,6 +5953,7 @@ endmodule
 
 module JS
 imports JS-MAIN
-syntax NullableObject ::= Oid | NullType
+syntax NullableObject ::= Oid      [smt-sort-flatten]
+                        | NullType [smt-sort-flatten]
 syntax Val ::= NullableObject
 endmodule
