@@ -4,6 +4,13 @@ module AVL-SPEC
 imports JS-VERIFIER
 
 rule
+  <k>
+    MakeFullyPopulatedDataDescriptor2(@desc("Value" |-> V:Val), @desc("Value" |-> _:Val "Writable" |-> W:Bool "Enumerable" |-> E:Bool "Configurable" |-> C:Bool))
+  =>
+    @desc("Value" |-> V:Val "Writable" |-> W:Bool "Enumerable" |-> E:Bool "Configurable" |-> C:Bool)
+  ...</k>
+
+rule
   <envs>...
     ENVS:Bag
     (.Bag => ?_:Bag)
