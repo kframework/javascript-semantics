@@ -3,6 +3,9 @@ SHELL=/bin/bash
 .PHONY: all
 all: build prove
 
+.PHONY: prove
+prove: list list-smt sorting tree
+
 .PHONY: build
 build: clean
 	kompile -d patterns/tree_string --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_string/js-verifier.k
@@ -47,8 +50,8 @@ sorting:
 	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/quicksort_spec.k               sorting/quicksort.js
 	K_OPTS=-Xmx4096m krun -d patterns/list        --smt_prelude patterns/list/sorted_list.smt2          --prove sorting/merge_sort_spec.k              sorting/merge_sort.js
 
-.PHONY: prove
-prove:
+.PHONY: tree
+tree:
 #	@echo "List"
 #	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none                                     --prove list/reverse_spec.k       list/reverse.js
 #	K_OPTS=-Xmx4096m krun -d patterns/list        --smt none                                     --prove list/append_spec.k        list/append.js
