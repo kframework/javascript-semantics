@@ -10,9 +10,9 @@ rule
   ...</envs>
   <objs>...
     (
-      list(O)(ListItem(V1:String) ListItem(V2:String) L:List)
+      list(O)(StringSeqItem(V1:String) @ StringSeqItem(V2:String) @ L:StringSeq)
     =>
-      list(?O2)(ListItem(V2) ListItem(V1) L)
+      list(?O2)(StringSeqItem(V2) @ StringSeqItem(V1) @ L)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)

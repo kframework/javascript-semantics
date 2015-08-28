@@ -21,7 +21,7 @@ rule
         "Prototype"  |-> @ObjectProtoOid
       </internalProperties>
     </obj>
-    list(Tail)(L:List)
+    list(Tail)(L:StringSeq)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>

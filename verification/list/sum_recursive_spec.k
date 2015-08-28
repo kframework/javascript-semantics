@@ -9,7 +9,7 @@ rule
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    list(X)(L:List)
+    list(X)(L:StringSeq)
     OBJS:Bag
     (.Bag => ?_:Bag)
   ...</objs>

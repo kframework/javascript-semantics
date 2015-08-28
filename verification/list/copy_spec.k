@@ -23,8 +23,8 @@ rule [loop-inv]:
   ...</envs>
   <objs>...
     (
-      lseg(    X, ITERX)(A:List ListItem(V:String))
-      lseg(ITERX, @NullVal)(B:List)
+      lseg(    X, ITERX)(A:StringSeq @ StringSeqItem(V:String))
+      lseg(ITERX, @NullVal)(B:StringSeq)
       lseg(    Y, @o(ITERY))(A)
       <obj>
         <oid> @o(ITERY) </oid>
@@ -39,8 +39,8 @@ rule [loop-inv]:
         </internalProperties>
       </obj>
     =>
-      lseg(X, @NullVal)(A ListItem(V) B)
-      lseg(Y, @NullVal)(A ListItem(V) B)
+      lseg(X, @NullVal)(A @ StringSeqItem(V) @ B)
+      lseg(Y, @NullVal)(A @ StringSeqItem(V) @ B)
     )
     OBJS:Bag
     (.Bag => ?_:Bag)
@@ -67,7 +67,7 @@ rule [func-spec]:
     (.Bag => ?_:Bag)
   ...</envs>
   <objs>...
-    lseg(X, @NullVal)(L:List)
+    lseg(X, @NullVal)(L:StringSeq)
     OBJS:Bag
     (.Bag => lseg(?Y, @NullVal)(L) ?_:Bag)
   ...</objs>
