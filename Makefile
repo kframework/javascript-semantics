@@ -16,6 +16,7 @@ build: prerequisite jsaf test262
     } >js-config.k
 	@echo "Final build..."
 	$(kbuild)
+	$(MAKE) -C verification build
 
 define kbuild
 rm -rf js-kompiled
