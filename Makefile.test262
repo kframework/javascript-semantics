@@ -7,7 +7,6 @@ endif
 
 .PHONY: test262-core
 test262-core: test262-core-positive test262-core-negative
-	$(MAKE) -C verification prove
 
 .PHONY: test262-core-positive
 test262-core-positive: $(TEST262_CORE_POSITIVE:%=%.out.positive)

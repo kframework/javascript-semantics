@@ -17,6 +17,7 @@ build: prerequisite jsaf test262
 	@echo "Final build..."
 	$(kbuild)
 	$(MAKE) -C verification build
+	$(MAKE) -C verification prove
 
 define kbuild
 rm -rf js-kompiled
