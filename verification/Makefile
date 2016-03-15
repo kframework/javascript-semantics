@@ -8,6 +8,7 @@ prove: list list-smt sorting tree
 
 .PHONY: build
 build: clean
+	kompile -d patterns/tree_color  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_color/js-verifier.k
 	kompile -d patterns/tree_string --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_string/js-verifier.k
 #	kompile -d patterns/tree_float  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_float/js-verifier.k
 	kompile -d patterns/list        --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/list/js-verifier.k
@@ -70,6 +71,10 @@ tree:
 	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_find_spec.k       avl/avl.js
 	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_insert_spec.k     avl/avl.js
 	K_OPTS=-Xmx4096m krun -d patterns/tree_string --smt_prelude patterns/tree_string/string.smt2 --prove avl/avl_delete_spec.k     avl/avl.js
+	@echo "RBT String"
+	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/find_spec.k           rbt/find.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/insert_spec.k         rbt/insert.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/delete_spec.k         rbt/delete.js
 
 .PHONY: clean
 clean:

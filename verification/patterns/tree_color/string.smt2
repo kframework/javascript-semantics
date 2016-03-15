@@ -1,0 +1,1 @@
+../tree_string/string.smt2
