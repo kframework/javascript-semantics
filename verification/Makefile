@@ -8,6 +8,7 @@ prove: list list-smt sorting tree
 
 .PHONY: build
 build: clean
+	kompile -d patterns/tree_priority --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_priority/js-verifier.k
 	kompile -d patterns/tree_color  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_color/js-verifier.k
 	kompile -d patterns/tree_string --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_string/js-verifier.k
 #	kompile -d patterns/tree_float  --no-prelude --backend java --main-module JS-VERIFIER --syntax-module JS-SYNTAX patterns/tree_float/js-verifier.k
@@ -75,6 +76,10 @@ tree:
 	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/find_spec.k           rbt/find.js
 	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/insert_spec.k         rbt/insert.js
 	K_OPTS=-Xmx4096m krun -d patterns/tree_color  --smt_prelude patterns/tree_color/string.smt2  --prove rbt/delete_spec.k         rbt/delete.js
+	@echo "Treap String"
+	K_OPTS=-Xmx4096m krun -d patterns/tree_priority  --smt_prelude patterns/tree_priority/string.smt2  --prove treap/find_spec.k           treap/treap.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_priority  --smt_prelude patterns/tree_priority/string.smt2  --prove treap/insert_spec.k         treap/treap.js
+	K_OPTS=-Xmx4096m krun -d patterns/tree_priority  --smt_prelude patterns/tree_priority/string.smt2  --prove treap/delete_spec.k         treap/treap.js
 
 .PHONY: clean
 clean:
